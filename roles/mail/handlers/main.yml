@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: MIT
+- name: systemctl reload postfix
+  systemd:
+    name: postfix
+    state: reloaded

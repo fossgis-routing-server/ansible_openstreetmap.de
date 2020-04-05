@@ -1,0 +1,73 @@
+---
+- hosts: all
+  gather_facts: no
+  strategy: linear
+  tasks:
+    - setup:
+      tags: always
+
+      #    # Ensure you're not missing out on anything
+      #    # Does a local git fetch, and ensures that the origin/master branch is
+      #    # merged into your current branch.  If not, it `fail`s.
+      #    - become: no
+      #      delegate_to: localhost
+      #      tags: always
+      #      check_mode: no
+      #      run_once: true
+      #      block:
+      #        - name: Check current ansible git repo
+      #          local_action: command git fetch origin
+      #          changed_when: False
+      #        - name: Check ansible git repo head
+      #          local_action: command git branch --merged HEAD --remotes --color=never
+      #          changed_when: False
+      #          register: branches_merged_in
+      #        - fail: msg="There are changes on origin/master that you don't have"
+      #          when: "'  origin/master' not in branches_merged_in.stdout_lines"
+
+      # Prevent ansible from running on too many hosts at once (max 5)
+      # ansible_play_hosts gets dynamically updated, so as hosts 'fail' this
+      # will reduce. 'freeze' this variable before `fail`ing
+    - set_fact: num_hosts_in_play="{{ ansible_play_hosts|length }}"
+      tags: always
+    - fail: msg="Refusing to run on {{ num_hosts_in_play }} hosts at once"
+      when: "num_hosts_in_play|int > 5"
+      check_mode: no
+      tags: always
+
+    - name: 'Prevent tag "never" to be run on more than one host'
+      when: "'never' in ansible_run_tags"
+      tags: always
+      #check_mode: no
+      fail:
+        msg: 'DANGER! You are running the tag "never" on more than one host. For safety reasons, this is not permitted because tasks tagged with "never" edit user accounts and or networking. The risk to break things is too high.'
+
+#
+# Regular playbooks here
+#
+
+- import_playbook: fossgis/base.yml
+  
+#
+# End of regular playbooks
+#
+
+  ## Check for unpushed commits
+  ## Run at end to increase chance it's seen
+  #- hosts: all
+  #  gather_facts: no
+  #  strategy: linear
+  #  tasks:
+  #    - become: no
+  #      delegate_to: localhost
+  #      tags: always
+  #      check_mode: no
+  #      run_once: true
+  #      block:
+  #        # NB: `git fetch origin` is run at start
+  #        - local_action: command git branch --contains HEAD --remotes --color=never
+  #          changed_when: False
+  #          register: branches_containing_HEAD
+  #        - debug: msg="There are commits on HEAD that you haven't pushed to origin"
+  #          when: "'  origin/master' not in branches_containing_HEAD.stdout_lines"
+  #          changed_when: True

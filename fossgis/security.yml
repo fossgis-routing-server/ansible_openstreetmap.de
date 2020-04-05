@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Disable SSH login without public key
+  lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: '^#? *PasswordAuthentication yes'
+    line: 'PasswordAuthentication no'
+  notify:
+    - reload ssh
+
+    #- name: Install fail2ban
+    #  apt:
+    #    name: fail2ban
+    #
+    #- name: Customise fail2ban
+    #  copy:
+    #    dest: '/etc/fail2ban/jail.local'
+    #    mode: 0644
+    #    owner: root
+    #    group: root
+    #    content: |
+    #        [DEFAULT]
+    #        bantime = 20m
+    #        findtime = 10m
+    #        maxretry = 15
+    #        [sshd]
+    #        enabled = true
+    #  notify:
+    #    - reload fail2ban
+
+- name: Install ufw
+  apt:
+    name: ufw
+
+- name: 'ufw: allow SSH, HTTP and HTTPS'
+  ufw:
+    comment: 'allow {{ item.comment }}'
+    rule: allow
+    name: '{{ item.protocol }}'
+  loop:
+    - {'comment': 'SSH', 'protocol': 'OpenSSH'}
+    - {'comment': 'HTTP+HTTPS', 'protocol': 'WWW Full'}
+      #    - {'comment': 'SMTP', 'protocol': 'SMTP'}
+
+- name: 'ufw: default deny'
+  ufw:
+    default: 'reject'
+
+- name: 'ufw enable'
+  ufw:
+    state: enabled
+
+    #- name: 'Install unattended-upgrades'
+    #  apt:
+    #    name: [unattended-upgrades, apt-listchanges]
+    #
+    #- name: 'Set email address for notifications by unattened-upgrade'
+    #  lineinfile:
+    #    path: /etc/apt/apt.conf.d/50unattended-upgrades
+    #    regexp: '^Unattended-Upgrade::Mail "[^"]+";'
+    #    line: 'Unattended-Upgrade::Mail "blog-root@openstreetmap.de";'

@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: MIT
+---
+- name: "Install Apache 2 and MariaDB"
+  apt:
+    name: [apache2, mariadb-server, php, php-mysql, php-curl, php-gd, php-mbstring, php-xml, php-xmlrpc, php-soap, php-intl, php-zip]
+
+- name: "Create database for Wordpress"
+  mysql_db:
+    name: wpblog
+
+- name: Create a random password for Wordpress accessing MariaDB database
+  set_fact:
+    mysql_password: "{{ lookup('password', '/dev/null length=12') }}"
+
+- name: "Create database user for Wordpress"
+  mysql_user:
+    name: wpblog
+    #TODO change password or write it to the configuration
+    password: "{{ mysql_password }}"
+    state: present
+    priv: 'wpblog.*:ALL'
+
+- name: "Create directory /root/packages"
+  file:
+    state: directory
+    path: '/root/packages'
+    owner: root
+    group: root
+
+- name: "Download Wordpress"
+  get_url:
+    url: 'https://wordpress.org/wordpress-{{ wordpress.version }}.tar.gz'
+    checksum: 'sha1:{{ wordpress.tarball_sha1 }}'
+    dest: '/root/packages/wordpress-{{ wordpress.version }}.tar.gz'
+
+- name: "Unpack Wordpress tarball"
+  unarchive:
+    remote_src: yes
+    src: '/root/packages/wordpress-{{ wordpress.version }}.tar.gz'
+    dest: '/var/www/'
+    owner: root
+    group: root
+    mode: 0644
+
+- name: "Set MariaDB password in Wordpress configuration"
+  template:
+    dest: /etc/wordpress/config-default.php
+    source: 'config-default.php'
+    owner: 'www-data'
+    group: 'www-data'
+    mode: '0644'

@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: MIT
+---
+- hosts: wordpress
+  become: yes
+  tags: wordpress
+  tasks:
+    - import_role:
+        name: 'roles/wordpress'
+      vars:
+        wordpress:
+          version: '5.4'
+          tarball_sha1: 'd5f1e6d7cadd72c11d086a2e1ede0a72f23d993e'

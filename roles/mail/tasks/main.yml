@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Install Postfix
+  apt:
+    name: [postfix]
+
+- name: set /etc/mailname
+  copy:
+    dest: /etc/mailname
+    owner: root
+    group: root
+    mode: 0644
+    content: |
+      {{ ansible_hostname }}
+
+#- name: Generate our own DH parameters, see http://www.postfix.org/postconf.5.html#smtp_tls_policy_maps for details
+#  openssl_dhparam:
+#    size: 2048
+#    mode: 0640
+#    owner: root
+#    group: root
+#    path: /etc/postfix/dh2048.pem
+
+- name: Write /etc/postfix/main.cf
+  template:
+    dest: /etc/postfix/main.cf
+    src: main.cf
+    owner: root
+    group: root
+    mode: 0644
+  notify:
+    - systemctl reload postfix
+
+- name: Write /etc/postfix/master.cf
+  copy:
+    dest: /etc/postfix/master.cf
+    src: master.cf
+    owner: root
+    group: root
+    mode: 0644
+  notify:
+    - systemctl restart postfix
