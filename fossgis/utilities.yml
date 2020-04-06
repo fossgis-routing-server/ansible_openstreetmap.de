@@ -2,4 +2,4 @@
 ---
 - name: Install sudo
   apt:
-    name: [htop, screen, time]
+    name: [htop, screen, time, vim]
