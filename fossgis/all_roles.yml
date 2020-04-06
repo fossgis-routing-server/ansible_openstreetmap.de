@@ -1,5 +1,12 @@
 # SPDX-License-Identifier: MIT
 ---
+- hosts: all
+  become: yes
+  tags: mail
+  tasks:
+    - import_role:
+        name: 'roles/mail'
+      vars:
 - hosts: wordpress
   become: yes
   tags: wordpress

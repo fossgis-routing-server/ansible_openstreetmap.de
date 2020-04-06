@@ -40,7 +40,7 @@
   loop:
     - {'comment': 'SSH', 'protocol': 'OpenSSH'}
     - {'comment': 'HTTP+HTTPS', 'protocol': 'WWW Full'}
-      #    - {'comment': 'SMTP', 'protocol': 'SMTP'}
+    - {'comment': 'SMTP', 'protocol': 'SMTP'}
 
 - name: 'ufw: default deny'
   ufw:
