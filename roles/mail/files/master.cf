@@ -12,7 +12,7 @@
 ## Postscreen service
 #smtp      inet  n       -       y       -       1       postscreen
 # SMTP daemon after Postscreen to pass emails to Amavis
-smtpd     pass  -       -       y       -       -       smtpd
+smtp     inet  n       -       y       -       -       smtpd
     -o smtpd_sasl_auth_enable=no
 ## TLS support for Postscreen
 #tlsproxy  unix  -       -       y       -       0       tlsproxy

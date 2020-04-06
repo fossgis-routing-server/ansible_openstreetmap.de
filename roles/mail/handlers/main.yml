@@ -3,3 +3,8 @@
   systemd:
     name: postfix
     state: reloaded
+
+- name: systemctl restart postfix
+  systemd:
+    name: postfix
+    state: restarted

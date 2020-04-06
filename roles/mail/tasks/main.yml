@@ -11,15 +11,7 @@
     group: root
     mode: 0644
     content: |
-      {{ ansible_hostname }}
-
-#- name: Generate our own DH parameters, see http://www.postfix.org/postconf.5.html#smtp_tls_policy_maps for details
-#  openssl_dhparam:
-#    size: 2048
-#    mode: 0640
-#    owner: root
-#    group: root
-#    path: /etc/postfix/dh2048.pem
+      {{ inventory_hostname }}
 
 - name: Write /etc/postfix/main.cf
   template:
@@ -39,4 +31,4 @@
     group: root
     mode: 0644
   notify:
-    - systemctl restart postfix
+    - systemctl reload postfix
