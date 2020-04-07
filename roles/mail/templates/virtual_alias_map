@@ -1,0 +1,2 @@
+# source                       destination
+root@{{ inventory_hostname }}  osm-ml@michreichert.de
