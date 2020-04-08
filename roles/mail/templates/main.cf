@@ -63,3 +63,6 @@ smtpd_helo_restrictions =   permit_mynetworks reject
 
 # Restrictions for relay access (recipient domain not one of our domains)
 smtpd_relay_restrictions = permit_mynetworks reject
+
+# aliases (we do not have local mailboxes)
+virtual_alias_maps = hash:/etc/postfix/virtual_alias_map
