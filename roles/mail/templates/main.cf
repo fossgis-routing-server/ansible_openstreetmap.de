@@ -46,20 +46,13 @@ inet_interfaces = all
 inet_protocols = all
 
 # Restriction controlling access to the Postfix SMTP server
-# Their purpose is to reject clients where reverse DNS fails
-#smtpd_client_restrictions = permit_mynetworks reject_unknown_client_hostname
+# Their purpose is to reject any clients except those from localhost
+# We don't want receive any mail and this avois having to deal with spam filtering.
 smtpd_client_restrictions = permit_mynetworks reject
 
 # Restriction in the HELO context
 smtpd_helo_required = yes
-#smtpd_helo_restrictions =   permit_mynetworks
-#                            reject_invalid_helo_hostname
-#                            reject_non_fqdn_helo_hostname
-#                            reject_unknown_helo_hostname
-smtpd_helo_restrictions =   permit_mynetworks reject
-
-#smtpd_sender_restrictions = permit_mynetworks
-#                            reject_unknown_client_hostname
+smtpd_helo_restrictions = permit_mynetworks reject
 
 # Restrictions for relay access (recipient domain not one of our domains)
 smtpd_relay_restrictions = permit_mynetworks reject
