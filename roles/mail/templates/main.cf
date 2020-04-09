@@ -45,6 +45,11 @@ recipient_delimiter = +
 inet_interfaces = all
 inet_protocols = all
 
+{% if mail.opendkim %}
+# Add DKIM signatures to emails from localhost
+non_smtpd_milters = unix:opendkim/opendkim.sock
+{% endif %}
+
 # Restriction controlling access to the Postfix SMTP server
 # Their purpose is to reject any clients except those from localhost
 # We don't want receive any mail and this avois having to deal with spam filtering.

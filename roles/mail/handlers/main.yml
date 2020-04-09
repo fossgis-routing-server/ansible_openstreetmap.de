@@ -8,3 +8,8 @@
   systemd:
     name: postfix
     state: restarted
+
+- name: systemctl restart opendkim
+  systemd:
+    name: opendkim
+    state: restarted
