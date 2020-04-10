@@ -1,0 +1,6 @@
+---
+mail:
+  opendkim: true
+  domains:
+    - blog.openstreetmap.de
+    - weeklyosm.eu
