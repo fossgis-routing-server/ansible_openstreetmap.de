@@ -16,7 +16,7 @@
 - name: 'virtual_alias_map and bad_senders'
   include_tasks: write_and_hash.yml
   loop:
-    - {'src': 'virtual_alias_map', 'dest': '/etc/postfix/virtual_alias_map', 'cmd': 'postmap'}
+    - {'dest': '/etc/postfix/virtual_alias_map', 'cmd': 'postmap'}
 
 - name: Write /etc/postfix/main.cf
   template:

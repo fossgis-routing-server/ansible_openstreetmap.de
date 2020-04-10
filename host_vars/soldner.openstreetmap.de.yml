@@ -4,3 +4,9 @@ mail:
   domains:
     - blog.openstreetmap.de
     - weeklyosm.eu
+  aliases:
+    # Keys of this dictionary: keys of the alias mapping
+    # Values of this dictionary: either a string (value of the mapping) or a list of strings (multiple alias recipients)
+    root@blog.openstreetmap.de: osm-ml@michreichert.de
+    root@soldner.openstreetmap.de: osm-ml@michreichert.de
+    root@weeklyosm.eu: osm-ml@michreichert.de

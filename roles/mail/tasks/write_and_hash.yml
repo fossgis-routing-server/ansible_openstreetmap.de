@@ -1,12 +1,16 @@
 # SPDX-License-Identifier: MIT
-- name: 'Create {{ item }}'
-  template:
+- name: 'Create {{ item.dest }}'
+  register: map_result
+  copy:
     dest: '{{ item.dest }}'
     owner: root
     group: root
     mode: 0644
-    src: '{{ item.src }}'
-  register: map_result
+    content: |
+      {% for key, value in mail.aliases.items() %}
+      {{ key }} {% if value is string %}{{ value }}{% else %}{{ value|join(',') }}
+      {% endif %}
+      {% endfor %}
 
 - name: Run postmap if required on virtual_alias_map
   shell:
