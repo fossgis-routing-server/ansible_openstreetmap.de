@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: MIT
+---
+- name: "Install uwsgi for request-by-coordinate dispatcher"
+  apt:
+    name: [git, python3-cherrypy3, uwsgi, uwsgi-plugin-python3]
+
+- name: "checkout request-by-coordinate"
+  git:
+    repo: git://github.com/fossgis-routing-server/request-by-coordinate.git
+    dest: '{{ osrm.basedir }}/request-by-coordinate'
+    version: '8bf7783311c8f1efc7b0185aa57b41cfd90ecd37'
+    force: yes
+
+- name: "set request-by-coordinate configuration"
+  template:
+    dest: '{{ osrm.basedir }}/request-by-coordinate/settings.cfg'
+    src: 'request-by-coordinate.cfg.erb'
+    owner: '{{ osrm.user }}'
+    group: '{{ osrm.user }}'
+    mode: '0644'
+
+- name: "create directory /var/run/uwsgi for uwsgi socket"
+  file:
+    path: '/var/run/uwsgi'
+    state: directory
+    owner: 'www-data'
+    group: 'www-data'
+    mode: '0755'
+
+- name: "systemd unit for uwsgi request-by-coordinate"
+  template:
+    dest: '/etc/systemd/system/request-by-coordinate.service'
+    src: 'systemd.jinja'
+    mode: '0644'
+
+- name: 'ufw: allow osrm access from own servers'
+  ufw:
+    comment: 'allow {{ item.comment }}'
+    rule: allow
+    port: '3330:3340'
+    proto: tcp
+    from_ip: '{{ item.src }}'
+  with_items:
+    - {'comment': 'routing3', 'src': '88.99.61.41' }
+    - {'comment': 'routing3', 'src': '2a01:4f8:10a:d68::/64' }
+    - {'comment': 'routing4', 'src': '138.201.64.66'}
+    - {'comment': 'routing4', 'src': '2a01:4f8:172:1941::/64'}
+    - {'comment': 'routing5', 'src': '136.243.131.227'}
+    - {'comment': 'routing5', 'src': '2a01:4f8:212:33a2::/64'}

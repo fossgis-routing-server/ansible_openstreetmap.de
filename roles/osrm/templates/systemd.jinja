@@ -1,0 +1,20 @@
+[Unit]
+Description=request-by-coordinate uwsgi
+After=syslog.target
+
+[Service]
+ExecStart=/usr/bin/uwsgi_python3\
+        --chdir {{ osrm.basedir }}/request-by-coordinate \
+        --wsgi-file request-by-coordinate.py \
+        --socket /var/run/uwsgi/osrm.socket \
+        --master --processes 24 --threads 1 \
+        --stats 127.0.0.1:9191
+User=www-data
+Group=www-data
+Restart=on-failure
+Type=notify
+StandardError=syslog
+NotifyAccess=all
+
+[Install]
+WantedBy=sockets.target
