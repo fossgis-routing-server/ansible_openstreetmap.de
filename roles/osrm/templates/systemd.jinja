@@ -8,7 +8,8 @@ ExecStart=/usr/bin/uwsgi_python3\
         --wsgi-file request-by-coordinate.py \
         --socket /var/run/uwsgi/osrm.socket \
         --master --processes 24 --threads 1 \
-        --stats 127.0.0.1:9191
+        --stats /var/run/uwsgi/stats.socket \
+        {{ "--logformat '[pid: %(pid)] {%(vars) vars in %(pktsize) bytes} [%(ctime)] %(method) %(uri) => generated %(rsize) bytes in %(msecs) msecs (%(proto) %(status)) %(headers) headers in %(hsize) bytes (%(switches) switches on core %(core))'" }}
 User=www-data
 Group=www-data
 Restart=on-failure

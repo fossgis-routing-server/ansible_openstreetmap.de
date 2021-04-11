@@ -163,3 +163,15 @@
               poly: "{{ osrm_polyam }}"
               port: 3337
 
+  handlers:
+    - name: restart nginx
+      service:
+        name: nginx
+        state: restarted
+        enabled: yes
+    - name: restart munin-node
+      service:
+        name: munin-node
+        state: restarted
+        enabled: yes
+

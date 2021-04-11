@@ -1,0 +1,10 @@
+
+map $uri $limit_table {
+    default "";
+    ~/table/v1/ $binary_remote_addr;
+    ~/trip/v1/ $binary_remote_addr;
+}
+
+limit_req_zone $binary_remote_addr zone=standard:50m rate=2r/s;
+limit_req_zone $limit_table zone=table:50m rate=10r/m;
+

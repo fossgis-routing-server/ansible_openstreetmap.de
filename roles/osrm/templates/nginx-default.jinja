@@ -1,0 +1,121 @@
+
+map $http_accept_language $lang {
+    default en;
+    ~en en;
+    ~de de;
+    ~es es;
+    ~fr fr;
+    ~ru ru;
+    ~sv sv;
+    ~vi vi;
+    ~zh zh;
+}
+
+server {
+    listen 80 {{ default_server }};
+    listen [::]:80 {{ default_server }};
+    listen 443 ssl http2 {{ default_server }};
+    listen [::]:443 ssl http2 {{ default_server }};
+    ssl_certificate /etc/letsencrypt/live/routing3.openstreetmap.de/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/routing3.openstreetmap.de/privkey.pem;
+
+    ssl_session_timeout 5m;
+
+    ssl_prefer_server_ciphers on;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers 'EDH+CAMELLIA:EDH+aRSA:EECDH+aRSA+AESGCM:EECDH+aRSA+SHA256:EECDH:+CAMELLIA128:+AES128:+SSLv3:!aNULL:!eNULL:!LOW:!3DES:!MD5:!EXP:!PSK:!DSS:!RC4:!SEED:!IDEA:!ECDSA:kEDH:CAMELLIA128-SHA:AES128-SHA';
+
+    root /var/www/routing;
+
+    index index.html
+
+    server_name {{ server_name }};
+
+    location = / {
+        set $relang 'en';
+        if ($query_string !~ "(^|&)hl=") {
+            set $relang $lang;
+        }
+
+        if ($relang !~ 'en') {
+            rewrite ^ /?hl=$relang redirect;
+        }
+    }
+
+    location / {
+        # First attempt to serve request as file, then
+        # as directory, then fall back to displaying a 404.
+        try_files $uri $uri/ =404;
+    }
+
+    # deny access to .htaccess files, if Apache's document root
+    # concurs with nginx's one
+    
+    location ~ /\.ht {
+           deny all;
+    }
+    
+    error_page 429 /429.html;
+    location /429.html {
+        add_header access-control-allow-origin "*" always;
+    }
+
+{% if answer_routes %}
+    limit_req zone=table burst=5;
+    limit_req_status 429;
+
+    access_log /var/log/nginx/router.log anonymized;
+
+    location /routed-car {
+        limit_req zone=standard burst=10;
+        include /etc/nginx/uwsgi_params;
+        rewrite ^/routed-car/(.*)$ /car/$1 break;
+        uwsgi_pass  unix:///var/run/uwsgi/osrm.socket;
+        uwsgi_param SCRIPT_NAME /request-by-coordinate;
+        access_log /var/log/nginx/router.log anonymized;
+        access_log /var/log/nginx/routing-times-car.log access_times;
+    }
+
+    location /routed-bike {
+        limit_req zone=standard burst=10;
+        include  /etc/nginx/uwsgi_params;
+        rewrite  ^/routed-bike/(.*)$ /bike/$1 break;
+        uwsgi_pass  unix:///var/run/uwsgi/osrm.socket;
+        uwsgi_param SCRIPT_NAME /request-by-coordinate;
+        access_log /var/log/nginx/router.log anonymized;
+        access_log /var/log/nginx/routing-times-bike.log access_times;
+    }
+
+    location /routed-foot {
+        limit_req zone=standard burst=10;
+        include  /etc/nginx/uwsgi_params;
+        rewrite  ^/routed-foot/(.*)$ /foot/$1 break;
+        uwsgi_pass  unix:///var/run/uwsgi/osrm.socket;
+        uwsgi_param SCRIPT_NAME /request-by-coordinate;
+        access_log /var/log/nginx/router.log anonymized;
+        access_log /var/log/nginx/routing-times-foot.log access_times;
+    }
+{% endif %}
+
+{% if munin %}
+    location /munin/static/ {
+        limit_req zone=standard burst=100 nodelay;
+        alias /etc/munin/static/;
+        expires modified +1w;
+    }
+
+    location /munin/ {
+        limit_req zone=standard burst=100 nodelay;
+        alias /var/cache/munin/www/;
+        expires modified +310s;
+    }
+
+    location ^~ /munin-cgi/munin-cgi-graph/ {
+        access_log off;
+        fastcgi_split_path_info ^(/munin-cgi/munin-cgi-graph)(.*);
+        fastcgi_param PATH_INFO $fastcgi_path_info;
+        fastcgi_pass unix:/var/run/munin/fastcgi-graph.sock;
+        include fastcgi_params;
+    }
+{% endif %}
+}
