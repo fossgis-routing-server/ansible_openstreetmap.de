@@ -61,13 +61,13 @@ server {
     }
 
 {% if answer_routes %}
-    limit_req zone=table burst=5;
     limit_req_status 429;
 
     access_log /var/log/nginx/router.log anonymized;
 
     location /routed-car {
         limit_req zone=standard burst=10;
+        limit_req zone=table burst=5;
         include /etc/nginx/uwsgi_params;
         rewrite ^/routed-car/(.*)$ /car/$1 break;
         uwsgi_pass  unix:///var/run/uwsgi/osrm.socket;
@@ -78,6 +78,7 @@ server {
 
     location /routed-bike {
         limit_req zone=standard burst=10;
+        limit_req zone=table burst=5;
         include  /etc/nginx/uwsgi_params;
         rewrite  ^/routed-bike/(.*)$ /bike/$1 break;
         uwsgi_pass  unix:///var/run/uwsgi/osrm.socket;
@@ -88,6 +89,7 @@ server {
 
     location /routed-foot {
         limit_req zone=standard burst=10;
+        limit_req zone=table burst=5;
         include  /etc/nginx/uwsgi_params;
         rewrite  ^/routed-foot/(.*)$ /foot/$1 break;
         uwsgi_pass  unix:///var/run/uwsgi/osrm.socket;

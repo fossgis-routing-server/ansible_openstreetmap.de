@@ -8,7 +8,7 @@
   git:
     repo: git://github.com/fossgis-routing-server/request-by-coordinate.git
     dest: '{{ osrm.basedir }}/request-by-coordinate'
-    version: '8bf7783311c8f1efc7b0185aa57b41cfd90ecd37'
+    version: '89faaf71f1acd13bfd182cd09e20af2a604cc94a'
     force: yes
 
 - name: "set request-by-coordinate configuration"
@@ -18,6 +18,7 @@
     owner: '{{ osrm.user }}'
     group: '{{ osrm.user }}'
     mode: '0644'
+  notify: restart request-by-coordinate
 
 - name: "create directory /var/run/uwsgi for uwsgi socket"
   file:
