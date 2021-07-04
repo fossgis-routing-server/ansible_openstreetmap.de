@@ -125,15 +125,19 @@
           user: 'osrm'
 
           profiles:
-            car:  ["careu",  "caram"]
+            car:  ["careuasi",  "carafoce",  "caram"]
             bike: ["bikeeuasi", "bikeafoce", "bikeam"]
             foot: ["footeuasi", "footafoce", "footam"]
 
           profilearea:
-            careu:
+            careuasi:
               host: "routing3"
-              poly: "{{ osrm_polynotam }}"
+              poly: "{{ osrm_polyeuasi }}"
               port: 3330
+            carafoce:
+              host: "routing3"
+              poly: "{{ osrm_polyafoce }}"
+              port: 3338
             caram:
               host: "routing4"
               poly: "{{ osrm_polyam }}"
