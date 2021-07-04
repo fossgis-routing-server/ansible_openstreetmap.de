@@ -8,7 +8,7 @@
   git:
     repo: git://github.com/fossgis-routing-server/request-by-coordinate.git
     dest: '{{ osrm.basedir }}/request-by-coordinate'
-    version: '89faaf71f1acd13bfd182cd09e20af2a604cc94a'
+    version: '775b6ea3dd4524905a27658103c818ad52ba0841'
     force: yes
 
 - name: "set request-by-coordinate configuration"

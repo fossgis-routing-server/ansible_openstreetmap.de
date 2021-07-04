@@ -1,10 +1,32 @@
 
-map $uri $limit_table {
-    default "";
-    ~/table/v1/ $binary_remote_addr;
-    ~/trip/v1/ $binary_remote_addr;
+map $uri $limit_type {
+    default       0;
+    ~/route/v1/   1;
+    ~/nearest/v1/ 1;
+    ~/match/v1/   1;
+    ~/table/v1/   2;
+    ~/trip/v1/    2;
+    ~/tile/v1/    3;
 }
 
-limit_req_zone $binary_remote_addr zone=standard:50m rate=2r/s;
+map $limit_type $limit_table {
+    default "";
+    2       $binary_remote_addr;
+}
+
+map $uri $limit_route {
+    default "";
+    1       $binary_remote_addr;
+}
+
+map $uri $limit_tile {
+    default "";
+    0       $binary_remote_addr;
+    3       $binary_remote_addr;
+}
+
+
+limit_req_zone $limit_route zone=standard:50m rate=2r/s;
 limit_req_zone $limit_table zone=table:50m rate=10r/m;
+limit_req_zone $limit_tile zone=tile:5m rate=5r/s;
 

@@ -22,8 +22,10 @@ server {
         add_header access-control-allow-origin "*" always;
     }
 
+    limit_req_status 429;
     limit_req zone=standard burst=10;
     limit_req zone=table burst=5;
+    limit_req zone=tile burst=50;
 
     access_log /var/log/nginx/router.log anonymized;
 
