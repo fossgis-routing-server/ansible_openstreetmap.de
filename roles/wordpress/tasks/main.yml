@@ -1,16 +1,28 @@
 # SPDX-License-Identifier: MIT
 ---
-- name: "Install Apache 2 and MariaDB"
+- name: "Install Apache 2 and MariaDB, and python3-pymysql as required by Ansible"
   apt:
-    name: [apache2, mariadb-server, php, php-mysql, php-curl, php-gd, php-mbstring, php-xml, php-xmlrpc, php-soap, php-intl, php-zip]
+    name: [apache2, mariadb-server, php, php-mysql, php-curl, php-gd, php-mbstring, php-xml, php-xmlrpc, php-soap, php-intl, php-zip, python3-pymysql, gzip]
 
 - name: "Create database for Wordpress"
   mysql_db:
     name: wpblog
+    login_user: root
+    login_unix_socket: '{{ mariadb.socket_path }}'
 
-- name: Create a random password for Wordpress accessing MariaDB database
+# TODO Ideally, we should do this in a smarter way and only write the rendered template if necessary, not at every run.
+- name: Create a random password for Wordpress accessing MariaDB database and various secret keys/salts for cookies/temporary tokens
   set_fact:
     mysql_password: "{{ lookup('password', '/dev/null length=12') }}"
+    wordpress_secret_key: "{{ lookup('password', '/dev/null length=42') }}"
+    wordpress_auth_key: "{{ lookup('password', '/dev/null length=64') }}"
+    wordpress_secure_auth_key: "{{ lookup('password', '/dev/null length=81') }}"
+    wordpress_logged_in_key: "{{ lookup('password', '/dev/null length=64') }}"
+    wordpress_nonce_key: "{{ lookup('password', '/dev/null length=64') }}"
+    wordpress_auth_salt: "{{ lookup('password', '/dev/null length=64') }}"
+    wordpress_secure_auth_salt: "{{ lookup('password', '/dev/null length=64') }}"
+    wordpress_logged_in_salt: "{{ lookup('password', '/dev/null length=64') }}"
+    wordpress_nonce_salt: "{{ lookup('password', '/dev/null length=64') }}"
 
 - name: "Create database user for Wordpress"
   mysql_user:
@@ -19,33 +31,115 @@
     password: "{{ mysql_password }}"
     state: present
     priv: 'wpblog.*:ALL'
+    login_user: root
+    login_unix_socket: '{{ mariadb.socket_path }}'
 
-- name: "Create directory /root/packages"
+- name: "Import dumps"
+  when: wordpress_import_dumps
+  block:
+    - name: "Create directory /root/packages"
+      file:
+        state: directory
+        path: '/root/packages'
+        owner: root
+        group: root
+
+    - local_action:
+        stat:
+          path: "../files_to_upload/host/{{ inventory_hostname }}/{{ item }}/"
+      register: "local_exists_{{ item }}"
+      loop:
+        - "blog.openstreetmap.de_dir_var_www_wordpress"
+        - "blog.openstreetmap.de_dir_var_lib_wordpress"
+        - "blog.openstreetmap.de_mariadb_wpblog"
+
+    - when: "{{ item }}.changed == False"
+      fail:
+        msg: "Missing dump {{ item }}"
+      loop:
+        - "blog.openstreetmap.de_dir_var_www_wordpress"
+        - "blog.openstreetmap.de_dir_var_lib_wordpress"
+        - "blog.openstreetmap.de_mariadb_wpblog"
+
+    - name: "Upload Wordpress database and directory dumps ({{ item }})"
+      synchronize:
+        src: "../files_to_upload/host/{{ inventory_hostname }}/{{ item }}/"
+        dest: "/"
+        owner: no
+        group: no
+        perms: no
+        rsync_opts: ["--omit-dir-times"]
+      loop:
+        - "blog.openstreetmap.de_dir_var_www_wordpress"
+        - "blog.openstreetmap.de_dir_var_lib_wordpress"
+        - "blog.openstreetmap.de_mariadb_wpblog"
+
+    #- name: "Download Wordpress"
+    #  get_url:
+    #    url: 'https://wordpress.org/wordpress-{{ wordpress.version }}.tar.gz'
+    #    checksum: 'sha1:{{ wordpress.tarball_sha1 }}'
+    #    dest: '/root/packages/wordpress-{{ wordpress.version }}.tar.gz'
+    #
+    #- name: "Unpack Wordpress tarball"
+    #  unarchive:
+    #    remote_src: yes
+    #    src: '/root/packages/wordpress-{{ wordpress.version }}.tar.gz'
+    #    dest: '/var/www/'
+    #    owner: www-data
+    #    group: www-data
+    #    mode: 0644
+
+- name: "Create directory /etc/wordpress"
   file:
     state: directory
-    path: '/root/packages'
+    path: '/etc/wordpress'
     owner: root
     group: root
-
-- name: "Download Wordpress"
-  get_url:
-    url: 'https://wordpress.org/wordpress-{{ wordpress.version }}.tar.gz'
-    checksum: 'sha1:{{ wordpress.tarball_sha1 }}'
-    dest: '/root/packages/wordpress-{{ wordpress.version }}.tar.gz'
-
-- name: "Unpack Wordpress tarball"
-  unarchive:
-    remote_src: yes
-    src: '/root/packages/wordpress-{{ wordpress.version }}.tar.gz'
-    dest: '/var/www/'
-    owner: root
-    group: root
-    mode: 0644
 
 - name: "Set MariaDB password in Wordpress configuration"
   template:
     dest: /etc/wordpress/config-default.php
-    source: 'config-default.php'
+    src: 'config-default.php'
     owner: 'www-data'
     group: 'www-data'
     mode: '0644'
+
+- name: "Check if database has been imported already"
+  mysql_table_exists:
+    db: wpblog
+    name: wp_posts
+  register: database_imported
+
+- name: "Load database dump if the database has not been imported already"
+  when: not database_imported.table_exists
+  block:
+    - name: "Check if database dump is available"
+      stat:
+        path: /root/packages/wpblog_dump.sql.gz
+      register: stat_result
+
+    - name: 'Fail if database dump is not present'
+      when: not stat_result.stat.exists
+      fail:
+        msg: 'Require database dump at /root/packages/wpblog_dump.sql.gz in order to be able to load it in the next step.'
+
+    - name: 'Load database dump'
+      shell:
+        cmd: 'gzip -dc /root/packages/wpblog_dump.sql.gz | mysql --user root --database wpblog'
+
+- name: 'Write Apache VirtualHost configuration'
+  template:
+    src: 'blog.openstreetmap.de.conf'
+    dest: '/etc/apach2/sites-available/blog.openstreetmap.de.conf'
+    owner: root
+    group: root
+    mode: 0644
+  notify:
+    - systemctl reload apache2
+
+- name: Enable Apache VirtualHost configuration for API and website
+  shell:
+    cmd: 'a2ensite blog.openstreetmap.de.conf'
+    chdir: /etc/apache2/sites-available
+  notify:
+    - systemd reload apache2
