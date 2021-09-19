@@ -86,7 +86,7 @@ def has_table(module, result):
         conn = pymysql.Connect(host='localhost', user='root', unix_socket=module.params['login_unix_socket'], database=module.params['db'])
         with conn.cursor() as cur:
             cur.execute('SELECT 1 FROM `{}` LIMIT 1'.format(module.params['name']))
-            row = cursor.fetchone()
+            row = cur.fetchone()
             found = (row and len(row) == 1 and int(row[0]) == 1)
     except pymysql.err.ProgrammingError as err:
         # raised if the table does not exist

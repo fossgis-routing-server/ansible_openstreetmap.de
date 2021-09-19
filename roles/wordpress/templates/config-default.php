@@ -1,13 +1,12 @@
 <?php
 define( 'WP_DEBUG', false );
-// note:  wpdb::escape is deprecated comes from WordPress MU Domain Mapping Plugin --Andi
 
 define('DB_NAME', 'wpblog');
 define('DB_USER', 'wpblog');
 define('DB_PASSWORD', '{{ mysql_password }}');
 define('DB_HOST', 'localhost');
 define('SECRET_KEY', 'ULvAULnWkgshd8keucq1rpbZbfCzQbSlYb8eLB1L2b');
-define('AUTH_KEY', ';7uI%AfCd=ki%BWo/{-rUD#~Yl;/yFPK!C{%/S$[;8GXU_s3@#IGNJfFSUILI?A<');
+define('AUTH_KEY', ';7uI%AfCd=ki%BWo/{-rUD#~Yl;/yFPK!C{\%/S$[;8GXU_s3@#IGNJfFSUILI?A<');
 define('SECURE_AUTH_KEY', 'lih#!nID,<URG<eV@|c}(YJ~}_O@[JZNw)w8f4p+Hre)K.q89H#bq3u?a[eOH+: ');
 define('LOGGED_IN_KEY', ' !1lF2&%S@R4cYE]VRb=q2 ({W$%gG/(!<g<4~uc8wVWH|-t8OT7g)j)X|$P;3_2');
 define('NONCE_KEY', '~83KqwB}+J?e.lrQpzF!?C[x2_*#[$?qgM?c;<7ku^Jm@+q,3=POAeywQuX$~6M8');
@@ -21,7 +20,7 @@ define('NONCE_SALT', 'eq`%+m%+o7U{eIt-9*u#~MKXfADVH))Lm3vY|o^{8c<,BYi|{Hy|I]$ch#
 define('ABSPATH', '/var/www/wordpress/');
 #define('WPCACHEHOME', ABSPATH.'wp-content/plugins/wp-super-cache/');
 #define('WP_CACHE', true);
-define('FS_METHOD','direct');
+define('FS_METHOD', 'direct');
 
 define('WPLANG', 'de_DE');
 define('DB_CHARSET', 'utf8');
@@ -37,10 +36,6 @@ define('DOMAIN_CURRENT_SITE', 'weeklyosm.eu');
 define('PATH_CURRENT_SITE', '/');
 define('SITE_ID_CURRENT_SITE', 1);
 define('BLOG_ID_CURRENT_SITE', 1);
-
-# from WordPress MU Domain Mapping Plugin:
-define( 'SUNRISE', 'on' );
-
 
 $table_prefix  = 'wp_';
 $server = DB_HOST;
