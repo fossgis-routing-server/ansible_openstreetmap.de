@@ -30,9 +30,9 @@ define('DB_CHARSET', 'utf8');
 #define('WP_CORE_UPDATE', false);
 
 
-define('MULTISITE', true);
+define('MULTISITE', false);
 define('SUBDOMAIN_INSTALL', false);
-define('DOMAIN_CURRENT_SITE', 'blog.openstreetmap.de');
+define('DOMAIN_CURRENT_SITE', 'weeklyosm.eu');
 # If you change DOMAIN_CURRENT_SITE also change settings in database, especally in tables wp_blogs and wp_settings --Andi
 define('PATH_CURRENT_SITE', '/');
 define('SITE_ID_CURRENT_SITE', 1);
@@ -50,7 +50,7 @@ $base = DB_NAME;
 $upload_path = "/var/lib/wordpress/wp-uploads";
 # Upload path changed (old version see above) to make uploading work at blog.openstreetmap.de -- michaelr 2019-04-20
 #$upload_path = "/var/lib/wordpress/wp-content/uploads";
-$upload_url_path = "http://blog.openstreetmap.de/wp-uploads";
+$upload_url_path = "https://weeklyosm.eu/wp-uploads";
 
 
 ?>

@@ -17,10 +17,9 @@
         wordpress:
           version: '5.4'
           tarball_sha1: 'd5f1e6d7cadd72c11d086a2e1ede0a72f23d993e'
-          hostname: 'blog.openstreetmap.de'
+          hostname: 'weeklyosm.eu'
           hostname_aliases:
             - 'www.weeklyosm.eu'
-            - 'weeklyosm.eu'
         mariadb:
           socket_path: '/var/run/mysqld/mysqld.sock'
 - hosts: osrm

@@ -130,7 +130,7 @@
 - name: 'Write Apache VirtualHost configuration'
   template:
     src: 'blog.openstreetmap.de.conf'
-    dest: '/etc/apach2/sites-available/blog.openstreetmap.de.conf'
+    dest: '/etc/apache2/sites-available/weeklyosm.eu.conf'
     owner: root
     group: root
     mode: 0644
@@ -139,7 +139,7 @@
 
 - name: Enable Apache VirtualHost configuration for API and website
   shell:
-    cmd: 'a2ensite blog.openstreetmap.de.conf'
+    cmd: 'a2ensite weeklyosm.eu.conf'
     chdir: /etc/apache2/sites-available
   notify:
     - systemd reload apache2
