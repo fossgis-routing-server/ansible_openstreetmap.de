@@ -19,11 +19,10 @@ DROP TABLE wp_podlove_downloadintent;
 DROP TABLE wp_podlove_useragent;
 
 
-
-
 /* Blog ID 3 (podcast.openstreetmap.de) löschen */
 
 DELETE FROM wp_blogs WHERE blog_id IN ('3');
+DELETE FROM wp_usermeta WHERE meta_key LIKE 'wp_3_%';
 
 DROP TABLE wp_3_terms;
 DROP TABLE wp_3_termmeta;
@@ -79,7 +78,10 @@ DROP TABLE wp_wpvq_appreciations;
 DROP TABLE wp_wpvq_answers;
 
 
-/* Tabellen von Blog ID 1 (blog.openstreetmap.de) umbennen */
+/* Tabellen und Settings von Blog ID 1 (blog.openstreetmap.de) umbennen */
+
+UPDATE wp_usermeta SET meta_key = REPLACE(meta_key, 'wp_', 'wp_1_') 
+WHERE meta_key IN ('wp_capabilities', 'wp_dashboard_quick_press_last_post_id', 'wp_media_library_mode', 'wp_user_level', 'wp_user-settings', 'wp_user-settings-time'); 
 
 RENAME TABLE `wp_commentmeta` TO `wp_1_commentmeta`;
 RENAME TABLE `wp_comments` TO `wp_1_comments`;
@@ -100,8 +102,9 @@ RENAME TABLE `wp_wpvq_questions` TO `wp_1_wpvq_questions`;
 RENAME TABLE `wp_wpvq_quizzes` TO `wp_1_wpvq_quizzes`;
 
 
-/* Tabellen von Blog ID 4 (weeklyosm.eu) als default umbennen */
 
+
+/* Tabellen und Settings von Blog ID 4 (weeklyosm.eu) als default umbennen */
 RENAME TABLE `wp_4_ce4wp_contacts` TO `wp_ce4wp_contacts`;
 RENAME TABLE `wp_4_commentmeta` TO `wp_commentmeta`;
 RENAME TABLE `wp_4_comments` TO `wp_comments`;
@@ -120,3 +123,6 @@ RENAME TABLE `wp_4_wpvq_multipliers` TO `wp_wpvq_multipliers`;
 RENAME TABLE `wp_4_wpvq_players` TO `wp_wpvq_players`;
 RENAME TABLE `wp_4_wpvq_questions` TO `wp_wpvq_questions`;
 RENAME TABLE `wp_4_wpvq_quizzes` TO `wp_wpvq_quizzes`;
+
+UPDATE wp_usermeta SET meta_key = REPLACE(meta_key, 'wp_4_', 'wp_') WHERE meta_key LIKE 'wp_4_%';
+UPDATE wp_options SET option_name = REPLACE(meta_key, 'wp_4_', 'wp_') WHERE option_name LIKE 'wp_4_%';
