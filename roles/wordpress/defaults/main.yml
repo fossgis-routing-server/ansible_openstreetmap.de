@@ -1,0 +1,5 @@
+# roles/wordpress/defaults/main.yml
+---
+
+wordpress_plugins: []
+wordpress_themes: []
