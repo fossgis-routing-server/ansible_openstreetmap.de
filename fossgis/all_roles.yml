@@ -14,14 +14,20 @@
     - import_role:
         name: 'roles/wordpress'
       vars:
+        wordpress_import_dumps: 'false'
         wordpress:
-          version: '5.4'
-          tarball_sha1: 'd5f1e6d7cadd72c11d086a2e1ede0a72f23d993e'
+          version: '5.8.1'
+          #tarball_sha1: 'd5f1e6d7cadd72c11d086a2e1ede0a72f23d993e'
           hostname: 'weeklyosm.eu'
           hostname_aliases:
             - 'www.weeklyosm.eu'
+            - 'soldner.openstreetmap.de'
         mariadb:
           socket_path: '/var/run/mysqld/mysqld.sock'
+    #- import_role:
+    #    name: 'roles/letsencrypt'
+    #  vars:
+    #    certificate_alt_names: 'DNS:weeklyosm.eu, DNS:www.weeklyosm.eu, DNS:soldner.openstreetmap.de'
 - hosts: osrm
   become: yes
   tags: osrm

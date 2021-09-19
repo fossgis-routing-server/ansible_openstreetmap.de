@@ -28,11 +28,14 @@ define('DB_CHARSET', 'utf8');
 #This will disable the update notification.
 #define('WP_CORE_UPDATE', false);
 
+define('DOMAIN_CURRENT_SITE', 'weeklyosm.eu');
+# If you change DOMAIN_CURRENT_SITE also change settings in database, especally in tables wp_blogs and wp_settings --Andi
+# or uncomment the following two lines setting WP_HOME and WP_SITEURL:
+define('WP_HOME','https://soldner.openstreetmap.de');
+define('WP_SITEURL','https://soldner.openstreetmap.de');
 
 define('MULTISITE', false);
 define('SUBDOMAIN_INSTALL', false);
-define('DOMAIN_CURRENT_SITE', 'weeklyosm.eu');
-# If you change DOMAIN_CURRENT_SITE also change settings in database, especally in tables wp_blogs and wp_settings --Andi
 define('PATH_CURRENT_SITE', '/');
 define('SITE_ID_CURRENT_SITE', 1);
 define('BLOG_ID_CURRENT_SITE', 1);

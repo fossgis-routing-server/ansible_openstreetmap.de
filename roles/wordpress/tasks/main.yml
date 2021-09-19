@@ -44,50 +44,50 @@
         owner: root
         group: root
 
-    - local_action:
-        stat:
-          path: "../files_to_upload/host/{{ inventory_hostname }}/{{ item }}/"
-      register: "local_exists_{{ item }}"
-      loop:
-        - "blog.openstreetmap.de_dir_var_www_wordpress"
-        - "blog.openstreetmap.de_dir_var_lib_wordpress"
-        - "blog.openstreetmap.de_mariadb_wpblog"
+    #- local_action:
+    #    stat:
+    #      path: "../files_to_upload/host/{{ inventory_hostname }}/{{ item }}/"
+    #  register: "local_exists_{{ item }}"
+    #  loop:
+    #    - "blog.openstreetmap.de_dir_var_www_wordpress"
+    #    - "blog.openstreetmap.de_dir_var_lib_wordpress"
+    #    - "blog.openstreetmap.de_mariadb_wpblog"
 
-    - when: "{{ item }}.changed == False"
-      fail:
-        msg: "Missing dump {{ item }}"
-      loop:
-        - "blog.openstreetmap.de_dir_var_www_wordpress"
-        - "blog.openstreetmap.de_dir_var_lib_wordpress"
-        - "blog.openstreetmap.de_mariadb_wpblog"
+    #- when: "{{ item }}.changed == False"
+    #  fail:
+    #    msg: "Missing dump {{ item }}"
+    #  loop:
+    #    - "blog.openstreetmap.de_dir_var_www_wordpress"
+    #    - "blog.openstreetmap.de_dir_var_lib_wordpress"
+    #    - "blog.openstreetmap.de_mariadb_wpblog"
 
-    - name: "Upload Wordpress database and directory dumps ({{ item }})"
-      synchronize:
-        src: "../files_to_upload/host/{{ inventory_hostname }}/{{ item }}/"
-        dest: "/"
-        owner: no
-        group: no
-        perms: no
-        rsync_opts: ["--omit-dir-times"]
-      loop:
-        - "blog.openstreetmap.de_dir_var_www_wordpress"
-        - "blog.openstreetmap.de_dir_var_lib_wordpress"
-        - "blog.openstreetmap.de_mariadb_wpblog"
+    #- name: "Upload Wordpress database and directory dumps ({{ item }})"
+    #  synchronize:
+    #    src: "../files_to_upload/host/{{ inventory_hostname }}/{{ item }}/"
+    #    dest: "/"
+    #    owner: no
+    #    group: no
+    #    perms: no
+    #    rsync_opts: ["--omit-dir-times"]
+    #  loop:
+    #    - "blog.openstreetmap.de_dir_var_www_wordpress"
+    #    - "blog.openstreetmap.de_dir_var_lib_wordpress"
+    #    - "blog.openstreetmap.de_mariadb_wpblog"
 
-    #- name: "Download Wordpress"
-    #  get_url:
-    #    url: 'https://wordpress.org/wordpress-{{ wordpress.version }}.tar.gz'
-    #    checksum: 'sha1:{{ wordpress.tarball_sha1 }}'
-    #    dest: '/root/packages/wordpress-{{ wordpress.version }}.tar.gz'
-    #
-    #- name: "Unpack Wordpress tarball"
-    #  unarchive:
-    #    remote_src: yes
-    #    src: '/root/packages/wordpress-{{ wordpress.version }}.tar.gz'
-    #    dest: '/var/www/'
-    #    owner: www-data
-    #    group: www-data
-    #    mode: 0644
+    - name: "Download Wordpress"
+      get_url:
+        url: 'https://wordpress.org/wordpress-{{ wordpress.version }}.tar.gz'
+        checksum: 'sha1:{{ wordpress.tarball_sha1 }}'
+        dest: '/root/packages/wordpress-{{ wordpress.version }}.tar.gz'
+    
+    - name: "Unpack Wordpress tarball"
+      unarchive:
+        remote_src: yes
+        src: '/root/packages/wordpress-{{ wordpress.version }}.tar.gz'
+        dest: '/var/www/'
+        owner: www-data
+        group: www-data
+        #mode: 0644
 
 - name: "Create directory /etc/wordpress"
   file:
@@ -100,6 +100,14 @@
   template:
     dest: /etc/wordpress/config-default.php
     src: 'config-default.php'
+    owner: 'www-data'
+    group: 'www-data'
+    mode: '0644'
+
+- name: "Add Wordpress configuration redirect/include placeholder"
+  template:
+    dest: /var/www/wp-config.php
+    src: 'wp-config.php'
     owner: 'www-data'
     group: 'www-data'
     mode: '0644'
@@ -129,17 +137,22 @@
 
 - name: 'Write Apache VirtualHost configuration'
   template:
-    src: 'blog.openstreetmap.de.conf'
+    src: 'weeklyosm.eu.conf'
     dest: '/etc/apache2/sites-available/weeklyosm.eu.conf'
     owner: root
     group: root
     mode: 0644
-  notify:
-    - systemctl reload apache2
 
 - name: Enable Apache VirtualHost configuration for API and website
   shell:
     cmd: 'a2ensite weeklyosm.eu.conf'
     chdir: /etc/apache2/sites-available
-  notify:
-    - systemd reload apache2
+
+- name: Enable Apache modules
+  shell:
+    cmd: 'a2enmod ssl rewrite'
+
+- name: systemd reload apache2
+  systemd:
+    name: apache2
+    state: reloaded
