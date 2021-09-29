@@ -15,10 +15,17 @@
     state: absent
   loop: "{{ users }}"
 
-- name: "Add SSH public key for user {{ item.name }}"
+- name: "Add SSH public keys"
   when: "item.0.hosts == 'all' or inventory_hostname in item.0.hosts"
   authorized_key:
     user: "{{ item.0.name }}"
+    key: "{{ item.1 }}"
+  loop: "{{ users|subelements('ssh_public_keys') }}"
+
+- name: "Add SSH public keys of all users for direct root login (required by Ansible)"
+  when: "item.0.hosts == 'all' or inventory_hostname in item.0.hosts"
+  authorized_key:
+    user: "root"
     key: "{{ item.1 }}"
   loop: "{{ users|subelements('ssh_public_keys') }}"
 
