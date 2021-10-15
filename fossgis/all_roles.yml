@@ -7,6 +7,7 @@
     - import_role:
         name: 'roles/mail'
       vars:
+      when: mail | default(False)
 - hosts: wordpress
   become: yes
   tags: wordpress
