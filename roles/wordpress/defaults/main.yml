@@ -1,0 +1,10 @@
+# roles/wordpress/defaults/main.yml
+---
+
+wordpress_directory: '/var/www/wordpress'
+
+wordpress_plugin_directory: "{{ wordpress_directory }}/wp-content/plugins"
+wordpress_theme_directory: "{{ wordpress_directory }}/wp-content/themes"
+
+wordpress_plugins: []
+wordpress_themes: []

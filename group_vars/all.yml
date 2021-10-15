@@ -15,3 +15,7 @@ users:
     hosts: soldner.openstreetmap.de
     ssh_public_keys:
       - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILyxSXBW/FNy+um/R66YbM+9qiyAslX367RpwDhCdndN matthias@pebble "
+  - name: saerdnaer
+    hosts: soldner.openstreetmap.de
+    ssh_public_keys:
+      - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPYMT0xzYgUB+JVT5mj8/OBtt8lZxnC3WMVZRnYANT6E andi@mpb2"
