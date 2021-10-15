@@ -29,6 +29,11 @@
     #    name: 'roles/letsencrypt'
     #  vars:
     #    certificate_alt_names: 'DNS:weeklyosm.eu, DNS:www.weeklyosm.eu, DNS:soldner.openstreetmap.de'
+- hosts: overpass
+  become: yes
+  roles:
+    - role: overpass
+  tags: overpass
 - hosts: osrm
   become: yes
   tags: osrm

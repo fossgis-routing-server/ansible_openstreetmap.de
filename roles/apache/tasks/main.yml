@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: MIT
+---
+- name: "Install apache"
+  apt:
+    name: [apache2]
+    state: latest
+
+- name: Enable SSL module
+  apache_module:
+    name: ssl
+  notify: reload apache
+
+- name: Disable default site
+  apache_site:
+    site: 000-default
+    state: absent
+  notify: reload apache
