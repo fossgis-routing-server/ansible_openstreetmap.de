@@ -1,0 +1,43 @@
+This is the Ansible repository for the FOSSGIS Server Admin Working group.
+It contains provisioning playbooks for machines that are administrated by
+the group.
+
+Testing
+=======
+
+The repo contains configuration files for [Vagrant](https://www.vagrantup.com/)
+that may be used to test playbooks during development. To use it, you need
+to install Vagrant and the lib-virt provider:
+
+    apt install vagrant vagrant-libvirt libvirt-daemon
+
+Spin up the test machine:
+
+    vagrant up
+
+This spins up a Debian Bullseye machine and sets up accounts, so that Ansible
+can access the machine via the root account.
+
+Next you need an inventory:
+
+    ./init-vagrant-inventory.sh
+
+This creates a file vagrant.ini with the right connection IP. Edit the file
+to put the vagrant test machine into the group you want to test.
+
+Now you can run the global playbook:
+
+     ansible-playbook -i vagrant.ini site.yml
+
+Additional hints:
+
+* You may have to rerun `init-vagrant-inventory.sh` when you destroy and rebuild
+  the Vagrant test machine to update the IP.
+* If you are not in the admin user group, you can still run the playbook
+  under the vagrant user: `ansible-playbook -i vagrant.ini -u vagrant site.yml`
+
+
+License
+=======
+
+Playbooks are published under MIT license.
