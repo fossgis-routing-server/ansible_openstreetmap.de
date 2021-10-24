@@ -23,12 +23,3 @@
       systemd:
         name: 'ssh'
         state: 'reloaded'
-
-      #- hosts: all
-      #  become: yes
-      #  tags: mail
-      #  tasks:
-      #    - import_role:
-      #        name: roles/mail
-      #
-- import_playbook: all_roles.yml
