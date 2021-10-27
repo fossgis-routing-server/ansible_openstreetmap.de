@@ -59,9 +59,8 @@
 - hosts: wordpress
   become: yes
   tags: wordpress
-  tasks:
-    - import_role:
-        name: 'roles/wordpress'
+  roles:
+    - role: 'wordpress'
     #- import_role:
     #    name: 'roles/letsencrypt'
     #  vars:
@@ -69,6 +68,5 @@
 - hosts: osrm
   become: yes
   tags: osrm
-  tasks:
-    - import_role:
-        name: 'roles/osrm'
+  roles:
+    - role: osrm
