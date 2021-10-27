@@ -46,16 +46,10 @@
 # Regular playbooks here
 #
 
-- import_playbook: fossgis/base.yml
-
 - hosts: all
   become: yes
-  tags: mail
-  tasks:
-    - import_role:
-        name: 'roles/mail'
-      vars:
-      when: mail | default(False)
+  roles:
+    - role: common
 - hosts: wordpress
   become: yes
   tags: wordpress
