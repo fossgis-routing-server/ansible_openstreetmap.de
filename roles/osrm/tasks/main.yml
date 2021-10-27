@@ -1,5 +1,18 @@
 # SPDX-License-Identifier: MIT
 ---
+- name: Create osrm group
+  group:
+    name: "{{ osrm.user }}"
+    system: yes
+
+- name: Create osrm user
+  user:
+    name: "{{ osrm.user }}"
+    group: "{{ osrm.user }}"
+    shell: "/bin/false"
+    system: yes
+    home: "{{ osrm.basedir }}"
+
 - name: "Install uwsgi for request-by-coordinate dispatcher"
   apt:
     name: [git, python3-cherrypy3, uwsgi, uwsgi-plugin-python3]
@@ -127,6 +140,10 @@
     dest: '/etc/nginx/sites-enabled/status'
     state: link
 
+- name: "Install munin"
+  apt:
+    name: [munin]
+
 - name: "enable munin plug in {{ item }}"
   file:
     src: '/usr/share/munin/plugins/{{ item }}'
@@ -136,6 +153,14 @@
     - "nginx_request"
     - "nginx_status"
   notify: restart munin-node
+
+- name: "create web base directory"
+  file:
+    path: '/var/www/routing'
+    state: directory
+    owner: 'www-data'
+    group: 'www-data'
+    mode: '0755'
 
 - name: "Write /429.html"
   copy:
