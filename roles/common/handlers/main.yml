@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: MIT
+- name: restart nginx
+  service:
+    name: nginx
+    state: restarted
+    enabled: yes
+- name: restart request-by-coordinate
+  service:
+    name: request-by-coordinate
+    state: restarted
+    enabled: yes
+- name: restart munin-node
+  service:
+    name: munin-node
+    state: restarted
+    enabled: yes
+- name: 'reload ssh'
+  systemd:
+    name: 'ssh'
+    state: 'reloaded'

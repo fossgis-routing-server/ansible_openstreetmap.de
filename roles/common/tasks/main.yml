@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: MIT
+---
+
+- name: Import tasks to create accounts
+  import_tasks: accounts.yml
+  tags: [never, accounts]
+
+- name: Import tasks to install some utilities
+  import_tasks: utilities.yml
+  tags: base
+
+- name: Import tasks to do some fundamental security settings
+  import_tasks: security.yml
+  tags: base
+
+- import_role:
+    name: 'roles/mail'
+  vars:
+  when: mail | default(False)
+  tags: mail

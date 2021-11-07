@@ -16,5 +16,5 @@
   become: yes
   tasks:
     - name: Import tasks to create accounts
-      import_tasks: fossgis/accounts.yml
+      import_tasks: roles/common/tasks/accounts.yml
 

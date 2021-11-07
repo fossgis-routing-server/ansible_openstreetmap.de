@@ -46,28 +46,21 @@
 # Regular playbooks here
 #
 
-- import_playbook: fossgis/base.yml
-  
-#
-# End of regular playbooks
-#
-
-  ## Check for unpushed commits
-  ## Run at end to increase chance it's seen
-  #- hosts: all
-  #  gather_facts: no
-  #  strategy: linear
-  #  tasks:
-  #    - become: no
-  #      delegate_to: localhost
-  #      tags: always
-  #      check_mode: no
-  #      run_once: true
-  #      block:
-  #        # NB: `git fetch origin` is run at start
-  #        - local_action: command git branch --contains HEAD --remotes --color=never
-  #          changed_when: False
-  #          register: branches_containing_HEAD
-  #        - debug: msg="There are commits on HEAD that you haven't pushed to origin"
-  #          when: "'  origin/master' not in branches_containing_HEAD.stdout_lines"
-  #          changed_when: True
+- hosts: all
+  become: yes
+  roles:
+    - role: common
+- hosts: wordpress
+  become: yes
+  tags: wordpress
+  roles:
+    - role: 'wordpress'
+    #- import_role:
+    #    name: 'roles/letsencrypt'
+    #  vars:
+    #    certificate_alt_names: 'DNS:weeklyosm.eu, DNS:www.weeklyosm.eu, DNS:soldner.openstreetmap.de'
+- hosts: osrm
+  become: yes
+  tags: osrm
+  roles:
+    - role: osrm
