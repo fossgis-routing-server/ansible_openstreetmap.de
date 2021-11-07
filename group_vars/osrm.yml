@@ -98,7 +98,9 @@ osrm_polyafoce: "[[   0,            -90           ],
                   [   0,            -90           ]]"
 osrm:
   basedir: '/srv/osrm/'
+  websitedir: '/var/www/routing/'
   user: 'osrm'
+  datauser: 'osrmdata'
 
   profiles:
     car:  ["careuasi",  "carafoce",  "caram"]
