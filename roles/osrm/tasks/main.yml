@@ -13,9 +13,38 @@
     system: yes
     home: "{{ osrm.basedir }}"
 
+- name: install prerequisites for osrm
+  apt:
+    name: [git, build-essential, cmake,  pkg-config, libprotoc-dev, protobuf-compiler,
+           libprotobuf-dev, libosmpbf-dev, libpng-dev, libbz2-dev, libstxxl-dev,
+           libstxxl-doc, libstxxl1v5, libxml2-dev, libzip-dev, libboost-thread-dev,
+           libboost-system-dev, libboost-regex-dev, libboost-filesystem-dev,
+           libboost-program-options-dev, libboost-iostreams-dev,
+           libboost-test-dev, liblua5.2-dev, libtbb-dev, libexpat-dev]
+
+- name: checkout osrm-backend
+  git:
+    repo: git://github.com/fossgis-routing-server/osrm-backend.git
+    dest: '{{ osrm.basedir }}/osrm-backend'
+    version: '512b0ac40ec53f9aa718189262ea83835a27260f'
+  register: osrm_backend_build
+
+- name: clear osrm-backend build dir
+  file: path='{{ osrm.basedir }}/osrm-backend/build' state=absent
+  when: osrm_backend_build.changed
+
+- name: create osrm-backend build dir
+  file: path='{{ osrm.basedir }}/osrm-backend/build' state=directory
+
+- name: build osrm-backend
+  shell: 'cmake -DCMAKE_BUILD_TYPE=Release .. && make -j 20'
+  args:
+    chdir: '{{ osrm.basedir }}/osrm-backend/build/'
+    creates: '{{ osrm.basedir }}/osrm-backend/build/osrm-extract'
+
 - name: "Install uwsgi for request-by-coordinate dispatcher"
   apt:
-    name: [git, python3-cherrypy3, uwsgi, uwsgi-plugin-python3]
+    name: [python3-cherrypy3, uwsgi, uwsgi-plugin-python3]
 
 - name: "checkout request-by-coordinate"
   git:
