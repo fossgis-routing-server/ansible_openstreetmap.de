@@ -45,15 +45,19 @@
   become_user: '{{ osrm.user }}'
 
 - name: clear osrm-backend build dir
-  file: path='{{ osrm.basedir }}/osrm-backend/build' state=absent
+  file:
+    path: '{{ osrm.basedir }}/osrm-backend/build'
+    state: absent
   when: osrm_backend_build.changed
 
 - name: create osrm-backend build dir
-  file: path='{{ osrm.basedir }}/osrm-backend/build' state=directory
+  file:
+    path: '{{ osrm.basedir }}/osrm-backend/build'
+    state: directory
 
 - name: build osrm-backend
-  shell: 'cmake -DCMAKE_BUILD_TYPE=Release .. && make -j 20'
-  args:
+  shell:
+    cmd: 'cmake -DCMAKE_BUILD_TYPE=Release .. && make -j 20'
     chdir: '{{ osrm.basedir }}/osrm-backend/build/'
     creates: '{{ osrm.basedir }}/osrm-backend/build/osrm-extract'
   become: yes
@@ -84,15 +88,17 @@
     repo: git://github.com/fossgis-routing-server/osrm-frontend.git
     dest: '{{ osrm.basedir }}/osrm-frontend'
     version: 'bef727ee0af3172a86f38fe6aca580a078347ace'
+    force: yes
   register: osrm_frontend_build
   become: yes
   become_user: '{{ osrm.user }}'
 
 - name: build osrm-frontend
-  shell: 'npm install && npm install corslite && npm run build && \
-          cp -r css fonts images bundle.js bundle.js.map \
-          bundle.raw.js index.html debug {{ osrm.websitedir }}'
-  args:
+  shell:
+    cmd: 'npm install && npm install corslite && npm run build &&
+          cp -r css fonts images bundle.js bundle.js.map
+          bundle.raw.js index.html debug {{ osrm.websitedir }} &&
+          git checkout bundle* package*'
     chdir: '{{ osrm.basedir }}/osrm-frontend/'
   when: osrm_frontend_build.changed
   become: yes
