@@ -13,9 +13,100 @@
     system: yes
     home: "{{ osrm.basedir }}"
 
+- name: Create osrmdata group
+  group:
+    name: "{{ osrm.datauser }}"
+    system: yes
+
+- name: Create osrmdata user
+  user:
+    name: "{{ osrm.datauser }}"
+    group: "{{ osrm.datauser }}"
+    shell: "/bin/false"
+    system: yes
+    home: "{{ osrm.basedir }}"
+
+- name: install prerequisites for osrm-backend
+  apt:
+    name: [git, build-essential, cmake,  pkg-config, libprotoc-dev, protobuf-compiler,
+           libprotobuf-dev, libosmpbf-dev, libpng-dev, libbz2-dev, libstxxl-dev,
+           libstxxl-doc, libstxxl1v5, libxml2-dev, libzip-dev, libboost-thread-dev,
+           libboost-system-dev, libboost-regex-dev, libboost-filesystem-dev,
+           libboost-program-options-dev, libboost-iostreams-dev,
+           libboost-test-dev, liblua5.2-dev, libtbb-dev, libexpat-dev]
+
+- name: checkout osrm-backend
+  git:
+    repo: git://github.com/fossgis-routing-server/osrm-backend.git
+    dest: '{{ osrm.basedir }}/osrm-backend'
+    version: '512b0ac40ec53f9aa718189262ea83835a27260f'
+  register: osrm_backend_build
+  become: yes
+  become_user: '{{ osrm.user }}'
+
+- name: clear osrm-backend build dir
+  file:
+    path: '{{ osrm.basedir }}/osrm-backend/build'
+    state: absent
+  when: osrm_backend_build.changed
+
+- name: create osrm-backend build dir
+  file:
+    path: '{{ osrm.basedir }}/osrm-backend/build'
+    state: directory
+
+- name: build osrm-backend
+  shell:
+    cmd: 'cmake -DCMAKE_BUILD_TYPE=Release .. && make -j 20'
+    chdir: '{{ osrm.basedir }}/osrm-backend/build/'
+    creates: '{{ osrm.basedir }}/osrm-backend/build/osrm-extract'
+  become: yes
+  become_user: '{{ osrm.user }}'
+
+- name: "Website dir"
+  file:
+    path: '{{ osrm.websitedir }}'
+    state: directory
+    owner: '{{ osrm.user }}'
+    group: '{{ osrm.user }}'
+    mode: '0755'
+
+- name: "Timestamps dir"
+  file:
+    path: '{{ osrm.websitedir }}/timestamps'
+    state: directory
+    owner: '{{ osrm.datauser }}'
+    group: '{{ osrm.datauser }}'
+    mode: '0755'
+
+- name: install prerequisites for osrm-frontend
+  apt:
+    name: [node-browserify-lite, nodejs, npm]
+
+- name: checkout osrm-frontend
+  git:
+    repo: git://github.com/fossgis-routing-server/osrm-frontend.git
+    dest: '{{ osrm.basedir }}/osrm-frontend'
+    version: 'bef727ee0af3172a86f38fe6aca580a078347ace'
+    force: yes
+  register: osrm_frontend_build
+  become: yes
+  become_user: '{{ osrm.user }}'
+
+- name: build osrm-frontend
+  shell:
+    cmd: 'npm install && npm install corslite && npm run build &&
+          cp -r css fonts images bundle.js bundle.js.map
+          bundle.raw.js index.html debug {{ osrm.websitedir }} &&
+          git checkout bundle* package*'
+    chdir: '{{ osrm.basedir }}/osrm-frontend/'
+  when: osrm_frontend_build.changed
+  become: yes
+  become_user: '{{ osrm.user }}'
+
 - name: "Install uwsgi for request-by-coordinate dispatcher"
   apt:
-    name: [git, python3-cherrypy3, uwsgi, uwsgi-plugin-python3]
+    name: [python3-cherrypy3, uwsgi, uwsgi-plugin-python3]
 
 - name: "checkout request-by-coordinate"
   git:

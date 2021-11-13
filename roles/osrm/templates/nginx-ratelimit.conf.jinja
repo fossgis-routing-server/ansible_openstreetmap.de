@@ -14,12 +14,12 @@ map $limit_type $limit_table {
     2       $binary_remote_addr;
 }
 
-map $uri $limit_route {
+map $limit_type $limit_route {
     default "";
     1       $binary_remote_addr;
 }
 
-map $uri $limit_tile {
+map $limit_type $limit_tile {
     default "";
     0       $binary_remote_addr;
     3       $binary_remote_addr;
