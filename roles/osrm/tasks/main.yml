@@ -42,7 +42,7 @@
 
 - name: build osrm-backend
   shell:
-    cmd: 'cmake -DCMAKE_BUILD_TYPE=Release .. && make -j 20'
+    cmd: "cmake -DCMAKE_BUILD_TYPE=Release .. && make -j {{ ansible_facts['processor_cores'] }}"
     chdir: '{{ osrm.basedir }}/osrm-backend/build/'
     creates: '{{ osrm.basedir }}/osrm-backend/build/osrm-extract'
   environment:
