@@ -13,7 +13,7 @@
 
 - name: install prerequisites for osrm-backend
   apt:
-    name: [git, build-essential, cmake,  pkg-config, libprotoc-dev, protobuf-compiler,
+    name: [git, clang, build-essential, cmake,  pkg-config, libprotoc-dev, protobuf-compiler,
            libprotobuf-dev, libosmpbf-dev, libpng-dev, libbz2-dev, libstxxl-dev,
            libstxxl-doc, libstxxl1v5, libxml2-dev, libzip-dev, libboost-thread-dev,
            libboost-system-dev, libboost-regex-dev, libboost-filesystem-dev,
@@ -45,6 +45,9 @@
     cmd: 'cmake -DCMAKE_BUILD_TYPE=Release .. && make -j 20'
     chdir: '{{ osrm.basedir }}/osrm-backend/build/'
     creates: '{{ osrm.basedir }}/osrm-backend/build/osrm-extract'
+  environment:
+    CC: clang
+    CXX: clang++
   become: yes
   become_user: '{{ osrm.user }}'
 
