@@ -39,6 +39,8 @@
   file:
     path: '{{ osrm.basedir }}/osrm-backend/build'
     state: directory
+    owner: '{{ osrm.user }}'
+    group: '{{ osrm.user }}'
 
 - name: build osrm-backend
   shell:
