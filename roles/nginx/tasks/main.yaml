@@ -1,0 +1,10 @@
+- name: Install nginx
+  apt:
+    name: nginx
+    state: latest
+
+- name: Disable default nginx site
+  nginx_site:
+    site: default
+    state: absent
+  when: webserver__default_site | default(False)
