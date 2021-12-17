@@ -98,7 +98,7 @@
             src: /etc/opendkim/keys/2020.txt
           register: opendkim_public_key
         - debug:
-            msg: 'Please publish the following DNS entry with your public DKIM key:\n{{ opendkim.public_key }}'
+            msg: 'Please publish the following DNS entry with your public DKIM key:\n{{ opendkim_public_key }}'
 
     - name: Write /etc/opendkim/keytable
       copy:
