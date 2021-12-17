@@ -118,22 +118,22 @@
     name: wp_posts
   register: database_imported
 
-- name: "Load database dump if the database has not been imported already"
-  when: not database_imported.table_exists
-  block:
-    - name: "Check if database dump is available"
-      stat:
-        path: /root/packages/wpblog_dump.sql.gz
-      register: stat_result
-
-    - name: 'Fail if database dump is not present'
-      when: not stat_result.stat.exists
-      fail:
-        msg: 'Require database dump at /root/packages/wpblog_dump.sql.gz in order to be able to load it in the next step.'
-
-    - name: 'Load database dump'
-      shell:
-        cmd: 'gzip -dc /root/packages/wpblog_dump.sql.gz | mysql --user root --database wpblog'
+#- name: "Load database dump if the database has not been imported already"
+#  when: not database_imported.table_exists
+#  block:
+#    - name: "Check if database dump is available"
+#      stat:
+#        path: /root/packages/wpblog_dump.sql.gz
+#      register: stat_result
+#
+#    - name: 'Fail if database dump is not present'
+#      when: not stat_result.stat.exists
+#      fail:
+#        msg: 'Require database dump at /root/packages/wpblog_dump.sql.gz in order to be able to load it in the next step.'
+#
+#    - name: 'Load database dump'
+#      shell:
+#        cmd: 'gzip -dc /root/packages/wpblog_dump.sql.gz | mysql --user root --database wpblog'
 
 - name: 'Write Apache VirtualHost configuration'
   template:

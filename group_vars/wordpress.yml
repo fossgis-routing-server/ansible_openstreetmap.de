@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: MIT
 ---
-wordpress_import_dumps: 'false'
+wordpress_import_dumps: true
 wordpress:
   version: '5.8.1'
-  #tarball_sha1: 'd5f1e6d7cadd72c11d086a2e1ede0a72f23d993e'
+  tarball_sha1: '21e50add5a51cd9a18610244c942c08f7abeccd8'
   hostname: 'weeklyosm.eu'
   hostname_aliases:
     - 'www.weeklyosm.eu'

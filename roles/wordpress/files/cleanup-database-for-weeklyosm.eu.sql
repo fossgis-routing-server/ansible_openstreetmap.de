@@ -125,4 +125,4 @@ RENAME TABLE `wp_4_wpvq_questions` TO `wp_wpvq_questions`;
 RENAME TABLE `wp_4_wpvq_quizzes` TO `wp_wpvq_quizzes`;
 
 UPDATE wp_usermeta SET meta_key = REPLACE(meta_key, 'wp_4_', 'wp_') WHERE meta_key LIKE 'wp_4_%';
-UPDATE wp_options SET option_name = REPLACE(meta_key, 'wp_4_', 'wp_') WHERE option_name LIKE 'wp_4_%';
+UPDATE wp_options SET option_name = REPLACE(option_name, 'wp_4_', 'wp_') WHERE option_name LIKE 'wp_4_%';

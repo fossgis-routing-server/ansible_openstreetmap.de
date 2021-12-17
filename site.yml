@@ -55,10 +55,6 @@
   tags: wordpress
   roles:
     - role: 'wordpress'
-    #- import_role:
-    #    name: 'roles/letsencrypt'
-    #  vars:
-    #    certificate_alt_names: 'DNS:weeklyosm.eu, DNS:www.weeklyosm.eu, DNS:soldner.openstreetmap.de'
 - hosts: osrm
   become: yes
   tags: osrm

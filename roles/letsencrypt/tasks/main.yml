@@ -2,7 +2,9 @@
 ---
 - name: Install acme-tiny
   apt:
-    name: acme-tiny
+    name:
+      - acme-tiny
+      - python3-openssl
 
 - name: Create user and group acme for acme-tiny
   user:
