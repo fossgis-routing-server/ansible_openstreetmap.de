@@ -2,6 +2,16 @@
 # Installs plugins from the Wordpress Plugin Directory
 ---
 
+- name: Install required software
+  apt:
+    name:
+      - unzip
+
+- name: Create directory for plugins
+  file:
+    dest: "{{ wordpress_plugin_directory }}"
+    state: directory
+
 ## Plugins with a version number, e.g.
 #
 # wordpress_plugins:

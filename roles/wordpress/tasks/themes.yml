@@ -2,6 +2,11 @@
 # Installs themes from the Wordpress Theme Directory
 ---
 
+- name: Create directory for themes
+  file:
+    dest: "{{ wordpress_theme_directory }}"
+    state: directory
+
 ## themes with a version number, e.g.
 #
 # wordpress_themes:
