@@ -143,9 +143,6 @@
     - {'comment': 'routing5', 'src': '136.243.131.227'}
     - {'comment': 'routing5', 'src': '2a01:4f8:212:33a2::/64'}
 
-- name: "Install nginx web server"
-  apt:
-    name: [nginx]
 
 - name: "nginx config for rate limit"
   template:
@@ -161,65 +158,41 @@
   notify: restart nginx
 
 - name: "default nginx site"
-  template:
-    dest: '/etc/nginx/sites-available/default'
+  nginx_site:
+    site: 'default'
     src:  'nginx-default.jinja'
-    mode: '0644'
   vars:
     answer_routes: True
     munin: True
     server_name: "_"
     default_server: "default_server"
   notify: restart nginx
-- name: "enable default nginx site"
-  file:
-    src: '../sites-available/default'
-    dest: '/etc/nginx/sites-enabled/default'
-    state: link
 
 - name: "nginx site for map.project-osrm.org"
-  template:
-    dest: '/etc/nginx/sites-available/map.project-osrm.org'
+  nginx_site:
+    site: 'map.project-osrm.org'
     src:  'nginx-default.jinja'
-    mode: '0644'
   vars:
     answer_routes: False
     munin: False
     server_name: "map.project-osrm.org"
     default_server: ""
   notify: restart nginx
-- name: "enable nginx site for map.project-osrm.org"
-  file:
-    src: '../sites-available/map.project-osrm.org'
-    dest: '/etc/nginx/sites-enabled/map.project-osrm.org'
-    state: link
 
 - name: "nginx site for router.project-osrm.org"
-  template:
-    dest: '/etc/nginx/sites-available/router.project-osrm.org'
+  nginx_site:
+    site: 'router.project-osrm.org'
     src:  'nginx-router.project-osrm.org.jinja'
-    mode: '0644'
   vars:
     server_name: "router.project-osrm.org"
     default_server: ""
   notify: restart nginx
-- name: "enable nginx site for router.project-osrm.org"
-  file:
-    src: '../sites-available/router.project-osrm.org'
-    dest: '/etc/nginx/sites-enabled/router.project-osrm.org'
-    state: link
 
 - name: "nginx status site"
-  template:
-    dest: '/etc/nginx/sites-available/status'
+  nginx_site:
+    site: 'status'
     src:  'nginx-status.jinja'
-    mode: '0644'
   notify: restart nginx
-- name: "enable nginx site for status"
-  file:
-    src: '../sites-available/status'
-    dest: '/etc/nginx/sites-enabled/status'
-    state: link
 
 - name: "Install munin"
   apt:

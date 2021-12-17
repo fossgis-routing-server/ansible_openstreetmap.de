@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: MIT
 # Make coding more python3-ish, this is required for contributions to Ansible
 from __future__ import (absolute_import, division, print_function)
 __metaclass__ = type
