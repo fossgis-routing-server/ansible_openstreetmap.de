@@ -33,7 +33,7 @@ smtp_tls_ciphers = high
 # See /usr/share/doc/postfix/TLS_README.gz in the postfix-doc package for
 # information on enabling SSL in the smtp client.
 
-myhostname = {{ inventory_hostname }}
+myhostname = {{ mail.mailname }}
 alias_maps = hash:/etc/aliases
 alias_database = hash:/etc/aliases
 myorigin = /etc/mailname
