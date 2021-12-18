@@ -4,7 +4,6 @@ mail:
   mailname: weeklyosm.eu
   domains:
     - soldner.openstreetmap.de
-    - www.weeklyosm.eu
   aliases:
     # Keys of this dictionary: keys of the alias mapping
     # Values of this dictionary: either a string (value of the mapping) or a list of strings (multiple alias recipients)
