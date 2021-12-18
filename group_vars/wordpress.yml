@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: MIT
 ---
-wordpress_import_dumps: true
+wordpress_import_dumps: false
 wordpress:
   version: '5.8.1'
   tarball_sha1: '21e50add5a51cd9a18610244c942c08f7abeccd8'
