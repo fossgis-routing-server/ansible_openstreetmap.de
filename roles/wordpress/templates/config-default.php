@@ -31,8 +31,8 @@ define('DB_CHARSET', 'utf8');
 define('DOMAIN_CURRENT_SITE', 'weeklyosm.eu');
 # If you change DOMAIN_CURRENT_SITE also change settings in database, especally in tables wp_blogs and wp_settings --Andi
 # or uncomment the following two lines setting WP_HOME and WP_SITEURL:
-define('WP_HOME','https://soldner.openstreetmap.de');
-define('WP_SITEURL','https://soldner.openstreetmap.de');
+define('WP_HOME','https://weeklyosm.eu');
+define('WP_SITEURL','https://weeklyosm.eu');
 
 define('MULTISITE', false);
 define('SUBDOMAIN_INSTALL', false);
