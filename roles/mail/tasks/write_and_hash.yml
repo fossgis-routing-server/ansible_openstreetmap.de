@@ -10,6 +10,7 @@
       {% for key, value in mail.aliases.items() %}
       {{ key }} {% if value is string %}{{ value }}{% else %}{{ value|join(',') }}
       {% endif %}
+
       {% endfor %}
 
 - name: Run postmap if required on virtual_alias_map
