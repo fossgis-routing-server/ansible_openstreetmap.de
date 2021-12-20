@@ -188,26 +188,6 @@
     default_server: ""
   notify: restart nginx
 
-- name: "nginx status site"
-  nginx_site:
-    site: 'status'
-    src:  'nginx-status.jinja'
-  notify: restart nginx
-
-- name: "Install munin"
-  apt:
-    name: [munin]
-
-- name: "enable munin plug in {{ item }}"
-  file:
-    src: '/usr/share/munin/plugins/{{ item }}'
-    dest: '/etc/munin/plugins/{{ item }}'
-    state: link
-  with_items:
-    - "nginx_request"
-    - "nginx_status"
-  notify: restart munin-node
-
 - name: "create web base directory"
   file:
     path: '/var/www/routing'

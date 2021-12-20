@@ -4,8 +4,3 @@
     name: request-by-coordinate
     state: restarted
     enabled: yes
-- name: restart munin-node
-  service:
-    name: munin-node
-    state: restarted
-    enabled: yes
