@@ -8,3 +8,10 @@
     site: default
     state: absent
   when: webserver__default_site | default(False)
+
+- name: Enable status export for munin
+  nginx_site:
+    site: munin-status-export
+    src: nginx_munin_status.jinja
+  when: "'munin' in ansible_role_names"
+  notify: reload nginx
