@@ -1,1 +1,3 @@
 ---
+acme__daemon_user: acmeclnt
+acme__daemon_basedir: /srv/acme-daemon

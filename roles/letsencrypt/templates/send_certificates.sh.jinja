@@ -1,0 +1,28 @@
+#!/bin/bash
+
+TODODIR={{ acme__basedir }}/queue_renew_certs
+
+TODOCERTS=`find $TODODIR -type f`
+
+for CERTFILE in $TODOCERTS; do
+    # Filename format: <hostname>-<certid>
+    CERTNAME=`basename $CERTFILE`
+    DESTHOST=${CERTNAME%-*}
+    CERTID=${CERTNAME##*-}
+    CERTDIR="{{ acme__basedir }}/etc/live/$CERTNAME"
+
+    date "+%c === Sending certificate $CERTID to $DESTHOST"
+
+    if cat $CERTDIR/fullchain.pem $CERTDIR/privkey.pem | ssh -o StrictHostKeyChecking=off -i {{ acme__basedir }}/.ssh/id_rsa_acme {{ acme__daemon_user}}@$DESTHOST renew_cert $CERTID; then
+        date "+%c === Successfully delivered certificate $CERTNAME"
+        rm $CERTFILE
+    else
+        date "+%c === Certificate delivery failed for $CERTNAME"
+    fi
+done
+
+# Trigger a restart when there are still certificates left to process.
+LEFTCERTS=`find $TODODIR -type f`
+if [ "x$LEFTCERTS" != "x" ]; then
+  exit 1
+fi

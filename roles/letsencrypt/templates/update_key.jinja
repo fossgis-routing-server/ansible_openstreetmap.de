@@ -1,0 +1,80 @@
+#!/usr/bin/python3
+
+from pathlib import Path
+import os
+import re
+import sys
+import ssl
+import stat
+import shutil
+import subprocess
+
+shell_cmd = os.environ.get('SSH_ORIGINAL_COMMAND')
+
+if not shell_cmd:
+    raise RuntimeError("SSH disabled.")
+
+cmd, _, cert = shell_cmd.partition(' ')
+
+if cmd != 'renew_cert':
+    raise RuntimeError("Unknown command")
+
+if re.search('[^a-zA-Z0-9_-]', cert):
+    raise RuntimeError("Invalid characters in certificate")
+
+pem = ''
+key = ''
+state = None
+
+for line in sys.stdin:
+    if not line.strip():
+        continue
+    if state is None:
+        if line.startswith("-----BEGIN CERTIFICATE-----"):
+            state = 'pem'
+            pem += line
+        elif line.startswith("-----BEGIN PRIVATE KEY-----"):
+            state = 'key'
+            key += line
+        else:
+            raise RuntimeError("Invalid key section")
+    elif state == 'pem':
+        pem += line
+        if line.startswith("-----END CERTIFICATE-----"):
+            state = None
+    elif state == 'key':
+        key += line
+        if line.startswith("-----END PRIVATE KEY-----"):
+            state = None
+
+if state is not None:
+    raise RuntimeError("Incomming message. cut")
+
+if not key:
+    raise RuntimeError("No private key sent")
+
+if not pem:
+    raise RuntimeError("No certificate sent")
+
+pem_file = Path(f'{{ acme__daemon_basedir }}/certs/{cert}.pem')
+key_file = Path(f'{{ acme__daemon_basedir }}/certs/{cert}.key')
+
+with pem_file.open('w') as fd:
+    fd.write(pem)
+
+with key_file.open('w') as fd:
+    fd.write(key)
+
+pem_file.chmod(stat.S_IRUSR | stat.S_IWUSR |  stat.S_IRGRP)
+key_file.chmod(stat.S_IRUSR | stat.S_IWUSR |  stat.S_IRGRP)
+
+shutil.chown(pem_file, -1, 'ssl-cert')
+shutil.chown(key_file, -1 ,'ssl-cert')
+
+# Execute any post-install hooks
+hook = Path('{{ acme__daemon_basedir }}') / 'renew-hooks' / cert
+
+if hook.exists():
+    subprocess.run(['sudo', str(hook)], check=True)
+else:
+    print(f"No hook {hook}")

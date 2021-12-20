@@ -1,0 +1,91 @@
+# Supplies snake-oil certificates for bootstrapping the SSL process
+- name: Install ssl-cert package
+  apt:
+    name: [ssl-cert]
+
+- name: Set up user for receiving keys
+  user:
+    name: "{{ acme__daemon_user }}"
+    home: "{{ acme__daemon_basedir }}"
+    shell: /bin/sh
+    group: ssl-cert
+
+
+- name: Set up home directory
+  file:
+    path: "{{ acme__daemon_basedir }}/{{item}}"
+    state: directory
+    owner: "{{ acme__daemon_user }}"
+    group: ssl-cert
+    mode: 0710
+  loop:
+    - bin
+    - certs
+    - renew-hooks
+
+- name: Create list of certificates for this hosts
+  set_fact:
+    _acme_certs: "{{ hostvars[inventory_hostname]|var_merge_lists(suffix='__acme_certificates') }}"
+
+- name: List of certificates
+  debug:
+    msg: "{{ _acme_certs }}"
+
+- name: Make sure certificate exists
+  copy:
+    src: /etc/ssl/certs/ssl-cert-snakeoil.pem
+    dest: "{{ acme__daemon_basedir }}/certs/{{item.name}}.pem"
+    remote_src: yes
+    force: no
+    owner: "{{ acme__daemon_user }}"
+    group: ssl-cert
+    mode: "0644"
+  loop: "{{ _acme_certs }}"
+
+- name: Make sure certificate key exists
+  copy:
+    src: /etc/ssl/private/ssl-cert-snakeoil.key
+    dest: "{{ acme__daemon_basedir }}/certs/{{item.name}}.key"
+    remote_src: yes
+    force: no
+    owner: "{{ acme__daemon_user }}"
+    group: ssl-cert
+    mode: "0640"
+  loop: "{{ _acme_certs }}"
+
+- name: Allow sudo on hooks
+  copy:
+    dest: /etc/sudoers.d/acme
+    content: "{{ acme__daemon_user }} ALL = NOPASSWD: {{ acme__daemon_basedir }}/renew-hooks/"
+
+- name: Install public key
+  authorized_key:
+    user: "{{ acme__daemon_user }}"
+    key: "{{ acme__distribution_account.public }}"
+    key_options: 'environment="SHELL=/bin/sh",command="{{ acme__daemon_basedir }}/bin/update_key"'
+    comment: acme
+
+- name: Install key update script
+  template:
+    src: update_key.jinja
+    dest: "{{ acme__daemon_basedir }}/bin/update_key"
+    owner: "{{ acme__daemon_user }}"
+    group: ssl-cert
+    mode: "0700"
+
+- name: Install renew hooks
+  copy:
+    dest: "{{ acme__daemon_basedir }}/renew-hooks/{{item.name}}"
+    content: "#!/bin/bash\n\n{{item.on_update | join('\n')}}\n"
+    owner: root
+    group: ssl-cert
+    mode: "0744"
+  when: "'on_update' in item"
+  loop: "{{ _acme_certs }}"
+
+- name: Remove unused hooks
+  file:
+    dest: "{{ acme__daemon_basedir }}/renew-hooks/{{item.name}}"
+    state: absent
+  when: "'on_update' not in item"
+  loop: "{{ _acme_certs }}"

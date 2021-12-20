@@ -56,6 +56,12 @@
   become: yes
   roles:
     - role: common
+- hosts: all
+  become: yes
+  tasks:
+    - include_role:
+        name: letsencrypt
+      tags: certificates
 - hosts: wordpress
   become: yes
   tags: wordpress

@@ -1,0 +1,5 @@
+acme__fqdn: acme.openstreetmap.de
+acme__user: acme
+acme__basedir: /srv/acme
+acme__debug_mode: false
+acme__webserver: nginx

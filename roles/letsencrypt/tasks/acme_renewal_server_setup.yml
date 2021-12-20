@@ -1,0 +1,117 @@
+- name: Install certbot
+  apt:
+    name: [certbot]
+
+- name: Create user for acme
+  system_account:
+    name: "{{ acme__user }}"
+    home: "{{ acme__basedir }}"
+
+- name: Set up working directories {{item}}
+  file:
+    path: "{{acme__basedir}}/{{item}}"
+    state: directory
+    owner: "{{ acme__user }}"
+    group: "{{ acme__user }}"
+  loop:
+    - bin
+    - site
+    - queue_new_certs
+    - queue_renew_certs
+    - etc
+    - var
+    - .ssh
+
+- name: Set up log directory
+  file:
+    path: "/var/log/acme"
+    state: directory
+    owner: "{{ acme__user }}"
+    group: adm
+    mode: "0750"
+
+- name: Setup nginx
+  include_role:
+    name: nginx
+  when: "acme__webserver == 'nginx'"
+
+- name: Set up nginx site
+  nginx_site:
+    site: acme
+    src: "nginx-acme-server.conf.jinja"
+  notify: reload nginx
+  when: "acme__webserver == 'nginx'"
+
+- name: Setup apache
+  include_role:
+    name: apache
+  when: "acme__webserver == 'apache'"
+
+- name: Set up apache site
+  apache_site:
+    site: acme
+    src: "apache-acme-server.conf.jinja"
+  notify: reload apache2
+  when: "acme__webserver == 'apache'"
+
+- name: Copy account information
+  copy:
+    src: "accounts"
+    dest: "{{ acme__basedir }}/etc"
+    owner: "{{ acme__user }}"
+    group: "{{ acme__user }}"
+    directory_mode: 0700
+
+- name: Install scripts
+  template:
+    src: "{{ item }}"
+    dest: "{{ acme__basedir }}/bin/{{ item | splitext | first }}"
+    owner: "{{ acme__user }}"
+    group: "{{ acme__user }}"
+    mode: "0755"
+  loop:
+    - create_certificates.sh.jinja
+    - send_certificates.sh.jinja
+
+- name: Create service for installing certificates
+  systemd_service:
+    name: acme-certs-install
+    enabled: true
+    service:
+      Unit:
+        Description: Initial load of letsencrypt certificates
+      Service:
+        WorkingDirectory: "{{ acme__basedir }}"
+        ExecStart: "{{ acme__basedir }}/bin/create_certificates.sh"
+        StandardOutput: "append:/var/log/acme/certificate_install.log"
+        User: "{{ acme__user }}"
+        Group: "{{ acme__user }}"
+        Type: simple
+        Restart: on-failure
+        RestartSec: 15min
+    path:
+      DirectoryNotEmpty: "{{ acme__basedir }}/queue_new_certs"
+
+- name: Create service for uploading of certificates
+  systemd_service:
+    name: acme-certs-upload
+    enabled: true
+    service:
+      Unit:
+        Description: Upload of letsencrypt certificates to destination
+      Service:
+        WorkingDirectory: "{{ acme__basedir }}"
+        ExecStart: "{{ acme__basedir }}/bin/send_certificates.sh"
+        StandardOutput: "append:/var/log/acme/certificate_upload.log"
+        User: "{{ acme__user }}"
+        Group: "{{ acme__user }}"
+        Type: simple
+        Restart: on-failure
+        RestartSec: 10min
+    path:
+      DirectoryNotEmpty: "{{ acme__basedir }}/queue_renew_certs"
+
+- name: Install private key for renewals
+  copy:
+    content: "{{ acme__distribution_account.private }}"
+    dest: "{{ acme__basedir }}/.ssh/id_rsa_acme"

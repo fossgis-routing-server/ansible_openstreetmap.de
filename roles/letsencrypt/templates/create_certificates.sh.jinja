@@ -1,0 +1,28 @@
+#!/bin/bash
+
+TODODIR={{ acme__basedir }}/queue_new_certs
+
+TODOCERTS=`find $TODODIR -type f`
+
+CERTBOT_OPTS="-n --webroot --webroot-path {{ acme__basedir }}/site --config-dir {{ acme__basedir }}/etc --work-dir {{ acme__basedir }}/var --logs-dir /var/log/acme "
+
+{% if acme__debug_mode -%}
+CERTBOT_OPTS="$CERTBOT_OPTS --staging"
+{% endif -%}
+
+for CERTFILE in $TODOCERTS; do
+  CERTNAME=`basename $CERTFILE`
+  date "+%c === Obtaining certificate $CERTNAME"
+  if certbot certonly $CERTBOT_OPTS `cat $CERTFILE` --deploy-hook "touch {{ acme__basedir }}/queue_renew_certs/$CERTNAME" ; then
+    date "+%c === Successfully installed certificate $CERTNAME"
+    rm $CERTFILE
+  else
+    date "+%c === Certificate failed for $CERTNAME"
+  fi
+done
+
+# Trigger a restart when there are still certificates left to process.
+LEFTCERTS=`find $TODODIR -type f`
+if [ "x$LEFTCERTS" != "x" ]; then
+  exit 1
+fi

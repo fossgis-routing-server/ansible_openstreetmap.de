@@ -1,0 +1,90 @@
+- name: Make sure the facts directory exists
+  file:
+    path: /etc/ansible/facts.d
+    state: directory
+
+- name: Stop renewal services
+  service:
+    name: "{{ item }}"
+    state: stopped
+  loop:
+    - acme-certs-install.path
+    - acme-certs-upload.path
+    - acme-certs-install
+    - acme-certs-upload
+
+- name: Collect certificate information
+  set_fact:
+    acme__certificates: "{{acme__certificates|default({}) | combine({hostvars[item]|firstof_dict('acme__fqdn', 'ansible_host', default=item): hostvars[item]|var_merge_lists(suffix='__acme_certificates')|items2dict(key_name='name', value_name='domains')})}}"
+  loop: "{{ groups['all'] }}"
+
+- name: Find installed certificates
+  set_fact:
+    acme__installed_certs: "{{ansible_local['acme_certificates']|default({})}}"
+
+- name: Installed certificates
+  debug:
+    msg: "{{acme__installed_certs}}"
+
+- name: Collected certificates
+  debug:
+    msg: "{{acme__certificates}}"
+
+- name: Remove scheduled requests
+  file:
+    dest: "{{acme__basedir}}/queue_new_certs/{{item.0}}-{{item.1}}"
+    state: absent
+  when: "item.0 not in acme__certificates or item.1 not in acme__certificates[item.0]"
+  loop: "{{acme__installed_certs | flatten_dict(depth=2)}}"
+
+- name: Remove renewal requests
+  file:
+    dest: "{{acme__basedir}}/queue_renew_certs/{{item.0}}-{{item.1}}"
+    state: absent
+  when: "item.0 not in acme__certificates or item.1 not in acme__certificates[item.0]"
+  loop: "{{acme__installed_certs | flatten_dict(depth=2)}}"
+
+- name: Remove old certificates
+  command:
+    cmd: "certbot delete --cert-name {{item.0}}-{{item.1}}"
+  when: "item.0 not in acme__certificates or item.1 not in acme__certificates[item.0]"
+  loop: "{{acme__installed_certs | flatten_dict(depth=2)}}"
+  ignore_errors: yes
+
+- name: Schedule new/changed certificates
+  copy:
+    dest: "{{acme__basedir}}/queue_new_certs/{{item.0}}-{{item.1}}"
+    content: "--cert-name {{item.0}}-{{item.1}} -d {{item.0}} -d {{item.2|join(' -d ')}}"
+  when: "item.0 not in acme__installed_certs or item.1 not in acme__installed_certs[item.0] or item.2 != acme__installed_certs[item.0][item.1]"
+  loop: "{{acme__certificates | flatten_dict(depth=2)}}"
+
+- name: Get all scheduled certificates
+  find:
+    paths:
+      - "{{acme__basedir}}/queue_new_certs"
+    file_type: file
+  register: scheduled
+
+- name: Create list of scheduled certificates
+  set_fact:
+    acme__scheduled_certs: "{{(scheduled.files | items2dict(key_name='path', value_name='size')).keys() | map('basename') }}"
+
+- name: Redistribute existing certificates
+  copy:
+    dest: "{{acme__basedir}}/queue_renew_certs/{{item.0}}-{{item.1}}"
+    content: "{{item.0}}-{{item.1}}"
+  when: "item | join('-')  not in acme__scheduled_certs"
+  loop: "{{acme__installed_certs | flatten_dict(depth=2)}}"
+
+- name: Write current certificate configuration
+  copy:
+    dest: /etc/ansible/facts.d/acme_certificates.fact
+    content: "{{acme__certificates | to_json}}"
+
+- name: Start renewal services
+  service:
+    name: "{{ item }}"
+    state: started
+  loop:
+    - acme-certs-install.path
+    - acme-certs-upload.path
