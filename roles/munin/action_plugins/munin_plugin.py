@@ -43,7 +43,7 @@ class ActionModule(ActionBase):
 
             new_task = self._task.copy()
             new_task.args = {'dest': f'/etc/munin/plugin-conf.d/{name}',
-                             'content': StringIO().getvalue()}
+                             'content': outdata.getvalue()}
 
             copy_action = self._shared_loader_obj.action_loader.get('ansible.builtin.copy',
                                                                     task=new_task,
