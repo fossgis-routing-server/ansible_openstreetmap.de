@@ -1,0 +1,13 @@
+- name: Install munin
+  apt:
+    name:
+      - munin
+
+- name: Install nginx plugins
+  munin_plugin:
+    name: "{{ item }}"
+  loop:
+    - nginx_request
+    - nginx_status
+  when: "'nginx' in ansible_role_names"
+  notify: restart munin-node
