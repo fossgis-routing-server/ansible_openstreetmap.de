@@ -36,6 +36,12 @@ Additional hints:
 * If you are not in the admin user group, you can still run the playbook
   under the vagrant user: `ansible-playbook -i vagrant.ini -u vagrant site.yml`
 
+Testing without the Private Data
+================================
+
+All playbooks should be written such that they can be run without access to
+the private data. You can define drop in replacements for the data in your
+`host_vars/vagrant.yml` file if need be.
 
 License
 =======
