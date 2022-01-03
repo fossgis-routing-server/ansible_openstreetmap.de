@@ -1,0 +1,3 @@
+[submodule "private"]
+	path = private
+	url = ssh://git@gitlab.fossgis.de:2224/osm-server/ansible_private.git
