@@ -45,6 +45,12 @@
 #
 # Regular playbooks here
 #
+- hosts: all
+  tasks:
+    - name: Load private variables
+      include_vars:
+        dir: private/vars
+      ignore_errors: yes
 
 - hosts: all
   become: yes

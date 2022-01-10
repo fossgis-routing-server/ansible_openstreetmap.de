@@ -13,6 +13,14 @@
         autoremove: yes
 
 - hosts: all
+  tasks:
+    - name: Load private variables
+      include_vars:
+        dir: private/vars
+        ignore_unknown_extensions: yes
+      ignore_errors: yes
+
+- hosts: all
   become: yes
   tasks:
     - name: Import tasks to create accounts
