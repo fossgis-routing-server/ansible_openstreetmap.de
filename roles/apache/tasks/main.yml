@@ -1,0 +1,8 @@
+- name: Install apache
+  apt:
+    name: apache2
+
+- name: Disable default site
+  apache_site:
+    site: 000-default
+    state: absent
