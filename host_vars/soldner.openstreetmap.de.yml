@@ -9,6 +9,7 @@ mail:
     # Values of this dictionary: either a string (value of the mapping) or a list of strings (multiple alias recipients)
     root@soldner.openstreetmap.de: osm-ml@michreichert.de
     root@weeklyosm.eu: osm-ml@michreichert.de
+  relay: true
 
 ssl_domain: weeklyosm.eu
 
