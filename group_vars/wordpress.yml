@@ -10,3 +10,9 @@ wordpress:
     - 'soldner.openstreetmap.de'
 mariadb:
   socket_path: '/var/run/mysqld/mysqld.sock'
+
+weeklyosm__acme_certificates:
+  - name: weeklyosm
+    domains:
+      - weeklyosm.eu
+      - www.weeklyosm.eu

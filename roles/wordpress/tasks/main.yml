@@ -1,11 +1,5 @@
 # SPDX-License-Identifier: MIT
 ---
-#- name: Set up letsencrypt
-#  import_role:
-#    name: 'roles/letsencrypt'
-#  vars:
-#    certificate_alt_names: 'DNS:weeklyosm.eu, DNS:www.weeklyosm.eu, DNS:soldner.openstreetmap.de'
-
 
 - name: Install Wordpress
   include_tasks: install.yml
