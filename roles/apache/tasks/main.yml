@@ -1,0 +1,17 @@
+- name: Check for nginx
+  fail:
+    msg: nginx and apache cannot be run together.
+  when: "(webserver__in_use | default('apache2')) != 'apache2'"
+
+- name: Mark apache the hosts webserver
+  set_fact:
+    webserver__in_use: apache2
+
+- name: Install apache
+  apt:
+    name: apache2
+
+- name: Disable default site
+  apache_site:
+    site: 000-default
+    state: absent

@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: MIT
 ---
-- name: "Install Apache 2 and MariaDB, and python3-pymysql as required by Ansible"
+- name: "Install MariaDB, and python3-pymysql as required by Ansible"
   apt:
-    name: [apache2, mariadb-server, php, php-mysql, php-curl, php-gd, php-mbstring, php-xml, php-xmlrpc, php-soap, php-intl, php-zip, python3-pymysql, tar, gzip, unzip]
+    name: [mariadb-server, php, php-mysql, php-curl, php-gd, php-mbstring, php-xml, php-xmlrpc, php-soap, php-intl, php-zip, python3-pymysql, tar, gzip, unzip]
 
 - name: "Create database for Wordpress"
   mysql_db:
@@ -136,23 +136,12 @@
 #        cmd: 'gzip -dc /root/packages/wpblog_dump.sql.gz | mysql --user root --database wpblog'
 
 - name: 'Write Apache VirtualHost configuration'
-  template:
+  apache_site:
+    site: weeklyosm.eu
     src: 'weeklyosm.eu.conf'
-    dest: '/etc/apache2/sites-available/weeklyosm.eu.conf'
-    owner: root
-    group: root
-    mode: 0644
-
-- name: Enable Apache VirtualHost configuration for API and website
-  shell:
-    cmd: 'a2ensite weeklyosm.eu.conf'
-    chdir: /etc/apache2/sites-available
+  notify: reload apache2
 
 - name: Enable Apache modules
   shell:
     cmd: 'a2enmod ssl rewrite'
-
-- name: systemd reload apache2
-  systemd:
-    name: apache2
-    state: reloaded
+  notify: reload apache2
