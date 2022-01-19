@@ -10,7 +10,7 @@ mail:
     root@soldner.openstreetmap.de: osm-ml@michreichert.de
     root@weeklyosm.eu: osm-ml@michreichert.de
   relay: true
-
+      
 ssl_domain: weeklyosm.eu
 
 wordpress_plugins:

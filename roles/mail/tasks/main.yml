@@ -138,3 +138,46 @@
         append: yes
         name: postfix
         groups: opendkim
+
+- name: Install sasl auth
+  when: mail.relay
+  block:
+    - name: Install saslauth from APT
+      apt:
+        name: [libsasl2-modules, sasl2-bin]
+
+    - name: Write /etc/postfix/sasl/smtpd.conf
+      copy:
+        dest: /etc/postfix/sasl/smtpd.conf
+        owner: root
+        group: root
+        mode: 0644
+        content: |
+          pwcheck_method: auxprop
+          auxprop_plugin: sasldb
+          mech_list: plain login
+      notify:
+        - systemctl restart postfix
+
+    - name: Clear sasldb2
+      file:
+        path: /etc/sasldb2
+        state: absent
+
+    - name: Add users to sasldb2
+      command:
+        cmd: "saslpasswd2 -c -u {{ mail.mailname }} {{ item.key }}"
+        stdin: "{{ item.value }}"
+      loop: "{{ mail.users | dict2items }}"
+
+    - name: Add /etc/sasldb2 to postfix chroot
+      replace:
+        path: /usr/lib/postfix/configure-instance.sh
+        regexp: 'etc/host.conf etc/nsswitch.conf etc/nss_mdns.config"$'
+        replace: 'etc/host.conf etc/nsswitch.conf etc/nss_mdns.config etc/sasldb2"'
+
+    - name: 'ufw: allow smtp submission'
+      ufw:
+        comment: 'allow submission'
+        rule: allow
+        name: "Mail submission"
