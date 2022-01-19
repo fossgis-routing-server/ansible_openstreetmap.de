@@ -7,10 +7,10 @@ mail:
   aliases:
     # Keys of this dictionary: keys of the alias mapping
     # Values of this dictionary: either a string (value of the mapping) or a list of strings (multiple alias recipients)
-    root@soldner.openstreetmap.de: server-admins@fossgis.de
-    root@weeklyosm.eu: server-admins@fossgis.de
-    postmaster: server-admins@fossgis.de
-    root: server-admins@fossgis.de
+    root@soldner.openstreetmap.de: osm-server-ag-admins@fossgis.de
+    root@weeklyosm.eu: osm-server-ag-admins@fossgis.de
+    postmaster: osm-server-ag-admins@fossgis.de
+    root: osm-server-ag-admins@fossgis.de
   relay: true
       
 ssl_domain: weeklyosm.eu

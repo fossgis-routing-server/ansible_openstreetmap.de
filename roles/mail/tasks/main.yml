@@ -176,6 +176,8 @@
         path: /usr/lib/postfix/configure-instance.sh
         regexp: 'etc/host.conf etc/nsswitch.conf etc/nss_mdns.config"$'
         replace: 'etc/host.conf etc/nsswitch.conf etc/nss_mdns.config etc/sasldb2"'
+      notify:
+        - systemctl restart postfix
 
     - name: 'ufw: allow smtp submission'
       ufw:
