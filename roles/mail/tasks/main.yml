@@ -17,6 +17,7 @@
   include_tasks: write_and_hash.yml
   loop:
     - {'dest': '/etc/postfix/virtual_alias_map', 'cmd': 'postmap'}
+    - {'dest': '/etc/aliases', 'cmd': 'postmap'}
 
 - name: Write /etc/postfix/main.cf
   template:
@@ -168,7 +169,7 @@
       command:
         cmd: "saslpasswd2 -c -u {{ mail.mailname }} {{ item.key }}"
         stdin: "{{ item.value }}"
-      loop: "{{ mail.users | dict2items }}"
+      loop: "{{ mail_users | dict2items }}"
 
     - name: Add /etc/sasldb2 to postfix chroot
       replace:
