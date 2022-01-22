@@ -3,6 +3,5 @@
   tags: letsencrypt
 
 - name: Update certificate configuration
-  tags: certificates
   include_tasks: update_certificates.yml
   tags: [letsencrypt,certificates]

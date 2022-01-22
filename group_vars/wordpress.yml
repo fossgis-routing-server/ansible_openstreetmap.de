@@ -16,3 +16,5 @@ weeklyosm__acme_certificates:
     domains:
       - weeklyosm.eu
       - www.weeklyosm.eu
+    on_update:
+      - systemctl reload apache2

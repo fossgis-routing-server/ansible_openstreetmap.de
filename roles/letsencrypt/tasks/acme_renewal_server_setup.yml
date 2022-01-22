@@ -56,7 +56,7 @@
 
 - name: Copy account information
   copy:
-    src: "accounts"
+    src: "private/files/letsencrypt/accounts"
     dest: "{{ acme__basedir }}/etc"
     owner: "{{ acme__user }}"
     group: "{{ acme__user }}"
