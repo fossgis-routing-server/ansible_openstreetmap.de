@@ -1,12 +1,8 @@
 - name: Setup certificate renewal server
   include_tasks: acme_renewal_server_setup.yml
-  when: "'acme' in group_names"
+  tags: letsencrypt
 
 - name: Update certificate configuration
   tags: certificates
   include_tasks: update_certificates.yml
-  when: "'acme' in group_names"
-
-- name: Set up certificate receiver
-  include_tasks: acme_cert_client.yml
-  when: "hostvars[inventory_hostname]|var_merge_lists(suffix='__acme_certificates')"
+  tags: [letsencrypt,certificates]

@@ -67,7 +67,7 @@
 
 - name: Install key update script
   template:
-    src: update_key.jinja
+    src: acme_update_key.jinja
     dest: "{{ acme__daemon_basedir }}/bin/update_key"
     owner: "{{ acme__daemon_user }}"
     group: ssl-cert

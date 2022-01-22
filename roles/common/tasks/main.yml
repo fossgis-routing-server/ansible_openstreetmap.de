@@ -13,6 +13,10 @@
   import_tasks: security.yml
   tags: base
 
+- name: Set up ACME certificate receival
+  include_tasks: acme_cert_client.yml
+  when: "hostvars[inventory_hostname]|var_merge_lists(suffix='__acme_certificates')"
+
 - import_role:
     name: 'roles/mail'
   vars:

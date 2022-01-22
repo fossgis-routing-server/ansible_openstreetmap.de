@@ -46,6 +46,7 @@
 # Regular playbooks here
 #
 - hosts: all
+  tags: always
   tasks:
     - name: Load private variables
       include_vars:
@@ -54,14 +55,15 @@
 
 - hosts: all
   become: yes
+  tags: common
   roles:
     - role: common
-- hosts: all
+- hosts: acme
   become: yes
   tasks:
     - include_role:
         name: letsencrypt
-      tags: certificates
+      tags: [letsencrypt,certificates]
 - hosts: wordpress
   become: yes
   tags: wordpress
