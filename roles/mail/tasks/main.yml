@@ -141,7 +141,7 @@
         groups: opendkim
 
 - name: Install sasl auth
-  when: mail.relay
+  when: mail.relay | default(False)
   block:
     - name: Install saslauth from APT
       apt:

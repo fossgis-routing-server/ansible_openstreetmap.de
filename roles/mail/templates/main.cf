@@ -63,7 +63,7 @@ non_smtpd_milters = unix:opendkim/opendkim.sock
 # Restriction controlling access to the Postfix SMTP server
 # Their purpose is to reject any clients except those from localhost
 # We don't want receive any mail and this avois having to deal with spam filtering.
-{% if mail.relay %}
+{% if mail.relay | default(False) %}
 # Restrictions for relay access (recipient domain not one of our domains)
 smtpd_relay_restrictions = permit_mynetworks, permit_sasl_authenticated, reject_unauth_destination
 #graylisting:
