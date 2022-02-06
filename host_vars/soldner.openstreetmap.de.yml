@@ -2,6 +2,7 @@
 mail:
   opendkim: true
   mailname: weeklyosm.eu
+  ssl_name: weeklyosm
   domains:
     - soldner.openstreetmap.de
   aliases:
@@ -12,8 +13,7 @@ mail:
     postmaster: osm-server-ag-admins@fossgis.de
     root: osm-server-ag-admins@fossgis.de
   relay: true
-      
-ssl_domain: weeklyosm.eu
+
 
 wordpress_plugins:
   - name: add-full-svg-support

@@ -33,8 +33,8 @@ smtpd_tls_exclude_ciphers = MD5, DES, ADH, RC4, PSD, SRP, 3DES, eNULL, aNULL
 smtp_tls_ciphers = high
 
 # tls for outgoing mail
-smtpd_tls_cert_file=/etc/letsencrypt/{{ ssl_domain }}/{{ ssl_domain }}-chain.crt
-smtpd_tls_key_file=/etc/letsencrypt/{{ ssl_domain }}/domain.key
+smtpd_tls_cert_file={{ acme__daemon_basedir }}/certs/{{ mail.ssl_name }}.pem
+smtpd_tls_key_file={{ acme__daemon_basedir }}/certs/{{ mail.ssl_name }}.key
 smtpd_use_tls=yes
 
 
