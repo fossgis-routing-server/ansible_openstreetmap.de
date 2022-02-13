@@ -115,3 +115,22 @@
   copy:
     content: "{{ acme__distribution_account.private }}"
     dest: "{{ acme__basedir }}/.ssh/id_rsa_acme"
+
+# Need to set up seperate renewal because we are working with custom dirs.
+- name: Set up renewal service
+  systemd_service:
+    name: acme-certs-renewal
+    enabled: true
+    service:
+      Unit:
+        Description: Run letsencrypt certificate renewal twice a day
+      Service:
+        Type: oneshot
+        ExecStart: certbot -q --config-dir {{ acme__basedir }}/etc --work-dir {{ acme__basedir }}/var --logs-dir /var/log/acme renew
+        PrivateTmp: "true"
+        User: "{{ acme__user }}"
+        Group: "{{ acme__user }}"
+    timer:
+      OnCalendar: "*-*-* 00,12:00:00"
+      RandomizedDelaySec: 43200
+      Persistent: "true"
