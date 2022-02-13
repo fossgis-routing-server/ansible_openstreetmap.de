@@ -74,3 +74,8 @@
   tags: osrm
   roles:
     - role: osrm
+- hosts: static
+  become: yes
+  tags: static
+  roles:
+    - role: static

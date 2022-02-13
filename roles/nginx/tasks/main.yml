@@ -18,6 +18,12 @@
     state: absent
   when: webserver__default_site | default(False)
 
+- name: "Config for anonymized ip adresses"
+  copy:
+    src: 'log_anonymized.conf'
+    dest: '/etc/nginx/conf.d/log_anonymized.conf'
+  notify: restart nginx
+
 - name: Enable status export for munin
   nginx_site:
     site: munin-status-export

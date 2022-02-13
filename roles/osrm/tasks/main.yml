@@ -151,12 +151,6 @@
     mode: '0644'
   notify: restart nginx
 
-- name: "nginx config for anonymized ip adresses"
-  copy:
-    src: 'log_anonymized.conf'
-    dest: '/etc/nginx/conf.d/log_anonymized.conf'
-  notify: restart nginx
-
 - name: "default nginx site"
   nginx_site:
     site: 'default'

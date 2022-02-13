@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: MIT
+---
+
+- name: "create web base directory"
+  file:
+    path: '/srv/www'
+    state: directory
+    owner: 'www-data'
+    group: 'www-data'
+    mode: '0755'
+
+- name: "default nginx site for static files"
+  nginx_site:
+    site: 'default'
+    src:  'nginx-default.jinja'
+  vars:
+    folder_name: "static"
+    server_name: "_"
+    default_server: "default_server"
+  notify: restart nginx
+
+- name: "nginx site for blog.openstreetmap.de"
+  nginx_site:
+    site: 'blog.openstreetmap.de'
+    src:  'nginx-default.jinja'
+  vars:
+    folder_name: "blog.openstreetmap.de"
+    server_name: "blog.openstreetmap.de"
+    default_server: ""
+  notify: restart nginx
+
+- name: "nginx site for podcast.openstreetmap.de"
+  nginx_site:
+    site: 'podcast.openstreetmap.de'
+    src:  'nginx-podcast.openstreetmap.de.jinja'
+  vars:
+    folder_name: "podcast.openstreetmap.de"
+    server_name: "podcast.openstreetmap.de"
+    default_server: ""
+  notify: restart nginx
