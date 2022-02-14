@@ -2,7 +2,7 @@
 ---
 - name: "Install MariaDB, and python3-pymysql as required by Ansible"
   apt:
-    name: [mariadb-server, php, php-mysql, php-curl, php-gd, php-mbstring, php-xml, php-xmlrpc, php-soap, php-intl, php-zip, python3-pymysql, tar, gzip, unzip]
+    name: [mariadb-server, php, php-mysql, php-curl, php-gd, php-imagick, php-mbstring, php-xml, php-xmlrpc, php-soap, php-intl, php-zip, python3-pymysql, tar, gzip, unzip]
 
 - name: "Create database for Wordpress"
   mysql_db:

@@ -6,6 +6,7 @@ __metaclass__ = type
 from ansible.plugins.action import ActionBase
 from ansible.errors import AnsibleActionFail
 
+
 class ActionModule(ActionBase):
     def run(self, tmp=None, task_vars=None):
         result = super(ActionModule, self).run(tmp, task_vars)
@@ -28,20 +29,22 @@ class ActionModule(ActionBase):
             new_task = self._task.copy()
 
             new_task.args = {
-                'dest': "/etc/nginx/sites-available/" + site,
+                'dest': f'/etc/nginx/sites-available/{site}',
                 'owner': 'www-data',
                 'group': 'www-data',
                 'mode': '0644',
                 'src': src
             }
 
-            template_action = self._shared_loader_obj.action_loader.get('ansible.builtin.template',
-                                                                        task=new_task,
-                                                                        connection=self._connection,
-                                                                        play_context=self._play_context,
-                                                                        loader=self._loader,
-                                                                        templar=self._templar,
-                                                                        shared_loader_obj=self._shared_loader_obj)
+            template_action = self._shared_loader_obj.action_loader.get(
+                'ansible.builtin.template',
+                task=new_task,
+                connection=self._connection,
+                play_context=self._play_context,
+                loader=self._loader,
+                templar=self._templar,
+                shared_loader_obj=self._shared_loader_obj
+            )
             result.update(template_action.run(task_vars=task_vars))
 
             if result.get('failed', False):
@@ -50,21 +53,23 @@ class ActionModule(ActionBase):
         # Create or delete the link into the 'sites-enabled' directory.
         if state == 'present':
             module_args = {
-                'src': '../sites-available/' + site,
-                'dest': '/etc/nginx/sites-enabled/' + site,
+                'src': f'../sites-available/{site}',
+                'dest': f'/etc/nginx/sites-enabled/{site}',
                 'state': 'link',
                 'owner': 'www-data',
                 'group': 'www-data'
             }
         else:
             module_args = {
-                'dest': '/etc/nginx/sites-enabled/' + site,
+                'dest': f'/etc/nginx/sites-enabled/{site}',
                 'state': 'absent'
             }
 
-        next_result = self._execute_module('ansible.builtin.file',
-                                           module_args=module_args,
-                                           task_vars=task_vars, tmp=tmp)
+        next_result = self._execute_module(
+            'ansible.builtin.file',
+            module_args=module_args,
+            task_vars=task_vars, tmp=tmp
+        )
         if result.get('changed', False):
             next_result['changed'] = True
 
