@@ -1,0 +1,11 @@
+t3dmr__user: tdmr
+t3dmr__basedir: /srv/3dmr
+
+t3dmr__db_user: 3dmr
+
+t3dmr__acme_certificates:
+  - name: t3dmr
+    domains:
+      - 3dmr.eu
+    on_update:
+      - systemctl reload apache2

@@ -1,0 +1,9 @@
+#!/bin/bash
+
+cd {{ t3dmr__basedir }}/3dmr
+
+source {{ t3dmr__basedir }}/venv/bin/activate
+
+./manage.py nightly
+
+mv 3dmr-nightly.zip {{ t3dmr__basedir }}/static/mainapp
