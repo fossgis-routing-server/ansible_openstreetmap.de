@@ -1,0 +1,26 @@
+- name: Install latest postgresql with postgis
+  apt:
+    name:
+      - "postgresql-{{ postgresql__version }}"
+      - "postgresql-{{ postgresql__version }}-postgis-{{ postgresql__postgis_version }}"
+  notify: restart postgresql
+
+- name: Fix default configuration
+  postgresql_config:
+    name: 000-defaults
+    config:
+      shared_buffers: "{{ postgresql__conf_shared_buffers }}"
+      wal_level: minimal
+      max_wal_senders: 0
+
+- name: Install python libraries needed by ansible
+  apt:
+    name: python3-psycopg2
+
+- name: Create superroles for admin users
+  become_user: postgres
+  postgresql_user:
+    name: "{{ item.name }}"
+    role_attr_flags: SUPERUSER
+  when: "item.hosts == 'all' or inventory_hostname in item.hosts"
+  loop: "{{ users | default([]) }}"
