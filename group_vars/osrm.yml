@@ -101,9 +101,9 @@ osrm:
   websitedir: '/var/www/routing/'
   user: 'osrm'
   datauser: 'osrmdata'
-  fronthost: 'routing3'
-  buildhost: 'routing5'
-  algo: "MLD"
+  fronthost: 'goode'
+  buildhost: 'goode'
+  algo: "CH"
   small: False
 
   profiles:
@@ -113,47 +113,47 @@ osrm:
 
   profilearea:
     careuasi:
-      host: "routing3"
+      host: "goode"
       poly: "{{ osrm_polyeuasi }}"
       port: 3330
       profile: "car"
     carafoce:
-      host: "routing3"
+      host: "goode"
       poly: "{{ osrm_polyafoce }}"
       port: 3338
       profile: "car"
     caram:
-      host: "routing3"
+      host: "goode"
       poly: "{{ osrm_polyam }}"
       port: 3331
       profile: "car"
     bikeeuasi:
-      host: "routing4"
+      host: "goode"
       poly: "{{ osrm_polyeuasi }}"
       port: 3332
       profile: "bike"
     bikeafoce:
-      host: "routing4"
+      host: "goode"
       poly: "{{ osrm_polyafoce }}"
       port: 3333
       profile: "bike"
     bikeam:
-      host: "routing3"
+      host: "goode"
       poly: "{{ osrm_polyam }}"
       port: 3334
       profile: "bike"
     footeuasi:
-      host: "routing4"
+      host: "goode"
       poly: "{{ osrm_polyeuasi }}"
       port: 3335
       profile: "foot"
     footafoce:
-      host: "routing4"
+      host: "goode"
       poly: "{{ osrm_polyafoce }}"
       port: 3336
       profile: "foot"
     footam:
-      host: "routing3"
+      host: "goode"
       poly: "{{ osrm_polyam }}"
       port: 3337
       profile: "foot"
