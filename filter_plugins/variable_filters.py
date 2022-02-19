@@ -49,6 +49,15 @@ def flatten_dict(obj, depth=1):
     return results
 
 
+def need_list(obj, field_name):
+    """ Ensures that the input is a simple list. Fails otherwise with an error.
+    """
+    if not isinstance(obj, list):
+        raise AnsibleFilterError(f"Field '{field_name}' must be a list")
+
+    return obj
+
+
 def firstof_dict(obj, *args, default=None):
     """ Return the value for the first key in the list that is found.
         If not of the keys exists in the list, return the default value.
@@ -80,6 +89,7 @@ class FilterModule(object):
     def filters(self):
         return {
           'var_merge_lists': var_merge_lists,
+          'need_list': need_list,
           'flatten_dict': flatten_dict,
           'firstof_dict': firstof_dict,
           'format_join': format_join
