@@ -15,3 +15,8 @@
   apache_site:
     site: 000-default
     state: absent
+
+- name: Enable Apache modules needed for HTTPS
+  shell:
+    cmd: 'a2enmod ssl rewrite'
+  notify: reload apache2

@@ -140,8 +140,3 @@
     site: weeklyosm.eu
     src: 'weeklyosm.eu.conf'
   notify: reload apache2
-
-- name: Enable Apache modules
-  shell:
-    cmd: 'a2enmod ssl rewrite'
-  notify: reload apache2
