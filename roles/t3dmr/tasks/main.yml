@@ -26,11 +26,14 @@
 - name: Install prerequisites
   apt:
     name:
+      - build-essential   # needed for installig rjsmin
+      - python3-dev
       - git
       - python3-virtualenv
       - python3-urllib3
       - python3-requests-oauthlib
       - python3-certifi
+      - python3-rcssmin
       - libapache2-mod-wsgi-py3
 
 - name: Checkout source code
@@ -67,7 +70,6 @@
       - python3-openid==3.1.0
       - pytz==2018.4
       - PyWavefront==1.0.2
-      - rcssmin==1.0.6
       - rjsmin==1.0.12
       - social-auth-app-django==2.1.0
       - social-auth-core==1.7.0
