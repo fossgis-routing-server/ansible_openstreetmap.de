@@ -32,7 +32,7 @@
         </Files>
     </Directory>
 
-    WSGIDaemonProcess 3dmr python-home={{ t3dmr__basedir }}/venv python-path={{ t3dmr__basedir }}/3dmr
+    WSGIDaemonProcess 3dmr user=tdmr python-home={{ t3dmr__basedir }}/venv python-path={{ t3dmr__basedir }}/3dmr
     WSGIProcessGroup 3dmr
     WSGIScriptAlias / {{ t3dmr__basedir }}/3dmr/modelrepository/wsgi.py
 </VirtualHost>
