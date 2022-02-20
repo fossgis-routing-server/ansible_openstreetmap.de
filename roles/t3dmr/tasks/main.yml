@@ -40,6 +40,14 @@
     force: yes
   become_user: "{{ t3dmr__user }}"
 
+# Patch for https://gitlab.com/n42k/3dmr/-/issues/21
+# Remove once the issue has been fixed in the repo.
+- name: Fix login issue with avatar-less users
+  patch:
+    basedir: "{{ t3dmr__basedir }}/3dmr"
+    src: login-avatar.patch
+    strip: 1
+
 # Custom list of requirements. We want to use some system packages
 # and don't need development packages.
 - name: Set up virtualenv
@@ -98,20 +106,35 @@
     regexp: "'PASSWORD':"
     line: "        'PASSWORD': '{{ t3dmr__db_password }}',"
 
-# TODO: restrict to real hosts
 - name: Set allowed hosts
   lineinfile:
     path: "{{ t3dmr__basedir }}/3dmr/modelrepository/settings.py"
     regexp: "^ALLOWED_HOSTS ="
-    line: "ALLOWED_HOSTS = ['*']"
+    line: "ALLOWED_HOSTS = ['miller.openstreetmap.de', '3dmr.eu', '88.198.201.147']"
 
-# TODO: disable debug
+- name: Disable Debug mode
+  lineinfile:
+    path: "{{ t3dmr__basedir }}/3dmr/modelrepository/settings.py"
+    regexp: "^DEBUG ="
+    line: "DEBUG = False"
 
 - name: Set model directory
   lineinfile:
     path: "{{ t3dmr__basedir }}/3dmr/mainapp/utils.py"
     regexp: "^MODEL_DIR = "
     line: "MODEL_DIR = '{{ t3dmr__basedir }}/models'"
+
+- name: Set static directory
+  lineinfile:
+    path: "{{ t3dmr__basedir }}/3dmr/modelrepository/settings.py"
+    regexp: "^STATIC_ROOT = "
+    line: "STATIC_ROOT = '{{ t3dmr__basedir }}/static'"
+
+- name: Deploy static resources
+  shell:
+    cmd: ". {{ t3dmr__basedir }}/venv/bin/activate; ./manage.py collectstatic --noinput"
+    chdir: "{{ t3dmr__basedir }}/3dmr"
+  become_user: "{{ t3dmr__user }}"
 
 - name: Set up nightly script
   template:
@@ -123,6 +146,7 @@
 
 - name: Create nightly exports
   cron:
+    name: 3dmr nightly exports
     minute: "0"
     hour: "4"
     job: "/home/tdmr/nightly.sh"
