@@ -1,3 +1,11 @@
+# Setup for 3dmr.eu.
+#
+# This is a simple django setup. To finish the setup you need to
+#
+#  - dump and restore the Postgresql database 3dmr
+#  - copy the model repository from /srv/3dmr/models/
+#  - run /srv/3dmr/bin/nightly.sh once manually to create the first dump.
+#
 - name: Create user for 3drm
   system_account:
     name: "{{ t3dmr__user }}"
@@ -32,7 +40,7 @@
     force: yes
   become_user: "{{ t3dmr__user }}"
 
-# Custom list of requirements as we want to use some system packages
+# Custom list of requirements. We want to use some system packages
 # and don't need development packages.
 - name: Set up virtualenv
   pip:
