@@ -1,26 +1,4 @@
-<VirtualHost *:80>
-    RewriteEngine On
-
-    RewriteCond %{REQUEST_URI} ^/.well-known/acme-challenge
-    RewriteRule (.*) http://{{ hostvars[groups.acme.0].acme__fqdn }}%{REQUEST_URI} [R=301,L]
-
-    RewriteCond %{HTTPS} off
-    RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
-</VirtualHost>
-
-<VirtualHost *:443>
-    SSLEngine on
-
-    SSLCertificateFile {{ acme__daemon_basedir }}/certs/t3dmr.pem
-    SSLCertificateKeyFile {{ acme__daemon_basedir }}/certs/t3dmr.key
-    SSLEngine on
-
-    # Intermediate configuration, tweak to your needs
-    SSLProtocol             all -SSLv3 -TLSv1 -TLSv1.1
-    SSLCipherSuite          ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384
-    SSLHonorCipherOrder     off
-    SSLSessionTickets       off
-
+{% call server(['3dmr.eu'], http='forward', https='t3dmr') %}
     Alias /static/ {{ t3dmr__basedir }}/static/
 
     <Directory {{ t3dmr__basedir }}/static>
@@ -35,4 +13,6 @@
     WSGIDaemonProcess 3dmr user=tdmr python-home={{ t3dmr__basedir }}/venv python-path={{ t3dmr__basedir }}/3dmr
     WSGIProcessGroup 3dmr
     WSGIScriptAlias / {{ t3dmr__basedir }}/3dmr/modelrepository/wsgi.py
-</VirtualHost>
+
+    {{ custom_log('3dmr.eu') }}
+{% endcall %}

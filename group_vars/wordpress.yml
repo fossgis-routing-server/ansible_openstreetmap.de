@@ -8,6 +8,10 @@ wordpress:
   hostname_aliases:
     - 'www.weeklyosm.eu'
     - 'soldner.openstreetmap.de'
+  hostnames:
+    - 'weeklyosm.eu'
+    - 'www.weeklyosm.eu'
+    - 'soldner.openstreetmap.de'
 mariadb:
   socket_path: '/var/run/mysqld/mysqld.sock'
 
