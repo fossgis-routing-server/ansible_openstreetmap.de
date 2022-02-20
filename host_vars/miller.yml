@@ -1,0 +1,1 @@
+postgresql__conf_shared_buffers: "256MB"

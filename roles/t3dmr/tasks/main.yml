@@ -1,0 +1,166 @@
+# Setup for 3dmr.eu.
+#
+# This is a simple django setup. To finish the setup you need to
+#
+#  - dump and restore the Postgresql database 3dmr
+#  - copy the model repository from /srv/3dmr/models/
+#  - run /srv/3dmr/bin/nightly.sh once manually to create the first dump.
+#
+- name: Create user for 3drm
+  system_account:
+    name: "{{ t3dmr__user }}"
+    home: "{{ t3dmr__basedir }}"
+
+- name: Populate home directory
+  file:
+    dest: "{{ t3dmr__basedir }}/{{ item }}"
+    owner: "{{ t3dmr__user }}"
+    group: "{{ t3dmr__user }}"
+    state: directory
+  loop:
+    - bin
+    - models
+    - static/mainapp
+
+
+- name: Install prerequisites
+  apt:
+    name:
+      - build-essential   # needed for installig rjsmin
+      - python3-dev
+      - git
+      - python3-virtualenv
+      - python3-urllib3
+      - python3-requests-oauthlib
+      - python3-certifi
+      - python3-rcssmin
+      - libapache2-mod-wsgi-py3
+
+- name: Checkout source code
+  git:
+    repo: https://gitlab.com/n42k/3dmr.git
+    dest: "{{ t3dmr__basedir }}/3dmr"
+    force: yes
+  become_user: "{{ t3dmr__user }}"
+
+# Patch for https://gitlab.com/n42k/3dmr/-/issues/21
+# Remove once the issue has been fixed in the repo.
+- name: Fix login issue with avatar-less users
+  patch:
+    basedir: "{{ t3dmr__basedir }}/3dmr"
+    src: login-avatar.patch
+    strip: 1
+
+# Custom list of requirements. We want to use some system packages
+# and don't need development packages.
+- name: Set up virtualenv
+  pip:
+    name:
+      - chardet==3.0.4
+      - defusedxml==0.5.0
+      - Django==2.0.5
+      - django-appconf==1.0.2
+      - django-compressor==2.2
+      - django-pgviews==0.5.3
+      - idna==2.6
+      - mccabe==0.6.1
+      - mistune==0.8.3
+      - oauthlib==2.1.0
+      - PyJWT==1.6.3
+      - python3-openid==3.1.0
+      - pytz==2018.4
+      - PyWavefront==1.0.2
+      - rjsmin==1.0.12
+      - social-auth-app-django==2.1.0
+      - social-auth-core==1.7.0
+    virtualenv: "{{ t3dmr__basedir }}/venv"
+    virtualenv_site_packages: yes
+    virtualenv_python: python3
+  become_user: "{{ t3dmr__user }}"
+
+- name: Set up postgresl user
+  postgresql_user:
+    name: "{{ t3dmr__db_user }}"
+    password: "{{ t3dmr__db_password }}"
+  become_user: postgres
+
+- name: Install Django key
+  lineinfile:
+    path: "{{ t3dmr__basedir }}/3dmr/modelrepository/settings.py"
+    regexp: "^SECRET_KEY ="
+    line: "SECRET_KEY = '{{ t3dmr__django_key }}'"
+
+- name: Set auth key
+  lineinfile:
+    path: "{{ t3dmr__basedir }}/3dmr/modelrepository/settings.py"
+    regexp: "^SOCIAL_AUTH_OPENSTREETMAP_KEY ="
+    line: "SOCIAL_AUTH_OPENSTREETMAP_KEY = '{{ t3dmr__osm_key }}'"
+
+- name: Set auth secret
+  lineinfile:
+    path: "{{ t3dmr__basedir }}/3dmr/modelrepository/settings.py"
+    regexp: "^SOCIAL_AUTH_OPENSTREETMAP_SECRET ="
+    line: "SOCIAL_AUTH_OPENSTREETMAP_SECRET = '{{ t3dmr__osm_secret }}'"
+
+- name: Set DB password
+  lineinfile:
+    path: "{{ t3dmr__basedir }}/3dmr/modelrepository/settings.py"
+    regexp: "'PASSWORD':"
+    line: "        'PASSWORD': '{{ t3dmr__db_password }}',"
+
+- name: Set allowed hosts
+  lineinfile:
+    path: "{{ t3dmr__basedir }}/3dmr/modelrepository/settings.py"
+    regexp: "^ALLOWED_HOSTS ="
+    line: "ALLOWED_HOSTS = ['miller.openstreetmap.de', '3dmr.eu', '88.198.201.147']"
+
+- name: Disable Debug mode
+  lineinfile:
+    path: "{{ t3dmr__basedir }}/3dmr/modelrepository/settings.py"
+    regexp: "^DEBUG ="
+    line: "DEBUG = False"
+
+- name: Set model directory
+  lineinfile:
+    path: "{{ t3dmr__basedir }}/3dmr/mainapp/utils.py"
+    regexp: "^MODEL_DIR = "
+    line: "MODEL_DIR = '{{ t3dmr__basedir }}/models'"
+
+- name: Set static directory
+  lineinfile:
+    path: "{{ t3dmr__basedir }}/3dmr/modelrepository/settings.py"
+    regexp: "^STATIC_ROOT = "
+    line: "STATIC_ROOT = '{{ t3dmr__basedir }}/static'"
+
+- name: Deploy static resources
+  shell:
+    cmd: ". {{ t3dmr__basedir }}/venv/bin/activate; ./manage.py collectstatic --noinput"
+    chdir: "{{ t3dmr__basedir }}/3dmr"
+  become_user: "{{ t3dmr__user }}"
+
+- name: Set up nightly script
+  template:
+    src: nightly.sh.jinja
+    dest: "{{ t3dmr__basedir }}/bin/nightly.sh"
+    owner: "{{ t3dmr__user }}"
+    group: "{{ t3dmr__user }}"
+    mode: "0755"
+
+- name: Create nightly exports
+  cron:
+    name: 3dmr nightly exports
+    minute: "0"
+    hour: "4"
+    job: "/home/tdmr/nightly.sh"
+    user: "{{ t3dmr__user }}"
+
+- name: Enable Apache modules
+  shell:
+    cmd: 'a2enmod ssl rewrite'
+  notify: reload apache2
+
+- name: Set up apache site
+  apache_site:
+    site: 3dmr.eu
+    src: 3dmr.eu.apache.conf.jinja
+  notify: reload apache2
