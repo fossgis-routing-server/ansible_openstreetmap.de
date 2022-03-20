@@ -78,3 +78,8 @@
   become: yes
   roles:
     - role: t3dmr
+- hosts: dns
+  tags: dns
+  become: yes
+  roles:
+    - role: dns
