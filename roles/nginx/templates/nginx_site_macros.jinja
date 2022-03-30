@@ -1,0 +1,50 @@
+{% macro enable_ssl(certificate_name) -%}
+    ssl_certificate {{ acme__daemon_basedir }}/certs/{{ certificate_name }}.pem;
+    ssl_certificate_key {{ acme__daemon_basedir }}/certs/{{ certificate_name }}.key;
+
+    ssl_session_timeout 5m;
+
+    ssl_prefer_server_ciphers on;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers 'EDH+CAMELLIA:EDH+aRSA:EECDH+aRSA+AESGCM:EECDH+aRSA+SHA256:EECDH:+CAMELLIA128:+AES128:+SSLv3:!aNULL:!eNULL:!LOW:!3DES:!MD5:!EXP:!PSK:!DSS:!RC4:!SEED:!IDEA:!ECDSA:kEDH:CAMELLIA128-SHA:AES128-SHA';
+{%- endmacro %}
+{% macro custom_log(name) -%}
+    access_log /var/log/nginx/{{ name }}-access.log;
+    error_log /var/log/nginx/{{ name }}-error.log;
+{%- endmacro %}
+{% macro server(fqdns, http='yes', https='', listen_params='') -%}
+{% if http == 'forward' -%}
+server {
+    listen 80 {{ listen_params }};
+    listen [::]:80 {{ listen_params }};
+
+    server_name{% for fqdn in fqdns %} {{ fqdn }}{% endfor %};
+
+    rewrite ^/\.well-known/acme-challenge/(.*)$ http://{{ hostvars[groups.acme.0].acme__fqdn }}/.well-known/acme-challenge/$1 permanent;
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+{%- endif %}
+
+server {
+    {% if http == 'yes' -%}
+    listen 80 {{ listen_params }};
+    listen [::]:80 {{ listen_params }};
+    {% endif %}
+    {% if https %}
+    listen 443 ssl http2 {{ listen_params }};
+    listen [::]:443 ssl http2 {{ listen_params }};
+
+    server_name{% for fqdn in fqdns %} {{ fqdn }}{% endfor %};
+
+    {{ enable_ssl(https) }}
+
+    rewrite ^/\.well-known/acme-challenge/(.*)$ http://{{ hostvars[groups.acme.0].acme__fqdn }}/.well-known/acme-challenge/$1 permanent;
+    {% endif %}
+
+    {{ caller() }}
+}
+{%- endmacro %}
+{% include nginx_site_body %}

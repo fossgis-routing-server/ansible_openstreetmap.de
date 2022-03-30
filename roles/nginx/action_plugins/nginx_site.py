@@ -33,8 +33,11 @@ class ActionModule(ActionBase):
                 'owner': 'www-data',
                 'group': 'www-data',
                 'mode': '0644',
-                'src': src
+                'src': 'roles/nginx/templates/nginx_site_macros.jinja'
             }
+
+            new_task_vars = task_vars.copy()
+            new_task_vars['nginx_site_body'] = src
 
             template_action = self._shared_loader_obj.action_loader.get(
                 'ansible.builtin.template',
@@ -45,7 +48,7 @@ class ActionModule(ActionBase):
                 templar=self._templar,
                 shared_loader_obj=self._shared_loader_obj
             )
-            result.update(template_action.run(task_vars=task_vars))
+            result.update(template_action.run(task_vars=new_task_vars))
 
             if result.get('failed', False):
                 return result

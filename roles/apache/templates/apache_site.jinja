@@ -1,0 +1,51 @@
+{% macro enable_ssl(certificate_name) -%}
+    SSLEngine on
+
+    SSLCertificateFile {{ acme__daemon_basedir }}/certs/{{ certificate_name }}.pem
+    SSLCertificateKeyFile {{ acme__daemon_basedir }}/certs/{{ certificate_name }}.key
+
+    # Intermediate configuration, tweak to your needs
+    SSLProtocol             all -SSLv3 -TLSv1 -TLSv1.1
+    SSLCipherSuite          ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384
+    SSLHonorCipherOrder     off
+    SSLSessionTickets       off
+{%- endmacro %}
+{% macro custom_log(name) -%}
+    CustomLog ${APACHE_LOG_DIR}/{{ name }}.access.log combined
+    ErrorLog ${APACHE_LOG_DIR}/{{ name }}.error.log
+{%- endmacro %}
+{% macro server(fqdns, http='yes', https='') -%}
+{% if http in ('forward', 'yes') -%}
+<VirtualHost *:80>
+    {% for fqdn in fqdns -%}
+    {% if loop.first %}ServerName{% else %}ServerAlias{% endif %} {{ fqdn }}
+    {% endfor %}
+
+    {% if http == 'forward' -%}
+    RewriteEngine On
+
+    RewriteCond %{REQUEST_URI} ^/.well-known/acme-challenge
+    RewriteRule (.*) http://{{ hostvars[groups.acme.0].acme__fqdn }}%{REQUEST_URI} [R=301,L]
+
+    RewriteCond %{HTTPS} off
+    RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+    {% else -%}
+    {{ caller() }}
+    {% endif %}
+
+</VirtualHost>
+{%- endif %}
+
+{% if https %}
+<VirtualHost *:443>
+    {% for fqdn in fqdns -%}
+    {% if loop.first %}ServerName{% else %}ServerAlias{% endif %} {{ fqdn }}
+    {% endfor %}
+
+    {{ enable_ssl(https) }}
+
+    {{ caller() }}
+</VirtualHost>
+{%- endif %}
+{%- endmacro %}
+{% include apache_site_body %}

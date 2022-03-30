@@ -154,10 +154,6 @@
     job: "/home/tdmr/nightly.sh"
     user: "{{ t3dmr__user }}"
 
-- name: Enable Apache modules
-  shell:
-    cmd: 'a2enmod ssl rewrite'
-  notify: reload apache2
 
 - name: Set up apache site
   apache_site:
