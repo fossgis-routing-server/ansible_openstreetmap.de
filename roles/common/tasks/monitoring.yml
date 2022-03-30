@@ -1,0 +1,46 @@
+# Enables client-side for ichinga monitoring
+
+- name: Install monitoring tools
+  apt:
+    name:
+      - monitoring-plugins
+      - libmonitoring-plugin-perl
+
+- name: Install nagios user
+  system_account:
+    name: "{{ monitor__user }}"
+    home: "{{ monitor__basedir }}"
+
+- name: Populate home directory
+  file:
+    dest: "{{ monitor__basedir }}/{{ item }}"
+    owner: "{{ monitor__user }}"
+    group: "{{ monitor__user }}"
+    state: directory
+  loop:
+    - plugins/local
+    - var/lib/networknagios
+
+- name: Install nagiosshell script
+  copy:
+    src: nagiosshell
+    dest: "{{ monitor__basedir }}/nagiosshell"
+    owner: "{{ monitor__user }}"
+    group: "{{ monitor__user }}"
+    mode: "0755"
+
+- name: Link to nagios system plugins
+  file:
+    src: /usr/lib/nagios/plugins
+    dest: "{{ monitor__basedir }}/plugins/nagios"
+    state: link
+    owner: "{{ monitor__user }}"
+    group: "{{ monitor__user }}"
+
+
+- name: Install public key
+  authorized_key:
+    user: "{{ monitor__user }}"
+    key: "{{ monitor__public_key }}"
+    key_options: 'environment="SHELL=/bin/sh",command="{{ monitor__basedir }}/nagiosshell"'
+    comment: nagios
