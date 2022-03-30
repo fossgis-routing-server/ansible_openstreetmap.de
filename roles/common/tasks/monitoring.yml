@@ -10,6 +10,7 @@
   system_account:
     name: "{{ monitor__user }}"
     home: "{{ monitor__basedir }}"
+    shell: "{{ monitor__basedir }}/nagiosshell"
 
 - name: Populate home directory
   file:
@@ -37,10 +38,16 @@
     owner: "{{ monitor__user }}"
     group: "{{ monitor__user }}"
 
+- name: Add custom plugins
+  copy:
+    src: nagios-local-plugins/
+    dest: "{{ monitor__basedir }}/plugins/local/"
+    owner: "{{ monitor__user }}"
+    group: "{{ monitor__user }}"
+    mode: preserve
 
 - name: Install public key
   authorized_key:
     user: "{{ monitor__user }}"
     key: "{{ monitor__public_key }}"
-    key_options: 'environment="SHELL=/bin/sh",command="{{ monitor__basedir }}/nagiosshell"'
     comment: nagios
