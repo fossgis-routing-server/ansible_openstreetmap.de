@@ -1,0 +1,280 @@
+#! /usr/bin/perl -w
+
+use strict;
+
+use Getopt::Std;
+sub bytenormalize($$);
+sub timenormalize($$);
+sub finish($;$$);
+sub crit($);
+
+# was will ich?
+# - kollisionen / fehler
+#   - anzahl / zeitraum - beides config
+# - last
+#   - packets oder bytes / min
+# - fuer alle (konfigurierten) interfaces - defaults
+#   - interfaces/statistiken ausnehmen
+
+# vorgehen
+# - konfig
+#   - defaults
+
+# je count, minutes fuer gegebene stats (aus /sys/class/net/$if/statistics)
+# TODO: aufhuebschen, return-values checken
+our(@names)=("rx_bytes","rx_packets","rx_dropped","multicast","tx_bytes",
+  "tx_packets","tx_dropped");
+our(@critlimits)=(1024*1024*1024*1024*60,60,1024*1024*1024*60,60,22,14400,
+  1024*1024*1024*60,60,1024*1024*1024*1024*60,60,1024*1024*1024*60,60,4,14400);
+our(@warnlimits)=(1024*1024*1024*1024*48,60,1024*1024*1024*48,60,18,14400,
+  1024*1024*1024*48,60,1024*1024*1024*1024*48,60,1024*1024*1024*48,60,3,14400);
+# unfertig
+# our(%perfshown);
+our(@othertime)=14400;
+our($debug)=0;
+our($dir)=$ENV{HOME}."/var/lib/networknagios";
+our($cffile)=$ENV{HOME}."/.networknagrc";
+
+use vars qw($opt_c $opt_d $opt_f $opt_r);
+
+# TODO: -h
+# -d networknagios stats dir
+# -c cat all info
+# -f config file
+# -r read only
+getopts('rcd:f:');
+
+# TODO: this can be insecure if arguments are not trusted - redo more
+# securely
+# $dir=$opt_d if $opt_d;
+# $cffile=$opt_f if $opt_f;
+
+# TODO:
+#   - commandline
+#   - konfigfile
+#     - [interface:]stat count minutes [wcount [wminutes]] [flags]
+#       flags ist P - perfdata
+
+my(%nameidx);
+for (0..$#names) { $nameidx{$names[$_]}=$_; }
+
+if ( -f $cffile ) {
+  open(_,"<",$cffile) || die("Can not read existing configfile: $!");
+  while (<_>) {
+    s/\s+(\#.*)?$//; # comment
+    s/^\s+//;
+    @_=split(" ",$_,4);
+    if ($_[0]=~/^debug$/) {
+      $debug++;
+    } elsif ($_[0]=~/(\w+):(\w+)/) { 
+      crit("interfaces in config not yet done");
+    } else {
+      defined($nameidx{$_[0]}) or crit($_[0]." unknown stat");
+      $critlimits[$nameidx{$_[0]}*2]=bytenormalize($_[1], $_[0]);
+      $critlimits[$nameidx{$_[0]}*2+1]=timenormalize($_[2], $_[0]);
+      # flag handling is unused for the time being
+      # my($flags)=3;
+      if (defined($_[3]) and $_[3]=~/^[0-9]/) {
+        # $flags++;
+	$warnlimits[$nameidx{$_[0]}*2]=bytenormalize($_[3], $_[0]);
+	if (defined($_[4]) and $_[4]=~/^[0-9]/) {
+	  $warnlimits[$nameidx{$_[0]}*2+1]=timenormalize($_[4], $_[0]);
+	} else {
+	  $warnlimits[$nameidx{$_[0]}*2+1]=$critlimits[$nameidx{$_[0]}*2+1];
+	}
+      } else {
+        $warnlimits[$nameidx{$_[0]}*2]=$critlimits[$nameidx{$_[0]}*2]*0.8;
+	$warnlimits[$nameidx{$_[0]}*2+1]=$critlimits[$nameidx{$_[0]}*2+1];
+      }
+      # $perfshown{$_[0]}=1 if (defined($_[$flags]) and $_[$flags] eq 'P');
+  } }
+  close(_) || die ("Could not close conigfile: $!");
+}
+
+unless ($opt_c or $opt_r) {
+  # - statistikdirectory.
+  #   - daemon? - nicht normalerweise. im zweifel mehrere minuten
+  #     verdurchschnitten.
+  #   - schreiblock!
+  #   - wie viele dateien? nicht zu viele angefangene HD-bloecke -> >>4k. 1
+  #     Datensatz/min - (rx|tx)[bped] ocmc -> 12*8 bytes + time_t -> 104 bytes
+  #     + 8bytes 0-padding -> 1 datei/d -> 21 bloecke/datei
+  #     - habe ich etwas veraendert
+  #   - naming if-yyyy-mm-dd
+  chdir("/sys/class/net") || crit("could not chdir to /sys/class/net: $!");
+  for my $if (glob('*')) {
+    chdir("/sys/class/net/$if/statistics") || crit(
+      "could not chdir to /sys/class/net/$if/statistics: $!");
+    my(@stats);
+    for my $stat (glob('*')) {
+      open(_,"<",$stat) || crit(
+	"could not open /sys/class/net/$if/statistics/$stat: $!");
+      if (defined($nameidx{$stat})) { chomp($stats[$nameidx{$stat}]=<_>); }
+      else {
+	my($val)=<_>;
+	$stats[$#names+1]+=chomp($val);
+      }
+      close(_) || die ("Could not close $stat: $!");
+    }
+    unshift(@stats,time());
+    my(undef,$m,$h,$day,$mon,$year,undef,undef,undef,undef)=gmtime(time);
+    my($name)=sprintf("%s-%04d-%02d-%02d",$if,$year,$mon,$day);
+    open(S,">>","$dir/$name") or crit("could not append to $dir/$name: $!");
+    print S (pack("c/Q>[".($#stats+1)."] C[8]", @stats,(0xff) x 8));
+    close(S) || die ("Could not close $dir/$name: $!");
+  }
+}
+
+my($out)='|';
+my($timeoutput);
+my($message)=' no problems';
+my($removestats)=0;
+my($warning);
+my($xtramsg)='';
+chdir("/sys/class/net") || crit("could not chdir to /sys/class/net: $!");
+for my $if (glob('*')) {
+  # find the correct data files for the start of the timeframe for which we
+  # measure the deltas of the counter
+  for my $nameidx (0..$#names) {
+    my($checktime)=time()-60*$critlimits[2*$nameidx+1];
+    my(undef,undef,undef,$day,$mon,$year)=gmtime($checktime);
+    chdir($dir) || crit("could not chdir to $dir: $!");
+    my(@files)=glob("$if-*");
+    $#files>=0 or crit("no files for $if");
+    if (!$opt_c) {
+      my($i)=0;
+      while ($files[$i] le sprintf("%s-%04d-%02d-%02d",$if,$year,$mon,$day)) {
+	$i++;
+	last if $i>=$#files;
+      }
+      $i-=2;
+      $i=0 if $i<0;
+      splice(@files,0,$i);
+      splice(@files,$i+2) if $i+2<$#files;
+      # now $#files should be 0 or 1 - and those should be the right 1-2 files
+    }
+
+    my($counter)=undef;
+    my($usedtime);
+    for my $f (@files) {
+      # look for the last dataset before $checktime - if that does not work
+      # take the first
+      # files should be read only once - or possibly not...
+      open(_,"<",$f) || crit("data of start day ($f) not available: $!");
+      my($ret,$data);
+      my($length)=8*($#names+4)+1;
+      while ($ret=sysread(_,$data,$length)) {
+	my($len)=unpack("c",$data);
+	$len==$#names+3 or crit("stat-file $f contains incorrect data");
+	my(@stats)=unpack("c/Q> Q",$data);
+	$stats[$#stats] eq unpack("Q",pack("C[8]",(0xff) x 8)) or
+	  crit("stat-file $f contains incorrect terminator ".$stats[$#stats]);
+	pop(@stats);
+	if ($opt_c) {
+          print "$if $f ".join(" ",@stats)."\n";
+	  next;
+	}
+	my($time)=shift(@stats);
+	last if $time>$checktime and defined($counter);
+	$usedtime=$time;
+	$counter=$stats[$nameidx]
+      }
+    }
+    last if $opt_c;
+    defined($counter) or crit("no counter for $if");
+    open(_,'<',"/sys/class/net/$if/statistics/".$names[$nameidx]) or crit(
+      "could not open /sys/class/net/$if/statistics/".$names[$nameidx].": $!");
+    my($val)=<_>;
+    close(_) || die("could not close stastics file: $!");
+    $val-=$counter;
+    $out.=$if."_".$names[$nameidx]."=$val;;; ";
+    if ($val<0) {
+      $message=' (reboot)';
+      $removestats=1;
+    }
+    # if there is a too large gap in the measurements we want to avoid
+    # spurious warnings - this can legitimally happen in downtimes or other
+    # off-times
+    unless ($warning) {
+      my($warn)=$val;
+      if (time()-$usedtime>2*60*$warnlimits[2*$nameidx+1]) 
+        {$warn/=(time()-$usedtime)/(60*$warnlimits[2*$nameidx+1])}
+      if ($warn>=$warnlimits[2*$nameidx]) {
+        $warning=$names[$nameidx]." for $if has value $warn";
+	$xtramsg="time: ".time()." usedtime $usedtime\n";
+      }
+    }
+    if (time()-$usedtime>2*60*$critlimits[2*$nameidx+1])
+      {$val/=(time()-$usedtime)/(60*$critlimits[2*$nameidx+1])}
+    next if $val<$critlimits[2*$nameidx];
+    # in some cases we will want some extra information
+    # at the moment only rx_dropped
+    $xtramsg='';
+    if ($names[$nameidx] eq "rx_dropped") {
+      open(D,"</proc/net/softnet_stat") || 
+        warn "Could not open /proc/net/softnet_stat";
+      $xtramsg=join("",<D>);
+      close(D) || warn("close failed");
+    }
+    finish("CRITICAL - ".$names[$nameidx]." for $if has value $val!$out",2,
+      $xtramsg);
+  }
+}
+
+if ($removestats) {
+  if (chdir($dir)) {
+    unlink(glob('*')) or $warning.=" could not unlink some stat files: $!";
+  } else { $warning.=" could not cd to $dir: $!" }
+}
+
+unless ($opt_c) {
+  if ($warning) { finish("WARNING - $warning.$out",1,$xtramsg); }
+  else { finish("OK -$removestats$out",0); }
+  # finish("OK - no problems found",0);
+}
+
+
+exit(0);
+
+sub bytenormalize($$) {
+  my($b)=shift; my($s)=shift;
+  if ($b=~/[KMGTP]$/) {
+    my($u)=chop($b);
+    $b>0 or crit("$s config values must be positive");
+    $b*=1024**index("1KMGTP",$u);
+  }
+  $b>=1 or crit("$s config byte values must be >=1");
+  return $b;
+}
+
+sub timenormalize($$) {
+  my($t)=shift; my($s)=shift;
+  if ($t=~/[hdw]$/) {
+    my($u)=chop($t);
+    $t*=60;
+    $t*=24 if ($u eq 'd');
+    $t*=24*7 if ($u eq 'w');
+  }
+  $t>0 or crit("$s config time values must be >0");
+  return $t;
+}
+
+sub finish($;$$) {
+    my ($msg,$state,$xtramsg) = @_;
+
+    if ($debug && $state) {
+      open(D,">>/tmp/debug.networknagios") || warn(
+        "could not write debug file: $!");
+      print D $xtramsg if $xtramsg;
+      print D "$msg\n";
+      close(D) || warn("close failed: $!");
+    }
+    print "$msg\n";
+    exit $state;
+}
+
+sub crit($) { finish("CRITICAL - ".$_[0]."!",2); }
+
+# some ideas I cast aside at some point:
+# - configurable perfdata
+#   perfdata (leicht analog critlimits, values==0 -> nicht anzeigen)

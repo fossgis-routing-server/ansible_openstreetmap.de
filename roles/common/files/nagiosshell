@@ -1,0 +1,27 @@
+#! /usr/bin/perl -w
+
+# This Program is meant to be a login-shell replacement for a nagios user.
+# It removes the first argument, strips any paths from the rest and calls
+# the resulting program if it finds it in any plugins/* directory using any
+# arguments given
+
+# $_=<STDIN>;
+# @_=split;
+
+shift;
+@_=split(" ",join(" ",@ARGV));
+
+$_[0]=~s|.*/||;
+for (glob("./plugins/*")) {
+  next unless -x $_."/".$_[0];
+  $_[0]=$_."/".$_[0];
+  last;
+}
+$_[0]=~/\// || die $_[0]." not found in plugins/* dirs";
+
+# open(D,">>/tmp/nagioscmd");
+# print D (join(" ",@ARGV),"\n");
+# close(D);
+
+exec(@_);
+die "exec failed: $!"
