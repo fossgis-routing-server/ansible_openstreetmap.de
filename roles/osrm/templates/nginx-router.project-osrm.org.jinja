@@ -1,21 +1,14 @@
 
-server {
-    listen 80;
-    listen [::]:80;
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
-    ssl_certificate /etc/letsencrypt/live/routing3.openstreetmap.de/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/routing3.openstreetmap.de/privkey.pem;
-
-    ssl_session_timeout 5m;
-
-    ssl_prefer_server_ciphers on;
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers 'EDH+CAMELLIA:EDH+aRSA:EECDH+aRSA+AESGCM:EECDH+aRSA+SHA256:EECDH:+CAMELLIA128:+AES128:+SSLv3:!aNULL:!eNULL:!LOW:!3DES:!MD5:!EXP:!PSK:!DSS:!RC4:!SEED:!IDEA:!ECDSA:kEDH:CAMELLIA128-SHA:AES128-SHA';
+{% call server([server_name], http='yes', https='osrmorg') %}
 
     root /var/www/routing;
 
-    server_name {{ server_name }};
+    # deny access to .htaccess files, if Apache's document root
+    # concurs with nginx's one
+    
+    location ~ /\.ht {
+           deny all;
+    }
 
     error_page 429 /429.html;
     location /429.html {
@@ -30,12 +23,17 @@ server {
     access_log /var/log/nginx/router.log anonymized;
 
     location / {
-        include /etc/nginx/uwsgi_params;
-        rewrite ^/(.*)$ /car/$1 break;
-        uwsgi_pass  unix:///var/run/uwsgi/osrm.socket;
-        uwsgi_param SCRIPT_NAME /request-by-coordinate;
+        rewrite_by_lua_file /etc/nginx/lua/carorgrewrite.lua;
         access_log /var/log/nginx/router.log anonymized;
         access_log /var/log/nginx/routing-times-car.log access_times;
     }
-}
+
+{% for profilearea in osrm.profilearea.keys() %}
+    location /routed-{{ profilearea }}/ {
+        internal;
+        proxy_pass  http://{{ osrm.profilearea[profilearea].host }}.openstreetmap.de:{{ osrm.profilearea[profilearea].port }}/;
+    }
+{% endfor %}
+
+{% endcall %}
 

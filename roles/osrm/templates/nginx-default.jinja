@@ -11,25 +11,11 @@ map $http_accept_language $lang {
     ~zh zh;
 }
 
-server {
-    listen 80 {{ default_server }};
-    listen [::]:80 {{ default_server }};
-    listen 443 ssl http2 {{ default_server }};
-    listen [::]:443 ssl http2 {{ default_server }};
-    ssl_certificate /etc/letsencrypt/live/routing3.openstreetmap.de/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/routing3.openstreetmap.de/privkey.pem;
-
-    ssl_session_timeout 5m;
-
-    ssl_prefer_server_ciphers on;
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers 'EDH+CAMELLIA:EDH+aRSA:EECDH+aRSA+AESGCM:EECDH+aRSA+SHA256:EECDH:+CAMELLIA128:+AES128:+SSLv3:!aNULL:!eNULL:!LOW:!3DES:!MD5:!EXP:!PSK:!DSS:!RC4:!SEED:!IDEA:!ECDSA:kEDH:CAMELLIA128-SHA:AES128-SHA';
+{% call server([server_name], http='yes', https=cert, listen_params=default_server ) %}
 
     root /var/www/routing;
 
-    index index.html
-
-    server_name {{ server_name }};
+    index index.html;
 
     location = / {
         set $relang 'en';
@@ -65,52 +51,48 @@ server {
 
     access_log /var/log/nginx/router.log anonymized;
 
-    location /routed-car {
+{% for profile in osrm.profiles.keys() %}
+    location /routed-{{ profile }} {
         limit_req zone=standard burst=10;
         limit_req zone=table burst=5;
         limit_req zone=tile burst=50;
-        include /etc/nginx/uwsgi_params;
-        rewrite ^/routed-car/(.*)$ /car/$1 break;
-        uwsgi_pass  unix:///var/run/uwsgi/osrm.socket;
-        uwsgi_param SCRIPT_NAME /request-by-coordinate;
+        rewrite_by_lua_file /etc/nginx/lua/{{ profile }}rewrite.lua;
+    }
+{% endfor %}
+
+{% for profilearea in osrm.profilearea.keys() %}
+    location /routed-{{ profilearea }}/ {
+        internal;
+        proxy_pass  http://{{ osrm.profilearea[profilearea].host }}.openstreetmap.de:{{ osrm.profilearea[profilearea].port }}/;
         access_log /var/log/nginx/router.log anonymized;
-        access_log /var/log/nginx/routing-times-car.log access_times;
+        access_log /var/log/nginx/routing-times-{{ osrm.profilearea[profilearea].profile }}.log access_times;
+    }
+{% endfor %}
+    location /null-island {
+        internal;
+        add_header Access-Control-Allow-Headers "X-Requested-With, Content-Type";
+        add_header Access-Control-Allow-Methods GET;
+        add_header Access-Control-Allow-Origin *;
+        add_header Content-Disposition 'inline; filename="response.json"';
+        add_header Content-Type "application/json; charset=UTF-8";
+        return 200 '{"message":"Welcome to Null Island. At least one point you entered is 0,0 (Which is in the middle of the ocean. There is only a buoy known as Null Island) which means that this query is not meaningful. Because this is so common, we don\'t answer requests for 0,0 to preserve resources.","code":"InvalidOptions"}';
     }
 
-    location /routed-bike {
-        limit_req zone=standard burst=10;
-        limit_req zone=table burst=5;
-        limit_req zone=tile burst=50;
-        include  /etc/nginx/uwsgi_params;
-        rewrite  ^/routed-bike/(.*)$ /bike/$1 break;
-        uwsgi_pass  unix:///var/run/uwsgi/osrm.socket;
-        uwsgi_param SCRIPT_NAME /request-by-coordinate;
-        access_log /var/log/nginx/router.log anonymized;
-        access_log /var/log/nginx/routing-times-bike.log access_times;
-    }
-
-    location /routed-foot {
-        limit_req zone=standard burst=10;
-        limit_req zone=table burst=5;
-        limit_req zone=tile burst=50;
-        include  /etc/nginx/uwsgi_params;
-        rewrite  ^/routed-foot/(.*)$ /foot/$1 break;
-        uwsgi_pass  unix:///var/run/uwsgi/osrm.socket;
-        uwsgi_param SCRIPT_NAME /request-by-coordinate;
-        access_log /var/log/nginx/router.log anonymized;
-        access_log /var/log/nginx/routing-times-foot.log access_times;
-    }
 {% endif %}
 
 {% if munin %}
     location /munin/static/ {
+{% if answer_routes %}
         limit_req zone=standard burst=100 nodelay;
+{% endif %}
         alias /etc/munin/static/;
         expires modified +1w;
     }
 
     location /munin/ {
+{% if answer_routes %}
         limit_req zone=standard burst=100 nodelay;
+{% endif %}
         alias /var/cache/munin/www/;
         expires modified +310s;
     }
@@ -123,4 +105,5 @@ server {
         include fastcgi_params;
     }
 {% endif %}
-}
+
+{% endcall %}

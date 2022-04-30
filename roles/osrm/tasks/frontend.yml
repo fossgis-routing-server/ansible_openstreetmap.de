@@ -1,0 +1,204 @@
+
+# dispatcher
+
+- name: "Install uwsgi for request-by-coordinate dispatcher"
+  apt:
+    name: [python3-cherrypy3, uwsgi, uwsgi-plugin-python3]
+
+- name: "checkout request-by-coordinate"
+  git:
+    repo: https://github.com/fossgis-routing-server/request-by-coordinate.git
+    dest: '{{ osrm.basedir }}/request-by-coordinate'
+    version: '775b6ea3dd4524905a27658103c818ad52ba0841'
+    force: yes
+
+- name: "set request-by-coordinate configuration"
+  template:
+    dest: '{{ osrm.basedir }}/request-by-coordinate/settings.cfg'
+    src: 'request-by-coordinate.cfg.erb'
+    owner: '{{ osrm.user }}'
+    group: '{{ osrm.user }}'
+    mode: '0644'
+  notify: restart request-by-coordinate
+
+- name: "create directory /var/run/uwsgi for uwsgi socket"
+  file:
+    path: '/var/run/uwsgi'
+    state: directory
+    owner: 'www-data'
+    group: 'www-data'
+    mode: '0755'
+
+- name: "systemd unit for uwsgi request-by-coordinate"
+  template:
+    dest: '/etc/systemd/system/request-by-coordinate.service'
+    src: 'systemd-request-by-coordinate.j2'
+    mode: '0644'
+
+# web server and network stuff
+
+- name: Setup nginx
+  include_role:
+    name: nginx
+
+- name: nginx lua module
+  apt:
+    name: libnginx-mod-http-lua
+
+- name: "nginx config for rate limit"
+  template:
+    dest: '/etc/nginx/conf.d/ratelimit.conf'
+    src:  'nginx-ratelimit.conf.jinja'
+    mode: '0644'
+  notify: restart nginx
+
+- name: "nginx config for anonymized ip adresses"
+  copy:
+    src: 'log_anonymized.conf'
+    dest: '/etc/nginx/conf.d/log_anonymized.conf'
+  notify: restart nginx
+
+- name: "create directory /var/run/uwsgi for uwsgi socket"
+  file:
+    path: '/etc/nginx/lua/'
+    state: directory
+    owner: '{{ osrm.user }}'
+    group: '{{ osrm.user }}'
+    mode: '0755'
+
+- name: "lua script for dispatching requests"
+  template:
+    src: 'lua-rewrite.jinja'
+    dest: '/etc/nginx/lua/{{ item.key }}rewrite.lua'
+  vars:
+    regions: "{{ item.value }}"
+    mode: "{{ item.key }}"
+    noprefix: false
+  loop: "{{ osrm.profiles|dict2items }}"
+
+- name: "lua script for dispatching requests - routing.project-osrm.org"
+  template:
+    src: 'lua-rewrite.jinja'
+    dest: '/etc/nginx/lua/carorgrewrite.lua'
+  vars:
+    regions: "{{ item.value }}"
+    mode: "{{ item.key }}"
+    noprefix: true
+  loop: "{{ osrm.profiles|dict2items }}"
+
+- name: "default nginx site"
+  nginx_site:
+    site: 'default'
+    src:  'nginx-default.jinja'
+  vars:
+    answer_routes: True
+    munin: True
+    server_name: "_"
+    default_server: "default_server"
+    cert: "osrmde"
+  notify: restart nginx
+
+- name: "nginx site for map.project-osrm.org"
+  nginx_site:
+    site: 'map.project-osrm.org'
+    src:  'nginx-default.jinja'
+  vars:
+    answer_routes: False
+    munin: False
+    server_name: "map.project-osrm.org"
+    default_server: ""
+    cert: "osrmorg"
+  notify: restart nginx
+
+- name: "nginx site for router.project-osrm.org"
+  nginx_site:
+    site: 'router.project-osrm.org'
+    src:  'nginx-router.project-osrm.org.jinja'
+  vars:
+    server_name: "router.project-osrm.org"
+  notify: restart nginx
+
+- name: "create web base directory"
+  file:
+    path: '{{ osrm.websitedir }}'
+    state: directory
+    owner: '{{ osrm.user }}'
+    group: '{{ osrm.user }}'
+    mode: '0755'
+
+- name: "Timestamps dir"
+  file:
+    path: '{{ osrm.websitedir }}/timestamps'
+    state: directory
+    owner: '{{ osrm.datauser }}'
+    group: '{{ osrm.datauser }}'
+    mode: '0755'
+
+- name: "Write /429.html"
+  copy:
+    src: '429.html'
+    dest: '/var/www/routing/429.html'
+
+# osrm frontend
+
+- name: install prerequisites for osrm-frontend
+  apt:
+    name: [node-browserify-lite, nodejs, npm]
+
+- name: checkout osrm-frontend
+  git:
+    repo: https://github.com/fossgis-routing-server/osrm-frontend.git
+    dest: '{{ osrm.basedir }}/osrm-frontend'
+    version: 'bef727ee0af3172a86f38fe6aca580a078347ace'
+    force: yes
+  register: osrm_frontend_build
+  become: yes
+  become_user: '{{ osrm.user }}'
+
+- name: build osrm-frontend
+  shell:
+    cmd: 'npm install && npm install corslite && npm run build &&
+          cp -r css fonts images bundle.js bundle.js.map
+          bundle.raw.js index.html debug {{ osrm.websitedir }} &&
+          git checkout bundle* package*'
+    chdir: '{{ osrm.basedir }}/osrm-frontend/'
+  when: osrm_frontend_build.changed
+  become: yes
+  become_user: '{{ osrm.user }}'
+
+# about page
+
+- name: "package for about page (markdown)"
+  apt:
+     name: [python3-markdown]
+
+- name: "splendor"
+  git:
+    repo: https://github.com/markdowncss/splendor.git
+    dest: '{{ osrm.basedir }}/about/splendor'
+    version: '40db29539e4e8c733dec7f941833dcc21ed60504'
+  become: yes
+  become_user: '{{ osrm.user }}'
+
+- name: "about.md"
+  copy:
+    src: "about.md"
+    dest: "{{ osrm.basedir }}/about/about.md"
+  become: yes
+  become_user: '{{ osrm.user }}'
+
+- name: "create_about_page"
+  shell:
+    cmd: >
+        cp splendor/css/splendor.css "{{ osrm.websitedir }}/splendor.css" &&
+        echo '<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\">
+        <title>About routing.openstreetmap.de</title>
+        <link rel=\"stylesheet\" href=\"splendor.css\">
+        </head><body>' > "{{ osrm.websitedir }}/about.html" &&
+        markdown_py about.md -o html5 >> "{{ osrm.websitedir }}/about.html" &&
+        echo '</body></html>' >> "{{ osrm.websitedir }}/about.html"
+    chdir: '{{ osrm.basedir }}/about/'
+    creates: '{{ osrm.websitedir }}/about.html'
+  become: yes
+  become_user: '{{ osrm.user }}'
+

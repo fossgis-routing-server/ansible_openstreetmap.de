@@ -1,6 +1,14 @@
 # SPDX-License-Identifier: MIT
 ---
 
+- name: "set variable"
+  set_fact:
+    this_host_profiles: "{{ osrm.profilearea | dict2items | selectattr(\"value.host\", \"equalto\", ansible_hostname) }}"
+
+- name: "this host profiles"
+  debug:
+    msg: "{{ this_host_profiles | map(attribute='key') }}"
+
 - name: Create osrm system account
   system_account:
     name: "{{ osrm.user }}"
@@ -9,8 +17,10 @@
 - name: Create osrmdata system account
   system_account:
     name: "{{ osrm.datauser }}"
-    home: "{{ osrm.basedir }}"
+    home: "/home/osrmdata"
+    shell: "/bin/bash"
 
+# osrm backend
 - name: install prerequisites for osrm-backend
   apt:
     name: [git, clang, build-essential, cmake,  pkg-config, libprotoc-dev, protobuf-compiler,
@@ -22,7 +32,7 @@
 
 - name: checkout osrm-backend
   git:
-    repo: git://github.com/fossgis-routing-server/osrm-backend.git
+    repo: https://github.com/fossgis-routing-server/osrm-backend.git
     dest: '{{ osrm.basedir }}/osrm-backend'
     version: '512b0ac40ec53f9aa718189262ea83835a27260f'
   register: osrm_backend_build
@@ -53,80 +63,100 @@
   become: yes
   become_user: '{{ osrm.user }}'
 
-- name: "Website dir"
+- name: "systemctl enable profiles on this machine"
+  systemd_service:
+    name: "osrm-routed-{{ item.key }}"
+    enabled: true
+    Unit:
+      Description: "Open Source Routing Machine - Profile {{ item.key }}"
+      After: syslog.target network.target
+    Service:
+      Type: simple
+      User: osrm
+      Group: osrm
+      LimitNOFILE: 1000000
+      ExecStart: "{{ osrm.basedir }}/osrm-backend/build/osrm-routed --algorithm={{ osrm.algo }} -p {{ item.value.port }} -t 6 {{ osrm.basedir }}/data/{{ item.key }}.osrm"
+      Restart: always
+      RestartSec: 700
+  loop: "{{ osrm.profilearea|dict2items }}"
+  loop_control:
+    label: '{{ item.key }} - {{ item.value.host }}'
+  when: "item.value.host == ansible_hostname"
+
+- name: "remove systemd unit for profiles not on this host"
   file:
-    path: '{{ osrm.websitedir }}'
+    path: '/etc/systemd/system/osrm-routed-{{ item.key }}.service'
+    state: "absent"
+  loop: "{{ osrm.profilearea|dict2items }}"
+  loop_control:
+    label: '{{ item.key }}'
+  when: "item.value.host != ansible_hostname"
+
+# osrm data, build graphs
+
+- name: "create directory build"
+  file:
+    path: '{{ osrm.basedir }}/build'
     state: directory
     owner: '{{ osrm.user }}'
-    group: '{{ osrm.user }}'
-    mode: '0755'
-
-- name: "Timestamps dir"
-  file:
-    path: '{{ osrm.websitedir }}/timestamps'
-    state: directory
-    owner: '{{ osrm.datauser }}'
     group: '{{ osrm.datauser }}'
-    mode: '0755'
+    mode: 0775
 
-- name: install prerequisites for osrm-frontend
-  apt:
-    name: [node-browserify-lite, nodejs, npm]
-
-- name: checkout osrm-frontend
-  git:
-    repo: git://github.com/fossgis-routing-server/osrm-frontend.git
-    dest: '{{ osrm.basedir }}/osrm-frontend'
-    version: 'bef727ee0af3172a86f38fe6aca580a078347ace'
-    force: yes
-  register: osrm_frontend_build
-  become: yes
-  become_user: '{{ osrm.user }}'
-
-- name: build osrm-frontend
-  shell:
-    cmd: 'npm install && npm install corslite && npm run build &&
-          cp -r css fonts images bundle.js bundle.js.map
-          bundle.raw.js index.html debug {{ osrm.websitedir }} &&
-          git checkout bundle* package*'
-    chdir: '{{ osrm.basedir }}/osrm-frontend/'
-  when: osrm_frontend_build.changed
-  become: yes
-  become_user: '{{ osrm.user }}'
-
-- name: "Install uwsgi for request-by-coordinate dispatcher"
-  apt:
-    name: [python3-cherrypy3, uwsgi, uwsgi-plugin-python3]
-
-- name: "checkout request-by-coordinate"
-  git:
-    repo: git://github.com/fossgis-routing-server/request-by-coordinate.git
-    dest: '{{ osrm.basedir }}/request-by-coordinate'
-    version: '775b6ea3dd4524905a27658103c818ad52ba0841'
-    force: yes
-
-- name: "set request-by-coordinate configuration"
-  template:
-    dest: '{{ osrm.basedir }}/request-by-coordinate/settings.cfg'
-    src: 'request-by-coordinate.cfg.erb'
+- name: "create directories data, about"
+  file:
+    path: '{{ osrm.basedir }}/{{ item }}'
+    state: directory
     owner: '{{ osrm.user }}'
     group: '{{ osrm.user }}'
-    mode: '0644'
-  notify: restart request-by-coordinate
+  with_items:
+    - 'data'
+    - 'about'
 
-- name: "create directory /var/run/uwsgi for uwsgi socket"
+- name: "preprocess tasks"
+  include_tasks: "preprocess.yml"
+
+- name: "remove new-graphs if this is the preprocess machine"
   file:
-    path: '/var/run/uwsgi'
-    state: directory
-    owner: 'www-data'
-    group: 'www-data'
-    mode: '0755'
+    path: "/etc/cron.d/new-graphs"
+    state: absent
+  when: "osrm.buildhost == ansible_hostname"
 
-- name: "systemd unit for uwsgi request-by-coordinate"
+- name: "osrm-routed runner tasks"
+  include_tasks: "routed.yml"
+  when: "osrm.buildhost != ansible_hostname"
+
+- name: "sudoers file for allowing restart of osrm systemd unit"
   template:
-    dest: '/etc/systemd/system/request-by-coordinate.service'
-    src: 'systemd.jinja'
-    mode: '0644'
+    dest: "/etc/sudoers.d/osrm"
+    src: "sudoers-osrm.j2"
+
+# frontend, website
+
+- name: "frontend"
+  include_tasks: "frontend.yml"
+  when: "osrm.fronthost == ansible_hostname"
+
+# munin monitoring
+
+- name: Setup nginx
+  include_role:
+    name: nginx
+  when: "osrm.fronthost != ansible_hostname"
+
+- name: "default nginx site (for munin only, no routing)"
+  nginx_site:
+    site: 'default'
+    src:  'nginx-default.jinja'
+  vars:
+    answer_routes: False
+    munin: True
+    server_name: "_"
+    default_server: "default_server"
+    cert: ""
+  notify: restart nginx
+  when: "osrm.fronthost != ansible_hostname"
+
+# network stuff
 
 - name: 'ufw: allow osrm access from own servers'
   ufw:
@@ -142,62 +172,4 @@
     - {'comment': 'routing4', 'src': '2a01:4f8:172:1941::/64'}
     - {'comment': 'routing5', 'src': '136.243.131.227'}
     - {'comment': 'routing5', 'src': '2a01:4f8:212:33a2::/64'}
-
-
-- name: "nginx config for rate limit"
-  template:
-    dest: '/etc/nginx/conf.d/ratelimit.conf'
-    src:  'nginx-ratelimit.conf.jinja'
-    mode: '0644'
-  notify: restart nginx
-
-- name: "nginx config for anonymized ip adresses"
-  copy:
-    src: 'log_anonymized.conf'
-    dest: '/etc/nginx/conf.d/log_anonymized.conf'
-  notify: restart nginx
-
-- name: "default nginx site"
-  nginx_site:
-    site: 'default'
-    src:  'nginx-default.jinja'
-  vars:
-    answer_routes: True
-    munin: True
-    server_name: "_"
-    default_server: "default_server"
-  notify: restart nginx
-
-- name: "nginx site for map.project-osrm.org"
-  nginx_site:
-    site: 'map.project-osrm.org'
-    src:  'nginx-default.jinja'
-  vars:
-    answer_routes: False
-    munin: False
-    server_name: "map.project-osrm.org"
-    default_server: ""
-  notify: restart nginx
-
-- name: "nginx site for router.project-osrm.org"
-  nginx_site:
-    site: 'router.project-osrm.org'
-    src:  'nginx-router.project-osrm.org.jinja'
-  vars:
-    server_name: "router.project-osrm.org"
-    default_server: ""
-  notify: restart nginx
-
-- name: "create web base directory"
-  file:
-    path: '/var/www/routing'
-    state: directory
-    owner: 'www-data'
-    group: 'www-data'
-    mode: '0755'
-
-- name: "Write /429.html"
-  copy:
-    src: '429.html'
-    dest: '/var/www/routing/429.html'
 
