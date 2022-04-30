@@ -2,6 +2,63 @@ This is the Ansible repository for the FOSSGIS Server Admin Working group.
 It contains provisioning playbooks for machines that are administrated by
 the group.
 
+Set up Ansible
+==============
+
+We require Ansible >= 2.9 and Python3. The latest Ubuntu and Debian
+installations should come with appropriate versions. On your host machine
+simply run:
+
+    sudo apt install ansible
+
+If the ansible is too old you can also install it with pip. In order to keep
+your system-wide Python module installation clean, use a virtual environment:
+
+    virtualenv --python python3 --system-site-packages _venv
+    source _venv/bin/activate
+    pip install ansible
+
+If installing or running Ansible fails with strange exceptions, the dependencies
+are too old. Delete your virtual environment and recreate it without
+`--system-site-packages`.
+
+You always need to run `source _venv/bin/activate` before using ansible when
+installing with pip this way.
+
+Deploying a new Host
+====================
+
+We use Debian 11 on all hosts. Make sure there is a base system on the host.
+
+You first need to add the host in the inventory (`hosts.ini`). The host should
+be listed with its short internal name and the full domain name in `ansible_host`.
+For example:
+
+    robinson ansible_host=robinson.openstreetmap.de
+
+You also need to add the host (with its short name) to the functional groups.
+
+Next you need to bootstrap the server, bringing the Debian packages up to date
+and set up the admin users:
+
+    ansible-playbook -l $SERVER_NAME bootstrap.yml
+
+Now you can run the usual site.yml for deploying the software.
+
+!!! Warning
+
+    Setup of user accounts is not part of the standard setup of servers via
+    `site.yml` to avoid accidental lockouts. If you want to change the admin
+    accounts on a server, run `bootstrap.yml` again.
+
+More Documentation
+==================
+
+Further documentation can be found in the `doc/` directory:
+
+* [Setting up a webserver](doc/webservers.md)
+
+
 Testing
 =======
 
