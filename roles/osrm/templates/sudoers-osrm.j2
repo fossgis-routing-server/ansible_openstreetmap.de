@@ -1,0 +1,4 @@
+{% for profilearea in osrm.profilearea.keys() %}
+osrm ALL=(ALL) NOPASSWD: /bin/systemctl stop osrm-routed-{{ profilearea }}.service
+osrm ALL=(ALL) NOPASSWD: /bin/systemctl start osrm-routed-{{ profilearea }}.service
+{% endfor %}

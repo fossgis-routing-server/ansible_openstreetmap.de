@@ -1,0 +1,13 @@
+{
+    "extracts": [
+        {% for area in item.value %}
+        {
+            "output": "{{ area }}.pbf",
+            "output_format": "pbf",
+            "polygon": [ {{ osrm.profilearea[area].poly }} ]
+        },
+        {% endfor %}
+    ],
+    "directory": "{{ osmdatadir }}"
+}
+        

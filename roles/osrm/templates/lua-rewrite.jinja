@@ -1,0 +1,163 @@
+local regions = {}
+
+{% for region in regions -%}
+{% if loop.index == 1 %}
+local defaultregion = "{{ region }}"
+{% else %}
+poly{{ region }} = {{ osrm.profilearea[region].poly | replace('[', '{') | replace(']', '}') }}
+regions["{{ region }}"] = poly{{ region }}
+{% endif %}
+{% endfor %}
+
+{% if noprefix %}
+local uri = ngx.var.uri
+{% else %}
+local urii = ngx.var.uri
+{% endif %}
+
+-- used following implementation as starting point:
+-- https://github.com/hicsail/polyline
+--
+function decodePolyline(expression)
+        local precision = 5
+        function _trans(value, length, index)
+                local byte = nil
+                local result, shift, comp = 0, 0, 0
+
+                while (byte == nil or byte >= 0x20)
+                do
+                        if index > length then
+                                 return nil
+                        end
+                        byte = value:byte(index) - 63
+                        index = index + 1
+                        --result = result | ((byte & 0x1f) << shift)
+                        result = result + math.fmod(byte, 0x20) * (2 ^ shift)
+                        shift = shift + 5
+                        --comp = result & 1
+                        comp = math.fmod(result, 2)
+                end
+
+                if comp ~= 0 then
+                        --return ~(result >> 1), index
+                        return - math.floor(result / 2) - 1, index
+                else
+                        --return (result >> 1), index
+                        return math.floor(result / 2), index
+                end
+        end
+
+        local coordinates = {}
+        local index = 1
+        local lat, lng = 0, 0
+        local length = #expression
+        local factor = 10 ^ precision
+
+        while index < length do
+                lat_change, index = _trans(expression, length, index)
+                lng_change, index = _trans(expression, length, index)
+                if lat_change == nil or lng_change == nil then
+                        return {}
+                end
+                lat = lat + lat_change
+                lng = lng + lng_change
+                table.insert(coordinates, {lng / factor, lat / factor})
+        end
+
+        return coordinates
+end
+
+function tile2upper_left_coordinate(z,x,y)
+        z = tonumber(z)
+        x = tonumber(x)
+        y = tonumber(y)
+        if x == nil or y == nil or z == nil then
+                return nil, nil
+        end
+        s = 2^z
+        lon = x / s * 360. - 180.
+        lat = math.atan(math.sinh(math.pi - y / s * 2 * math.pi)) * 180 / math.pi
+        return lon, lat
+end
+
+function contains(poly, testpoint)
+  local c = false
+  for i = 1,#poly do
+    local v1 = poly[i]
+    local v2 = poly[i - 1]
+    if i == 1 then
+      v2 = poly[#poly]
+    end
+    if ((v1[2] > testpoint[2]) ~= (v2[2] > testpoint[2])) then
+      if (testpoint[1] < ((v2[1]-v1[1]) * (testpoint[2] - v1[2]) / (v2[2] - v1[2]) + v1[1])) then
+        c = not c
+      end
+    end
+  end
+  return c
+end
+
+{% if not noprefix %}
+uri = "/"..urii:match("^/routed%-{{ mode }}/(.*)$")
+{% endif %}
+filepart = ngx.var.uri:match("/([^/]*)$")
+inside={}
+inside[defaultregion] = 0
+for k,v in pairs(regions) do
+        inside[k] = 0
+end
+
+coords = {}
+
+if #filepart > 13 and filepart:sub(1,5) == "tile(" then
+        for x, y, z in filepart:gmatch("([0-9]+),([0-9]+),([0-9]+)") do
+                lon, lat = tile2upper_left_coordinate(z,x,y)
+                if lon ~= nil and lon >= -180 and lon <= 180 and lat ~= nil and lat >= -90 and lat <= 90 then
+                        table.insert(coords, {lon, lat})
+                end
+        end
+elseif #filepart > 9 and filepart:sub(1,9) == "polyline(" then
+        coords = decodePolyline(filepart:sub(10,-2))
+else
+        for lon, lat in filepart:gmatch("([-0-9.]+),([-0-9.]+)") do
+                lon = tonumber(lon)
+                lat = tonumber(lat)
+                if lon ~= nil and lon >= -180 and lon <= 180 and lat ~= nil and lat >= -90 and lat <= 90 then
+                        -- check for 0,0 coordinates
+                        if lon == 0 and lat == 0 then
+                                return ngx.exec("/null-island")
+                        end
+                        table.insert(coords, {lon, lat})
+                end
+        end
+end
+
+for k, coord in pairs(coords) do
+        local nonefound = true
+        if coord[1] ~= nil and coord[1] >= -180 and coord[1] <= 180 and coord[2] ~= nil and coord[2] >= -90 and coord[2] <= 90 then
+                for k,v in pairs(regions) do
+                        if contains(v, coord) then
+                                inside[k] = inside[k] + 1
+                                nonefound = false
+                                break
+                        end
+                end
+        end
+        if nonefound then
+                inside[defaultregion] = inside[defaultregion] + 1
+        end
+end
+
+local region = defaultregion
+local max = inside[region]
+
+for k, v in pairs(inside) do
+        if v > max then
+                region, max = k, v
+        end
+end
+
+return ngx.exec("/routed-"..region..uri, ngx.var.query_string);
+--ngx.say("uri: "..uri.."\nfilepart: "..filepart)
+--return
+

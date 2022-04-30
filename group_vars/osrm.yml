@@ -101,6 +101,10 @@ osrm:
   websitedir: '/var/www/routing/'
   user: 'osrm'
   datauser: 'osrmdata'
+  fronthost: 'routing3'
+  buildhost: 'routing5'
+  algo: "MLD"
+  small: False
 
   profiles:
     car:  ["careuasi",  "carafoce",  "caram"]
@@ -112,35 +116,57 @@ osrm:
       host: "routing3"
       poly: "{{ osrm_polyeuasi }}"
       port: 3330
+      profile: "car"
     carafoce:
       host: "routing3"
       poly: "{{ osrm_polyafoce }}"
       port: 3338
+      profile: "car"
     caram:
-      host: "routing4"
+      host: "routing3"
       poly: "{{ osrm_polyam }}"
       port: 3331
+      profile: "car"
     bikeeuasi:
       host: "routing4"
       poly: "{{ osrm_polyeuasi }}"
       port: 3332
+      profile: "bike"
     bikeafoce:
-      host: "routing3"
+      host: "routing4"
       poly: "{{ osrm_polyafoce }}"
       port: 3333
+      profile: "bike"
     bikeam:
       host: "routing3"
       poly: "{{ osrm_polyam }}"
       port: 3334
+      profile: "bike"
     footeuasi:
       host: "routing4"
       poly: "{{ osrm_polyeuasi }}"
       port: 3335
+      profile: "foot"
     footafoce:
       host: "routing4"
       poly: "{{ osrm_polyafoce }}"
       port: 3336
+      profile: "foot"
     footam:
       host: "routing3"
       poly: "{{ osrm_polyam }}"
       port: 3337
+      profile: "foot"
+
+osrm__acme_certificates:
+  - name: osrmde
+    domains:
+      - routing.openstreetmap.de
+    on_update:
+      - systemctl reload nginx
+  - name: osrmorg
+    domains:
+      - map.project-osrm.org
+      - router.project-osrm.org
+    on_update:
+      - systemctl reload nginx

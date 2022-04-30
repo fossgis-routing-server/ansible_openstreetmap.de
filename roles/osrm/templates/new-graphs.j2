@@ -1,0 +1,39 @@
+#!/bin/bash
+
+set -eu
+
+SCRIPTNAME=osrm/$(basename $0)
+LOGGING_ERR="logger -i -t $SCRIPTNAME -p daemon.err --"
+LOGGING_INFO="logger -i -t $SCRIPTNAME -p daemon.info --"
+
+for PROFILE in {{ osrm.profilearea.keys() | join(" ") }};
+do
+    if [ -f {{ osrm.basedir }}/build/${PROFILE}.copying_finished ]
+    then
+        date_copied=$(date -f {{ osrm.basedir }}/build/${PROFILE}.copying_finished '+%s')
+        if [ -f {{ osrm.basedir }}/data/${PROFILE}.copying_finished ]
+        then
+            date_running=$(date -f {{ osrm.basedir }}/data/${PROFILE}.copying_finished '+%s')
+            $LOGGING_INFO compare dates. Running: $(< {{ osrm.basedir }}/data/${PROFILE}.copying_finished) $date_running \
+                copied: $(< {{ osrm.basedir }}/build/${PROFILE}.copying_finished) $date_copied
+        else
+            date_running=0
+            $LOGGING_INFO No data yet, copy
+        fi
+
+        if [ $date_running -lt $date_copied ]
+        then
+            systemctl stop osrm-routed-${PROFILE}.service || echo "osrm-routed-${PROFILE}.service was not started"
+            cp -lf {{ osrm.basedir }}/build/${PROFILE}* {{ osrm.basedir }}/data/ 2>&1 | $LOGGING_ERR
+            systemctl start osrm-routed-${PROFILE}.service
+        fi
+    fi
+
+    #TIMESTAMP_FILE={{ osrm.basedir }}/data/${PROFILE}.data_timestamp
+    #if [ -f $TIMESTAMP_FILE ]
+    #then
+    #sed -i src/leaflet_options.js \
+        #-e "s/label: 'Car',.*\$/label: 'Car', timestamp: '$(cat $TIMESTAMP_FILE)',/" | $LOGGING_ERR
+    #fi
+
+done
