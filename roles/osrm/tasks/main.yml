@@ -67,17 +67,18 @@
   systemd_service:
     name: "osrm-routed-{{ item.key }}"
     enabled: true
-    Unit:
-      Description: "Open Source Routing Machine - Profile {{ item.key }}"
-      After: syslog.target network.target
-    Service:
-      Type: simple
-      User: osrm
-      Group: osrm
-      LimitNOFILE: 1000000
-      ExecStart: "{{ osrm.basedir }}/osrm-backend/build/osrm-routed --algorithm={{ osrm.algo }} -p {{ item.value.port }} -t 6 {{ osrm.basedir }}/data/{{ item.key }}.osrm"
-      Restart: always
-      RestartSec: 700
+    service:
+      Unit:
+        Description: "Open Source Routing Machine - Profile {{ item.key }}"
+        After: syslog.target network.target
+      Service:
+        Type: simple
+        User: osrm
+        Group: osrm
+        LimitNOFILE: 1000000
+        ExecStart: "{{ osrm.basedir }}/osrm-backend/build/osrm-routed --algorithm={{ osrm.algo }} -p {{ item.value.port }} -t 6 {{ osrm.basedir }}/data/{{ item.key }}.osrm"
+        Restart: always
+        RestartSec: 700
   loop: "{{ osrm.profilearea|dict2items }}"
   loop_control:
     label: '{{ item.key }} - {{ item.value.host }}'

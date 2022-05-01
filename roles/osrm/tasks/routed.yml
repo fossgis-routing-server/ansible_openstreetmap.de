@@ -3,9 +3,13 @@
   template:
     dest: "{{ osrm.basedir }}scripts/newgraphs.sh"
     src: "new-graphs.j2"
+    mode: 0755
 
 - name: "cron new graphs"
-  template:
-    dest: "/etc/cron.d/new-graphs"
-    src: "cron-new-graphs.j2"
+  cron:
+    name: osrm new graphs
+    cron_file: osrm_newgraphs
+    minute: "28,58"
+    job: "{{ osrm.basedir }}scripts/newgraphs.sh"
+    user: root
 

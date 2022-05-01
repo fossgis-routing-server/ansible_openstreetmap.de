@@ -127,9 +127,9 @@ do
         echo "time for $PROFILEAREA extract" | $LOGGING_INFO
 {% if osrm.algo == "MLD" %}
         { time ./osrm-partition $osminbuild.osrm; } |& $LOGGING_INFO
-        echo "time for $OSRMTYPE partition" | $LOGGING_INFO
+        echo "time for $PROFILEAREA partition" | $LOGGING_INFO
         { time ./osrm-customize $osminbuild.osrm; } |& $LOGGING_INFO
-        echo "time for $OSRMTYPE customize" | $LOGGING_INFO
+        echo "time for $PROFILEAREA customize" | $LOGGING_INFO
 {% else %}
         { time ./osrm-contract $osminbuild.osrm; } |& $LOGGING_INFO
         echo "time for $PROFILEAREA contract" | $LOGGING_INFO
