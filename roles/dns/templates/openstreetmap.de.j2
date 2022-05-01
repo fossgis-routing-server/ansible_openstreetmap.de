@@ -1,0 +1,97 @@
+;
+; BIND data file for openstreetmap.de
+;
+$TTL    3600
+@       IN      SOA     {{ dns__master }} info.fossgis.de. (
+                           {{ dns_serial }}          ; Serial
+                                   2h          ; Refresh
+                                   1m          ; Retry
+                                   2w          ; Expire
+                                   5m )        ; Default TTL
+
+{% for ns in dns__nameserver %}
+@                       IN  NS          {{ ns }}
+{% endfor %}
+
+@                       IN  A           138.201.247.34
+@                       IN  MX          10 mail2.fossgis.de.
+@                       IN  TXT         "v=spf1 mx a ip4:139.17.3.227 ip4:139.17.3.229 ip6:2a01:238:4000::4ea:44ad:b203:c2ab ip6:2a01:238:4000::21:6879:9ac1:9e7e ip6:2a01:238:4000:0:3ca:c780:8a7d:7be2 ~all"
+_acme-challenge         IN  NS          everest.openstreetmap.de.
+acme                    IN  A           23.88.123.196
+acme                    IN  AAAA        2a01:4f8:1c17:c4e7:0:0:0:1
+argon                   IN  A           217.20.115.65
+babykarte               IN  CNAME       everest.openstreetmap.de.
+bessel                  IN  A           139.17.3.229
+bessel-v1               IN  A           139.17.3.227
+blog                    IN  A           139.17.3.227
+blog                    IN  MX  20      soldner.openstreetmap.de.
+2020._domainkey.blog    IN  TXT         "v=DKIM1; h=sha256; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA0hy1a+9JHd2kUs33ghnsugh5qqPGlqxG2bb0chpHMffJvxt1HNWivOG1fUbeKKgheqRild+sKrqV/CUMFjvExBkF7lqfPPMvjXzSrK96Cc2ciHLeLajei9qJMIw7R8QcarTaZp3SPMScsLFeBCyTb18QghMPWhj8+xM2wcLVfxL/fn741iehmvR" "8mtzDCI+DaXzCGQW1v+kj83y5UBv32ngLAyA09aJIs+VPE4Xb+JC5ZO+hMj7E0dbkezR7lrUjnCk9IXHAD2b0QOJwtynpNmFb4RYZQosjI/0WJcHOKzy41SMlEbSttlt4+W02fdrSPbCdlTbqrKm9ze+A5zKLbwIDAQAB"
+test.blog               IN  A           139.17.3.227
+brewmap                 IN  CNAME       everest.openstreetmap.de.
+brewpubs                IN  CNAME       everest.openstreetmap.de.
+camping                 IN  CNAME       everest.openstreetmap.de.
+community               IN  CNAME       everest.openstreetmap.de.
+equalstreetnames-berlin IN  A           95.216.101.252
+everest                 IN  A           95.217.35.182
+everest                 IN  AAAA        2a01:4f9:2b:2dc9:0:0:0:2
+fossgis                 IN  A           78.46.101.3
+gauss                   IN  A           159.69.137.145
+gauss                   IN  AAAA        2a01:4f8:231:1e21:0:0:0:2
+hausbrau                IN  CNAME       everest.openstreetmap.de.
+humboldt                IN  A           95.216.242.95
+humboldt                IN  AAAA        2a01:4f9:2b:24a0:0:0:0:2
+josm                    IN  A           95.216.72.248
+josm                    IN  AAAA        2a01:4f9:2b:907:0:0:0:2
+josm                    IN  MX  10      josm.openstreetmap.de.
+josm                    IN  TXT         "google-site-verification=P85S9GUMgBGIi5LfBUjjzQ-0JUuk8m-WiBhBY-DQ5R8"
+josm                    IN  TXT         "v=spf1 mx ~all"
+_dmarc.josm             IN  TXT         "v=DMARC1; p=none; rua=mailto:dmarc-rua@josm.openstreetmap.de"
+mail._domainkey.josm    IN  TXT         "v=DKIM1; k=rsa; p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDKemQ5ys7Wr4IXGou+xerBYt6K0jrZ7v/xzpZAsZK9nSvKkH9NxzPVLrnQaAjHLqgKfSXuCo/AGhopM0xjtxuRmSqAXjV3+uBi8wgXyT7zB7U5/DJGJNbIjWmVcpL4uRPc2wQBCLZu+2JSPtP0tkiSzDkyojZf1MltKof0EsYLsQIDAQAB"
+lists                   IN  A           78.46.186.101
+locals                  IN  CNAME       everest.openstreetmap.de.
+luftbilder              IN  CNAME       everest.openstreetmap.de.
+mattermost              IN  A           88.99.173.103
+mattermost              IN  AAAA        2a01:4f8:c0c:58d:0:0:0:2
+miller                  IN  A           88.198.201.147
+miller                  IN  AAAA        2a01:4f8:1c17:7787:0:0:0:1
+openingh                IN  CNAME       everest.openstreetmap.de.
+osmbc                   IN  A           88.99.173.103
+osmbc                   IN  AAAA        2a01:4f8:c0c:58d:0:0:0:2
+osmdata                 IN  A           116.203.99.53
+osmhv                   IN  CNAME       everest.openstreetmap.de.
+osmoscope               IN  A           78.47.63.180
+osmrm                   IN  CNAME       everest.openstreetmap.de.
+overpass1               IN  A           178.63.48.217
+overpass1               IN  AAAA        2a01:4f8:120:6464:0:0:0:2
+overpass2               IN  A           178.63.11.215
+overpass2               IN  AAAA        2a01:4f8:110:502c:0:0:0:2
+podcast                 IN  A           139.17.3.227
+audio.podcast           IN  A           139.17.3.227
+test.podcast            IN  A           139.17.3.227
+poi                     IN  CNAME       everest.openstreetmap.de.
+ptna                    IN  CNAME       everest.openstreetmap.de.
+robinson                IN  A           23.88.123.196
+robinson                IN  AAAA        2a01:4f8:1c17:c4e7:0:0:0:1
+routing                 IN  CNAME       routing3.openstreetmap.de.
+routing3                IN  A           88.99.61.41
+routing3                IN  AAAA        2a01:4f8:10a:d68:0:0:0:2
+routing4                IN  A           138.201.64.66
+routing4                IN  AAAA        2a01:4f8:172:1941:0:0:0:2
+routing5                IN  A           136.243.131.227
+routing5                IN  AAAA        2a01:4f8:212:33a2:0:0:0:2
+soldner                 IN  A           49.12.7.86
+soldner                 IN  AAAA        2a01:4f8:c17:257a:0:0:0:1
+staticmap               IN  CNAME       everest.openstreetmap.de.
+tile                    IN  NS          gauss.openstreetmap.de.
+tile                    IN  NS          humboldt.openstreetmap.de.
+umap                    IN  A           95.216.101.252
+usergroups              IN  CNAME       everest.openstreetmap.de.
+valhalla                IN  CNAME       valhalla1.openstreetmap.de.
+valhalla1               IN  A           162.55.103.19
+valhalla2               IN  A           162.55.2.221
+videos                  IN  CNAME       everest.openstreetmap.de.
+weeklyosm               IN  A           88.99.173.103
+wms                     IN  CNAME       everest.openstreetmap.de.
+www                     IN  A           138.201.247.34
+www-preview             IN  CNAME       fossgis.github.io.
+xn--hausbru-bxa         IN  CNAME       everest.openstreetmap.de.

@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Install bind
+  apt:
+    name: [bind9]
+
+- name: DNS zone serial
+  set_fact:
+    dns_serial: "{{ ansible_date_time.year }}{{ ansible_date_time.month }}{{ ansible_date_time.day }}00"
+
+- name: Zone File for openstreetmap.de
+  template:
+    dest: /etc/bind/openstreetmap.de.db
+    src: openstreetmap.de.j2
+  notify: reload bind9
+
+- name: Zone File for weeklyosm.eu
+  template:
+    dest: /etc/bind/weeklyosm.eu.db
+    src: weeklyosm.eu.j2
+  notify: reload bind9
+
+- name: Bind9 local configuration (zones)
+  template:
+    dest: /etc/bind/named.conf.local
+    src: named.conf.j2
+  notify: reload bind9
+
+- name: 'ufw: allow DNS'
+  ufw:
+    rule: allow
+    name: 'Bind9'

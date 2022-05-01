@@ -1,0 +1,21 @@
+;
+; BIND data file for weeklyosm.eu
+;
+$TTL    3600
+@       IN      SOA     {{ dns__master }} info.fossgis.de. (
+                           {{ dns_serial }}          ; Serial
+                                   2h          ; Refresh
+                                   1m          ; Retry
+                                   2w          ; Expire
+                                   5m )        ; Default TTL
+
+{% for ns in dns__nameserver %}
+@                       IN  NS          {{ ns }}
+{% endfor %}
+
+@                       IN  A           49.12.7.86
+@                       IN  AAAA        2a01:4f8:c17:257a:0:0:0:1
+@                       IN  MX  10      mail2.fossgis.de.
+2020._domainkey         IN  TXT         "v=DKIM1; h=sha256; k=rsa; p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwheeltj9XQtkz8Y88rT1KHBJbPdPpF6GLQ5nXoSpXYD1TRqx2pHaAo07DUgD1rAxtfRSVPQUdleWTvkQXiUWO/CCQK9LAn3I/ptDiwxVw1kMj/S0jNN0h2x68WbRz4fgg8zfb+KDDHPULFGlLlKIpu1ADhM8NNfO8h1eAaWmiGFYT3rNPtppE/Y" "x3pgAPVBCukKoFGai2cmvHFexZoX9ZCkfMdwOPepEdiYM1ioPf5jGhqJ6NuNmrw6YfWgS45i8yzgxe5vRJaeBhw7bNytFvSR3XRQrAAlkfHS2dHmpcnfdqI+04W6htBKhtsIqwHw/4oqLOktxigjB5f7rqg7r7QIDAQAB"
+beta                    IN  A           139.17.3.227
+www                     IN  A           49.12.7.86
