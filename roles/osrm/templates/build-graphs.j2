@@ -184,8 +184,8 @@ do
         case $PROFILEAREA in
 {% for profilearea in osrm.profilearea.keys() %}
 {% if ansible_hostname == osrm.profilearea[profilearea].host %}
-            {{ osrm.profilearea[profilearea].host }})
-                sudo systemctl stop osrm-routed-<%= profile %>.service 2>&1 || \
+            {{ profilearea }})
+                sudo systemctl stop osrm-routed-{{ profilearea }}.service 2>&1 || \
                 echo "osrm-routed-<%= profile %>.service was not started" | $LOGGING_INFO
                 ;;
 {% endif %}
@@ -204,8 +204,8 @@ do
         case $PROFILEAREA in
 {% for profilearea in osrm.profilearea.keys() %}
 {% if ansible_hostname == osrm.profilearea[profilearea].host %}
-            {{ osrm.profilearea[profilearea].host }})
-                sudo systemctl start osrm-routed-<%= profile %>.service 2>&1 | $LOGGING_INFO
+            {{ profilearea }})
+                sudo systemctl start osrm-routed-{{ profilearea }}.service 2>&1 | $LOGGING_INFO
                 ;;
 {% endif %}
 {% endfor %}
