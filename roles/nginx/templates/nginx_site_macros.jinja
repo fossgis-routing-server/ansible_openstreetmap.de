@@ -9,8 +9,8 @@
     ssl_ciphers 'EDH+CAMELLIA:EDH+aRSA:EECDH+aRSA+AESGCM:EECDH+aRSA+SHA256:EECDH:+CAMELLIA128:+AES128:+SSLv3:!aNULL:!eNULL:!LOW:!3DES:!MD5:!EXP:!PSK:!DSS:!RC4:!SEED:!IDEA:!ECDSA:kEDH:CAMELLIA128-SHA:AES128-SHA';
 {%- endmacro %}
 {% macro custom_log(name) -%}
-    access_log /var/log/nginx/{{ name }}-access.log;
-    error_log /var/log/nginx/{{ name }}-error.log;
+    access_log /var/log/nginx/{{ name }}-access.log anonymized;
+    error_log /var/log/nginx/{{ name }}-error.log anonymized;
 {%- endmacro %}
 {% macro server(fqdns, http='yes', https='', listen_params='') -%}
 {% if http == 'forward' -%}
