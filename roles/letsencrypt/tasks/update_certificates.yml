@@ -55,7 +55,7 @@
 - name: Remove old certificates
   tags: certificates
   command:
-    cmd: "certbot delete --cert-name {{item.0}}-{{item.1}}"
+    cmd: "certbot delete --config-dir {{ acme__basedir }}/etc --cert-name {{item.0}}-{{item.1}}"
   when: "item.0 not in acme__certificates or item.1 not in acme__certificates[item.0]"
   loop: "{{acme__installed_certs | flatten_dict(depth=2)}}"
   ignore_errors: yes
