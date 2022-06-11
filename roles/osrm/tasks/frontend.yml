@@ -75,10 +75,9 @@
     src: 'lua-rewrite.jinja'
     dest: '/etc/nginx/lua/carorgrewrite.lua'
   vars:
-    regions: "{{ item.value }}"
-    mode: "{{ item.key }}"
+    regions: "{{ osrm.profiles.car }}"
+    mode: "car"
     noprefix: true
-  loop: "{{ osrm.profiles|dict2items }}"
 
 - name: "default nginx site"
   nginx_site:
