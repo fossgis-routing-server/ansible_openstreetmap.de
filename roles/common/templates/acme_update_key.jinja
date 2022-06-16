@@ -19,7 +19,7 @@ cmd, _, cert = shell_cmd.partition(' ')
 if cmd != 'renew_cert':
     raise RuntimeError("Unknown command")
 
-if re.search('[^a-zA-Z0-9_-]', cert):
+if re.search('[^a-zA-Z0-9._-]', cert):
     raise RuntimeError("Invalid characters in certificate")
 
 pem = ''
