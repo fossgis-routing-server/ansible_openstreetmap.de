@@ -1,0 +1,19 @@
+{% call server([server_name], http='forward', https=server_name) %}
+
+    root /srv/www/{{ folder_name }};
+    index index.html;
+
+    location / {
+        # First attempt to serve request as file, then
+        # as directory, then fall back to displaying a 404.
+        try_files $uri $uri/ =404;
+    }
+
+    # deny access to .htaccess files, if Apache's document root
+    # concurs with nginx's one
+    location ~ /\.ht {
+           deny all;
+    }
+
+    {{ custom_log(server_name) }}
+{% endcall %}
