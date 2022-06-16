@@ -10,7 +10,7 @@
 {%- endmacro %}
 {% macro custom_log(name) -%}
     access_log /var/log/nginx/{{ name }}-access.log anonymized;
-    error_log /var/log/nginx/{{ name }}-error.log anonymized;
+    error_log /var/log/nginx/{{ name }}-error.log;
 {%- endmacro %}
 {% macro server(fqdns, http='yes', https='', listen_params='') -%}
 {% if http == 'forward' -%}

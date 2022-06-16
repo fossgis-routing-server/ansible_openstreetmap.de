@@ -83,3 +83,8 @@
   become: yes
   roles:
     - role: dns
+- hosts: static
+  become: yes
+  tags: static
+  roles:
+    - role: static
