@@ -1,0 +1,7 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Data timestamps</title></head><body>
+
+{% for profilearea in osrm__profilearea.keys() %}
+<p><a href="{{ profilearea }}.data_timestamp">{{ osrm__profilearea[profilearea].profile }} {{ osrm__profilearea[profilearea].area }}</a></p>
+{% endfor %}
+
+</body></html>

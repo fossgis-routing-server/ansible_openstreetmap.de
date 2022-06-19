@@ -1,4 +1,3 @@
-
 # web server and network stuff
 
 - name: Setup nginx
@@ -20,8 +19,8 @@
   file:
     path: '/etc/nginx/lua/'
     state: directory
-    owner: '{{ osrm.user }}'
-    group: '{{ osrm.user }}'
+    owner: '{{ osrm__user }}'
+    group: '{{ osrm__user }}'
     mode: '0755'
 
 - name: "lua script for dispatching requests"
@@ -32,14 +31,14 @@
     regions: "{{ item.value }}"
     mode: "{{ item.key }}"
     noprefix: false
-  loop: "{{ osrm.profiles|dict2items }}"
+  loop: "{{ osrm__profiles|dict2items }}"
 
 - name: "lua script for dispatching requests - routing.project-osrm.org"
   template:
     src: 'lua-rewrite.jinja'
     dest: '/etc/nginx/lua/carorgrewrite.lua'
   vars:
-    regions: "{{ osrm.profiles.car }}"
+    regions: "{{ osrm__profiles.car }}"
     mode: "car"
     noprefix: true
 
@@ -53,7 +52,7 @@
     server_name: "_"
     default_server: "default_server"
     cert: "osrmde"
-    root: "{{ osrm.websitedir }}"
+    root: "{{ osrm__websitedir }}"
   notify: restart nginx
 
 - name: "nginx site for map.project-osrm.org"
@@ -66,7 +65,7 @@
     server_name: "map.project-osrm.org"
     default_server: ""
     cert: "osrmorg"
-    root: "{{ osrm.websitedir }}"
+    root: "{{ osrm__websitedir }}"
   notify: restart nginx
 
 - name: "nginx site for router.project-osrm.org"
@@ -79,19 +78,27 @@
 
 - name: "create web base directory"
   file:
-    path: '{{ osrm.websitedir }}'
+    path: '{{ osrm__websitedir }}'
     state: directory
-    owner: '{{ osrm.user }}'
-    group: '{{ osrm.user }}'
+    owner: '{{ osrm__user }}'
+    group: '{{ osrm__user }}'
     mode: '0755'
 
 - name: "Timestamps dir"
   file:
-    path: '{{ osrm.websitedir }}/timestamps'
+    path: '{{ osrm__websitedir }}/timestamps'
     state: directory
-    owner: '{{ osrm.datauser }}'
-    group: '{{ osrm.datauser }}'
-    mode: '0755'
+    owner: '{{ osrm__datauser }}'
+    group: '{{ osrm__user }}'
+    mode: '0775'
+
+- name: "create timestamps site"
+  template:
+    dest: '{{ osrm__websitedir }}/timestamps/index.html'
+    src: 'timestamps.html.j2'
+    owner: root
+    group: root
+    mode: '0644'
 
 - name: "Write /429.html"
   copy:
@@ -107,23 +114,23 @@
 - name: checkout osrm-frontend
   git:
     repo: https://github.com/fossgis-routing-server/osrm-frontend.git
-    dest: '{{ osrm.basedir }}/osrm-frontend'
+    dest: '{{ osrm__basedir }}/osrm-frontend'
     version: 'bef727ee0af3172a86f38fe6aca580a078347ace'
     force: yes
   register: osrm_frontend_build
   become: yes
-  become_user: '{{ osrm.user }}'
+  become_user: '{{ osrm__user }}'
 
 - name: build osrm-frontend
   shell:
     cmd: 'npm install && npm install corslite && npm run build &&
           cp -r css fonts images bundle.js bundle.js.map
-          bundle.raw.js index.html debug {{ osrm.websitedir }} &&
+          bundle.raw.js index.html debug {{ osrm__websitedir }} &&
           git checkout bundle* package*'
-    chdir: '{{ osrm.basedir }}/osrm-frontend/'
+    chdir: '{{ osrm__basedir }}/osrm-frontend/'
   when: osrm_frontend_build.changed
   become: yes
-  become_user: '{{ osrm.user }}'
+  become_user: '{{ osrm__user }}'
 
 # about page
 
@@ -134,32 +141,32 @@
 - name: "splendor"
   git:
     repo: https://github.com/markdowncss/splendor.git
-    dest: '{{ osrm.basedir }}/about/splendor'
+    dest: '{{ osrm__basedir }}/about/splendor'
     version: '40db29539e4e8c733dec7f941833dcc21ed60504'
   become: yes
-  become_user: '{{ osrm.user }}'
+  become_user: '{{ osrm__user }}'
 
 - name: "about.md"
   copy:
     src: "about.md"
-    dest: "{{ osrm.basedir }}/about/about.md"
+    dest: "{{ osrm__basedir }}/about/about.md"
   become: yes
-  become_user: '{{ osrm.user }}'
+  become_user: '{{ osrm__user }}'
 
 - name: "create about page"
   shell:
     cmd: >
-        cp splendor/css/splendor.css "{{ osrm.websitedir }}/splendor.css" &&
+        cp splendor/css/splendor.css "{{ osrm__websitedir }}/splendor.css" &&
         echo '<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\">
         <title>About routing.openstreetmap.de</title>
         <link rel=\"stylesheet\" href=\"splendor.css\">
-        </head><body>' > "{{ osrm.websitedir }}/about.html" &&
-        markdown_py about.md -o html5 >> "{{ osrm.websitedir }}/about.html" &&
-        echo '</body></html>' >> "{{ osrm.websitedir }}/about.html"
-    chdir: '{{ osrm.basedir }}/about/'
-    creates: '{{ osrm.websitedir }}/about.html'
+        </head><body>' > "{{ osrm__websitedir }}/about.html" &&
+        markdown_py about.md -o html5 >> "{{ osrm__websitedir }}/about.html" &&
+        echo '</body></html>' >> "{{ osrm__websitedir }}/about.html"
+    chdir: '{{ osrm__basedir }}/about/'
+    creates: '{{ osrm__websitedir }}/about.html'
   become: yes
-  become_user: '{{ osrm.user }}'
+  become_user: '{{ osrm__user }}'
 
 # munin statistics for osrm
 - name: munin statistics
@@ -185,11 +192,18 @@
 
 - name: "create directory for consumer stats list"
   file:
-    path: '{{ osrm.basedir }}/stats/'
+    path: '{{ osrm__basedir }}/stats/'
     state: directory
     owner: 'www-data'
-    group: '{{ osrm.user }}'
+    group: '{{ osrm__user }}'
     mode: '0775'
+
+- name: "working directory /var/www/.ansible for ansible"
+  file:
+    path: '/var/www/.ansible'
+    state: directory
+    owner: 'www-data'
+    mode: '0755'
 
 # what the top consumers script does:
 # sed: (first -e) remove everything up to referrer and user agent,
@@ -200,8 +214,8 @@
 - name: "create top consumers list"
   shell:
     cmd: 'sed -e ''s/^.*+0200] "[^"]\+" [0-9][0-9][0-9] [0-9]\+ //'' -e ''s%"\(https\?://\)\?\(www.\)\?\([^-][^/"]*\)[^"]*" "[^"]\+"$%Referrer \3%'' -e ''s/"-" "\([^"]*\)"$/Agent \1/'' /var/log/nginx/router.log.1 | sort | uniq -c | sort -r -n | head -50 | sed -e ''s/^ *[0-9]\+ //'' > top_consumers'
-    chdir: '{{ osrm.basedir }}/stats/'
-    creates: '{{ osrm.basedir }}/stats/top_consumers'
+    chdir: '{{ osrm__basedir }}/stats/'
+    creates: '{{ osrm__basedir }}/stats/top_consumers'
   become: yes
   become_user: 'www-data'
 

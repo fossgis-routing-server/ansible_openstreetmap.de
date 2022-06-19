@@ -3,7 +3,7 @@
 
 - name: "set variable"
   set_fact:
-    this_host_profiles: "{{ osrm.profilearea | dict2items | selectattr(\"value.host\", \"equalto\", ansible_hostname) }}"
+    this_host_profiles: "{{ osrm__profilearea | dict2items | selectattr(\"value.host\", \"equalto\", ansible_hostname) }}"
 
 - name: "this host profiles"
   debug:
@@ -11,12 +11,12 @@
 
 - name: Create osrm system account
   system_account:
-    name: "{{ osrm.user }}"
-    home: "{{ osrm.basedir }}"
+    name: "{{ osrm__user }}"
+    home: "{{ osrm__basedir }}"
 
 - name: Create osrmdata system account
   system_account:
-    name: "{{ osrm.datauser }}"
+    name: "{{ osrm__datauser }}"
     home: "/home/osrmdata"
     shell: "/bin/bash"
 
@@ -33,35 +33,35 @@
 - name: checkout osrm-backend
   git:
     repo: https://github.com/fossgis-routing-server/osrm-backend.git
-    dest: '{{ osrm.basedir }}/osrm-backend'
+    dest: '{{ osrm__basedir }}/osrm-backend'
     version: '512b0ac40ec53f9aa718189262ea83835a27260f'
   register: osrm_backend_build
   become: yes
-  become_user: '{{ osrm.user }}'
+  become_user: '{{ osrm__user }}'
 
 - name: clear osrm-backend build dir
   file:
-    path: '{{ osrm.basedir }}/osrm-backend/build'
+    path: '{{ osrm__basedir }}/osrm-backend/build'
     state: absent
   when: osrm_backend_build.changed
 
 - name: create osrm-backend build dir
   file:
-    path: '{{ osrm.basedir }}/osrm-backend/build'
+    path: '{{ osrm__basedir }}/osrm-backend/build'
     state: directory
-    owner: '{{ osrm.user }}'
-    group: '{{ osrm.user }}'
+    owner: '{{ osrm__user }}'
+    group: '{{ osrm__user }}'
 
 - name: build osrm-backend
   shell:
     cmd: "cmake -DCMAKE_BUILD_TYPE=Release .. && make -j {{ ansible_facts['processor_cores'] }}"
-    chdir: '{{ osrm.basedir }}/osrm-backend/build/'
-    creates: '{{ osrm.basedir }}/osrm-backend/build/osrm-extract'
+    chdir: '{{ osrm__basedir }}/osrm-backend/build/'
+    creates: '{{ osrm__basedir }}/osrm-backend/build/osrm-extract'
   environment:
     CC: clang
     CXX: clang++
   become: yes
-  become_user: '{{ osrm.user }}'
+  become_user: '{{ osrm__user }}'
 
 - name: "systemctl enable profiles on this machine"
   systemd_service:
@@ -76,10 +76,10 @@
         User: osrm
         Group: osrm
         LimitNOFILE: 1000000
-        ExecStart: "{{ osrm.basedir }}/osrm-backend/build/osrm-routed --algorithm={{ osrm.algo }} -p {{ item.value.port }} -t 6 {{ osrm.basedir }}/data/{{ item.key }}.osrm"
+        ExecStart: "{{ osrm__basedir }}/osrm-backend/build/osrm-routed --algorithm={{ osrm__algo }} -p {{ item.value.port }} -t 6 {{ osrm__basedir }}/data/{{ item.key }}.osrm"
         Restart: always
         RestartSec: 700
-  loop: "{{ osrm.profilearea|dict2items }}"
+  loop: "{{ osrm__profilearea|dict2items }}"
   loop_control:
     label: '{{ item.key }} - {{ item.value.host }}'
   when: "item.value.host == ansible_hostname"
@@ -88,7 +88,7 @@
   file:
     path: '/etc/systemd/system/osrm-routed-{{ item.key }}.service'
     state: "absent"
-  loop: "{{ osrm.profilearea|dict2items }}"
+  loop: "{{ osrm__profilearea|dict2items }}"
   loop_control:
     label: '{{ item.key }}'
   when: "item.value.host != ansible_hostname"
@@ -97,18 +97,18 @@
 
 - name: "create directory build"
   file:
-    path: '{{ osrm.basedir }}/build'
+    path: '{{ osrm__basedir }}/build'
     state: directory
-    owner: '{{ osrm.user }}'
-    group: '{{ osrm.datauser }}'
+    owner: '{{ osrm__user }}'
+    group: '{{ osrm__datauser }}'
     mode: 0775
 
 - name: "create directories data, about"
   file:
-    path: '{{ osrm.basedir }}/{{ item }}'
+    path: '{{ osrm__basedir }}/{{ item }}'
     state: directory
-    owner: '{{ osrm.user }}'
-    group: '{{ osrm.user }}'
+    owner: '{{ osrm__user }}'
+    group: '{{ osrm__user }}'
   with_items:
     - 'data'
     - 'about'
@@ -120,11 +120,11 @@
   file:
     path: "/etc/cron.d/new-graphs"
     state: absent
-  when: "osrm.buildhost == ansible_hostname"
+  when: "osrm__buildhost == ansible_hostname"
 
 - name: "osrm-routed runner tasks"
   include_tasks: "routed.yml"
-  when: "osrm.buildhost != ansible_hostname"
+  when: "osrm__buildhost != ansible_hostname"
 
 - name: "sudoers file for allowing restart of osrm systemd unit"
   template:
@@ -135,14 +135,14 @@
 
 - name: "frontend"
   include_tasks: "frontend.yml"
-  when: "osrm.fronthost == ansible_hostname"
+  when: "osrm__fronthost == ansible_hostname"
 
 # munin monitoring
 
 - name: Setup nginx
   include_role:
     name: nginx
-  when: "osrm.fronthost != ansible_hostname"
+  when: "osrm__fronthost != ansible_hostname"
 
 - name: "default nginx site (for munin only, no routing)"
   nginx_site:
@@ -155,7 +155,7 @@
     default_server: "default_server"
     cert: ""
   notify: restart nginx
-  when: "osrm.fronthost != ansible_hostname"
+  when: "osrm__fronthost != ansible_hostname"
 
 # network stuff
 

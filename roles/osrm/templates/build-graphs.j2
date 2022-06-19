@@ -15,9 +15,9 @@ declare -A PROFILE_REGIONS
 # useful when restarting the build braphs script
 function is_not_oldest ()
 {
-    for pr in {{ osrm.profilearea.keys() | join(" ") }}
+    for pr in {{ osrm__profilearea.keys() | join(" ") }}
     do
-        if [[ {{ osrm.basedir }}data/$1.osrm -nt {{ osrm.basedir }}data/$pr.osrm ]]
+        if [[ {{ osrm__basedir }}data/$1.osrm -nt {{ osrm__basedir }}data/$pr.osrm ]]
         then
             echo $1 newer than $pr
             break
@@ -25,16 +25,16 @@ function is_not_oldest ()
     done
 }
 
-for PROFILE in {{ osrm.profiles.keys() | join(" ") }}
+for PROFILE in {{ osrm__profiles.keys() | join(" ") }}
 do
     case $PROFILE in
-{% for profilemain in osrm.profiles.keys() %}
+{% for profilemain in osrm__profiles.keys() %}
         {{ profilemain }})
-            REGIONS="{{ osrm.profiles[profilemain] | join(" ") }}"
+            REGIONS="{{ osrm__profiles[profilemain] | join(" ") }}"
             # if all regions exist and none of them are the oldest, skip to the next profile
-            if [[ -e {{ osrm.basedir }}data/{{ osrm.profiles[profilemain] | join(".osrm ]] && [[ -e " + osrm.basedir + "data/") }}.osrm ]]
+            if [[ -e {{ osrm__basedir }}data/{{ osrm__profiles[profilemain] | join(".osrm ]] && [[ -e " + osrm__basedir + "data/") }}.osrm ]]
             then
-                if [[ $(is_not_oldest {{ osrm.profiles[profilemain] | join(") ]] && [[ $(is_not_oldest ") }}) ]]
+                if [[ $(is_not_oldest {{ osrm__profiles[profilemain] | join(") ]] && [[ $(is_not_oldest ") }}) ]]
                 #"
                 then
                     echo $PROFILE is up to date, skipping | $LOGGING_INFO
@@ -57,7 +57,7 @@ do
             echo starting ${PROFILE}: running pyosmium-up-to-date -v {{ osmdatadir }}{{ pbfname }} | $LOGGING_INFO
             pyosmium-up-to-date \
               -s 10000 -v {{ osmdatadir }}{{ pbfname }} | $LOGGING_INFO
-{% if osrm.small %}
+{% if osrm__small %}
             echo small: reduce to extract | $LOGGING_INFO
             mv {{ osmdatadir }}{{ pbfname }} {{ osmdatadir }}small_updated.pbf
             osmium extract --polygon {{ osmdatadir }}small_extract.poly {{ osmdatadir }}small_updated.pbf -o {{ osmdatadir }}{{ pbfname }} | $LOGGING_INFO
@@ -77,13 +77,13 @@ do
         echo finished updating planet | $LOGGING_INFO
 
         #remove old extracts
-        rm -f "{{ osmdatadir }}{{ osrm.profilearea.keys() | join(".pbf\" \"" + osmdatadir) }}.pbf" \
-            "{{ osmdatadir }}{{ osrm.profiles.keys() | join("_extracts_finished\" \"" + osmdatadir) }}_extracts_finished"
+        rm -f "{{ osmdatadir }}{{ osrm__profilearea.keys() | join(".pbf\" \"" + osmdatadir) }}.pbf" \
+            "{{ osmdatadir }}{{ osrm__profiles.keys() | join("_extracts_finished\" \"" + osmdatadir) }}_extracts_finished"
 
-        if [ -f {{ osrm.basedir }}extract/$PROFILE.osmiconf ]
+        if [ -f {{ osrm__basedir }}extract/$PROFILE.osmiconf ]
         then
             osmium extract \
-                --config {{ osrm.basedir }}extract/$PROFILE.osmiconf {{ pbfname }} -O \
+                --config {{ osrm__basedir }}extract/$PROFILE.osmiconf {{ pbfname }} -O \
                 --output-header=osmosis_replication_timestamp! \
                 --output-header=timestamp! | $LOGGING_INFO
             if [ ${PIPESTATUS[0]} -gt 0 ]
@@ -107,10 +107,10 @@ do
 
     for PROFILEAREA in $REGIONS
     do
-        scriptdir="{{ osrm.basedir }}cbf-routing-profiles/"
-        osminbuild="{{ osrm.basedir }}build/$PROFILEAREA"
-        cd "{{ osrm.basedir }}osrm-backend/build"
-        rm -f "{{ osrm.basedir }}build/"*
+        scriptdir="{{ osrm__basedir }}cbf-routing-profiles/"
+        osminbuild="{{ osrm__basedir }}build/$PROFILEAREA"
+        cd "{{ osrm__basedir }}osrm-backend/build"
+        rm -f "{{ osrm__basedir }}build/"*
 
         if [[ $(is_not_oldest $PROFILEAREA) ]]
         then
@@ -122,10 +122,10 @@ do
         echo "starting compile profile $PROFILEAREA" | $LOGGING_INFO
 
         #./compile_profiles.sh profile-${PROFILEAREA}.conf 2>&1 | $LOGGING_INFO
-        ln -s "{{ osrm.basedir }}osmdata/$PROFILEAREA.pbf" $osminbuild.pbf
+        ln -s "{{ osrm__basedir }}osmdata/$PROFILEAREA.pbf" $osminbuild.pbf
         { time LUA_PATH="$scriptdir/lib/?.lua" ./osrm-extract -p $scriptdir/$PROFILE.lua $osminbuild.pbf; } |& $LOGGING_INFO
         echo "time for $PROFILEAREA extract" | $LOGGING_INFO
-{% if osrm.algo == "MLD" %}
+{% if osrm__algo == "MLD" %}
         { time ./osrm-partition $osminbuild.osrm; } |& $LOGGING_INFO
         echo "time for $PROFILEAREA partition" | $LOGGING_INFO
         { time ./osrm-customize $osminbuild.osrm; } |& $LOGGING_INFO
@@ -141,7 +141,7 @@ do
         # check if graph was calculated successfully. The mldgr or hsgr file is the last
         # one, and should be at least 6GiB
 
-{% if osrm.algo == "MLD" %}
+{% if osrm__algo == "MLD" %}
         $LOGGING_INFO "check size of $osminbuild.osrm.mldgr: "\
                       "$(du $osminbuild.osrm.mldgr | cut -f 1)"
 {% else %}
@@ -149,7 +149,7 @@ do
                       "$(du $osminbuild.osrm.hsgr | cut -f 1)"
 {% endif %}
 
-{% if osrm.algo == "MLD" %}
+{% if osrm__algo == "MLD" %}
         if [ ! -f $osminbuild.osrm.mldgr ]
 {% else %}
         if [ ! -f $osminbuild.osrm.hsgr ]
@@ -158,8 +158,8 @@ do
             $LOGGING_ERR "graph calculation failed!"
             continue
         fi
-{% if not osrm.small %}
-{% if osrm.algo == "MLD" %}
+{% if not osrm__small %}
+{% if osrm__algo == "MLD" %}
         if [ $(du $osminbuild.osrm.mldgr | cut -f 1) -lt 6200000 ]
 {% else %}
         if [ $(du $osminbuild.osrm.hsgr | cut -f 1) -lt 10000000 ]
@@ -176,14 +176,14 @@ do
         $LOGGING_INFO "fix strange permission of fileIndex"
         chmod 644  $osminbuild.osrm.fileIndex
         rm $osminbuild.pbf
-        rm -f {{ osrm.basedir }}data/${PROFILEAREA}*  2>&1 | $LOGGING_ERR
+        rm -f {{ osrm__basedir }}data/${PROFILEAREA}*  2>&1 | $LOGGING_ERR
 
         $LOGGING_INFO "start copying"
 
         # stop osrm server before copying if local host is serving the current profile
         case $PROFILEAREA in
-{% for profilearea in osrm.profilearea.keys() %}
-{% if ansible_hostname == osrm.profilearea[profilearea].host %}
+{% for profilearea in osrm__profilearea.keys() %}
+{% if ansible_hostname == osrm__profilearea[profilearea].host %}
             {{ profilearea }})
                 sudo systemctl stop osrm-routed-{{ profilearea }}.service 2>&1 || \
                 echo "osrm-routed-<%= profile %>.service was not started" | $LOGGING_INFO
@@ -192,20 +192,22 @@ do
 {% endfor %}
         esac
 
-{% if osrm.algo == "MLD" %}
-        cp -l ${osminbuild}.osrm* {{ osrm.basedir }}data/ 2>&1 | $LOGGING_ERR
+{% if osrm__algo == "MLD" %}
+        cp -l ${osminbuild}.osrm* {{ osrm__basedir }}data/ 2>&1 | $LOGGING_ERR
 {% else %}
         cp -l ${osminbuild}.osrm{,.datasource_names,.ebg_nodes,.edges,.fileIndex,.geometry,.hsgr,.icd,.maneuver_overrides,.names,.nbg_nodes,.properties,.ramIndex,.timestamp,.tld,.tls,.turn_duration_penalties,.turn_weight_penalties} \
-            {{ osrm.basedir }}data/ 2>&1 | $LOGGING_ERR
+            {{ osrm__basedir }}data/ 2>&1 | $LOGGING_ERR
 {% endif %}
 
 
         # start server again after copying if local host is serving the current profile
         case $PROFILEAREA in
-{% for profilearea in osrm.profilearea.keys() %}
-{% if ansible_hostname == osrm.profilearea[profilearea].host %}
+{% for profilearea in osrm__profilearea.keys() %}
+{% if ansible_hostname == osrm__profilearea[profilearea].host %}
             {{ profilearea }})
                 sudo systemctl start osrm-routed-{{ profilearea }}.service 2>&1 | $LOGGING_INFO
+                echo update {{ osrm__websitedir }}timestamps/${PROFILEAREA}.data_timestamp | $LOGGING_INFO
+                cp {{ osmdatadir }}{{ pbfname }}.data_timestamp {{ osrm__websitedir }}timestamps/${PROFILEAREA}.data_timestamp 2>&1 | $LOGGING_ERR
                 ;;
 {% endif %}
 {% endfor %}
@@ -214,9 +216,9 @@ do
         # copy graph to serving machine
         DESTINATION_HOST="undefined"
         case $PROFILEAREA in
-{% for profilearea in osrm.profilearea.keys() %}
+{% for profilearea in osrm__profilearea.keys() %}
             {{ profilearea }})
-                DESTINATION_HOST={{ osrm.profilearea[profilearea].host }}.openstreetmap.de
+                DESTINATION_HOST={{ osrm__profilearea[profilearea].host }}.openstreetmap.de
                 ;;
 {% endfor %}
         esac
@@ -227,32 +229,32 @@ do
             do
                 ssh osrmdata@$DESTINATION_HOST "rm -f $osminbuild.copying_finished"
                 rsync -W --exclude *.pbf \
-{% if osrm.algo == "MLD" %}
+{% if osrm__algo == "MLD" %}
                     $osminbuild.osrm* \
 {% else %}
                     $osminbuild.osrm{,.datasource_names,.ebg_nodes,.edges,.fileIndex,.geometry,.hsgr,.icd,.maneuver_overrides,.names,.nbg_nodes,.properties,.ramIndex,.timestamp,.tld,.tls,.turn_duration_penalties,.turn_weight_penalties} \
 {% endif %}
-                    osrmdata@$DESTINATION_HOST:{{ osrm.basedir }}build/ 2>&1 | $LOGGING_ERR && break
+                    osrmdata@$DESTINATION_HOST:{{ osrm__basedir }}build/ 2>&1 | $LOGGING_ERR && break
                 COUNT=$((COUNT+1))
             done
             # create a timestamp file on the destination machine
             date -Is > $osminbuild.copying_finished
-            rsync -W $osminbuild.copying_finished osrmdata@$DESTINATION_HOST:{{ osrm.basedir }}build/ 2>&1 | $LOGGING_ERR
+            rsync -W $osminbuild.copying_finished osrmdata@$DESTINATION_HOST:{{ osrm__basedir }}build/ 2>&1 | $LOGGING_ERR
             # data time stamp
             echo rsync -W {{ osmdatadir }}{{ pbfname }}.data_timestamp \
-                    osrmdata@{{ osrm.fronthost }}.openstreetmap.de:{{ osrm.websitedir }}timestamps/${PROFILEAREA}.data_timestamp | $LOGGING_INFO
+                    osrmdata@{{ osrm__fronthost }}.openstreetmap.de:{{ osrm__websitedir }}timestamps/${PROFILEAREA}.data_timestamp | $LOGGING_INFO
             rsync -W {{ osmdatadir }}{{ pbfname }}.data_timestamp \
-                    osrmdata@{{ osrm.fronthost }}.openstreetmap.de:{{ osrm.websitedir }}timestamps/${PROFILEAREA}.data_timestamp 2>&1 | $LOGGING_ERR
+                    osrmdata@{{ osrm__fronthost }}.openstreetmap.de:{{ osrm__websitedir }}timestamps/${PROFILEAREA}.data_timestamp 2>&1 | $LOGGING_ERR
         fi
 
         if [ "$COUNT" -gt 1 ]
         then
             if [ "$COUNT" -gt 3 ]
             then
-                $LOGGING_CMD "Failed to copy the graph of profile $PROFILEAREA to $DESTINATION_HOST:{{ osrm.basedir }}build/"
+                $LOGGING_CMD "Failed to copy the graph of profile $PROFILEAREA to $DESTINATION_HOST:{{ osrm__basedir }}build/"
                 exit 1
             else
-                $LOGGING_NOTICE "Needed $COUNT attempts to copy the graph of profile $PROFILEAREA to $DESTINATION_HOST:{{ osrm.basedir }}build/"
+                $LOGGING_NOTICE "Needed $COUNT attempts to copy the graph of profile $PROFILEAREA to $DESTINATION_HOST:{{ osrm__basedir }}build/"
             fi
         fi
 

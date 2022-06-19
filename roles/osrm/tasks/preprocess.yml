@@ -1,111 +1,111 @@
 - name: "create directories osmdata, extract, scripts"
   file:
-    path: '{{ osrm.basedir }}/{{ item }}'
+    path: '{{ osrm__basedir }}/{{ item }}'
     state: directory
-    owner: '{{ osrm.user }}'
-    group: '{{ osrm.user }}'
+    owner: '{{ osrm__user }}'
+    group: '{{ osrm__user }}'
   with_items:
     - 'osmdata'
     - 'extract'
     - 'scripts'
-  when: "osrm.buildhost == ansible_hostname"
+  when: "osrm__buildhost == ansible_hostname"
 
 - name: "Download planet"
   command:
-    cmd: "wget https://planet.osm.org/pbf/planet-latest.osm.pbf -nc -O {{ osrm.basedir }}/osmdata/osmdata.pbf"
-    chdir: "{{ osrm.basedir }}/osmdata/"
-    creates: '{{ osrm.basedir }}/osmdata/osmdata.pbf'
+    cmd: "wget https://planet.osm.org/pbf/planet-latest.osm.pbf -nc -O {{ osrm__basedir }}/osmdata/osmdata.pbf"
+    chdir: "{{ osrm__basedir }}/osmdata/"
+    creates: '{{ osrm__basedir }}/osmdata/osmdata.pbf'
   become: yes
-  become_user: '{{ osrm.user }}'
-  when: "not osrm.small and osrm.buildhost == ansible_hostname"
+  become_user: '{{ osrm__user }}'
+  when: "not osrm__small and osrm__buildhost == ansible_hostname"
 
 - name: "Download small OSM subset (for testing) Liechtenstein [euasi]"
   get_url:
     url: "http://download.geofabrik.de/europe/liechtenstein-latest.osm.pbf"
-    dest: "{{ osrm.basedir }}/osmdata/euasi.pbf"
-    owner: "{{ osrm.user }}"
-  when: "osrm.small and osrm.buildhost == ansible_hostname"
+    dest: "{{ osrm__basedir }}/osmdata/euasi.pbf"
+    owner: "{{ osrm__user }}"
+  when: "osrm__small and osrm__buildhost == ansible_hostname"
 
 - name: "Download small OSM subset (for testing) Saint Helena, Ascension, and Tristan da Cunha [afoce]"
   get_url:
     url: "http://download.geofabrik.de/africa/saint-helena-ascension-and-tristan-da-cunha-latest.osm.pbf"
-    dest: '{{ osrm.basedir }}/osmdata/afoce.pbf'
-    owner: "{{ osrm.user }}"
-  when: "osrm.small and osrm.buildhost == ansible_hostname"
+    dest: '{{ osrm__basedir }}/osmdata/afoce.pbf'
+    owner: "{{ osrm__user }}"
+  when: "osrm__small and osrm__buildhost == ansible_hostname"
 
 - name: "Download small OSM subset (for testing) Virgin Islands [us]"
   get_url:
     url: "http://download.geofabrik.de/north-america/us/us-virgin-islands-latest.osm.pbf"
-    dest: '{{ osrm.basedir }}/osmdata/us.pbf'
-    owner: "{{ osrm.user }}"
-  when: "osrm.small and osrm.buildhost == ansible_hostname"
+    dest: '{{ osrm__basedir }}/osmdata/us.pbf'
+    owner: "{{ osrm__user }}"
+  when: "osrm__small and osrm__buildhost == ansible_hostname"
 
 - name: "osmium tool for planet update and transform"
   apt:
     name: [pyosmium, osmium-tool]
-  when: "osrm.buildhost == ansible_hostname"
+  when: "osrm__buildhost == ansible_hostname"
 
 - name: "poly for small extract"
   copy:
     src: 'small_extract.poly'
-    dest: "{{ osrm.basedir }}/osmdata/small_extract.poly"
-  when: "osrm.small and osrm.buildhost == ansible_hostname"
+    dest: "{{ osrm__basedir }}/osmdata/small_extract.poly"
+  when: "osrm__small and osrm__buildhost == ansible_hostname"
 
 - name: "combine small extracts into one pbf"
   command:
     cmd: "osmium merge euasi.pbf afoce.pbf am.pbf -o small.pbf"
-    chdir: "{{ osrm.basedir }}/osmdata/"
-    creates: '{{ osrm.basedir }}/osmdata/small.pbf'
+    chdir: "{{ osrm__basedir }}/osmdata/"
+    creates: '{{ osrm__basedir }}/osmdata/small.pbf'
   become: yes
-  become_user: '{{ osrm.user }}'
-  when: "osrm.small and osrm.buildhost == ansible_hostname"
+  become_user: '{{ osrm__user }}'
+  when: "osrm__small and osrm__buildhost == ansible_hostname"
 
 - name: "osmium cut configuration"
   template:
-    dest: '{{ osrm.basedir }}extract/{{ item.key }}.osmiconf'
+    dest: '{{ osrm__basedir }}extract/{{ item.key }}.osmiconf'
     src: 'osmiconf.jinja'
   vars:
-    osmdatadir: "{{ osrm.basedir }}osmdata/"
-  loop: "{{ osrm.profiles|dict2items }}"
-  when: "osrm.buildhost == ansible_hostname"
+    osmdatadir: "{{ osrm__basedir }}osmdata/"
+  loop: "{{ osrm__profiles|dict2items }}"
+  when: "osrm__buildhost == ansible_hostname"
 
 # routing profiles
 
 - name: "git routing profile"
   git:
     repo: https://github.com/fossgis-routing-server/cbf-routing-profiles.git
-    dest: '{{ osrm.basedir }}/cbf-routing-profiles'
+    dest: '{{ osrm__basedir }}/cbf-routing-profiles'
     version: 'c97c085bb78c6cf401ff6bd68b08f4459f185b11'
     force: yes
   become: yes
-  become_user: '{{ osrm.user }}'
-  when: "osrm.buildhost == ansible_hostname"
+  become_user: '{{ osrm__user }}'
+  when: "osrm__buildhost == ansible_hostname"
 
 - name: "profile region links"
   file:
     src: '{{ item.value.profile }}.lua'
-    dest: '{{ osrm.basedir }}/cbf-routing-profiles/{{ item.key }}.lua'
+    dest: '{{ osrm__basedir }}/cbf-routing-profiles/{{ item.key }}.lua'
     state: link
-  loop: '{{ osrm.profilearea|dict2items }}'
+  loop: '{{ osrm__profilearea|dict2items }}'
   loop_control:
     label: '{{ item.key }}'
-  when: "osrm.buildhost == ansible_hostname"
+  when: "osrm__buildhost == ansible_hostname"
 
 - name: "build graphs script"
   template:
-    dest: "{{ osrm.basedir }}scripts/buildgraphs.sh"
+    dest: "{{ osrm__basedir }}scripts/buildgraphs.sh"
     src: "build-graphs.j2"
   vars:
-    osmdatadir: "{{ osrm.basedir }}osmdata/"
+    osmdatadir: "{{ osrm__basedir }}osmdata/"
     myhostname: ansible_hostname
-    pbfname: "{{ osrm.small | ternary('small.pbf', 'osmdata.pbf') }}"
-  when: "osrm.buildhost == ansible_hostname"
+    pbfname: "{{ osrm__small | ternary('small.pbf', 'osmdata.pbf') }}"
+  when: "osrm__buildhost == ansible_hostname"
 
 - name: "remove systemd unit from non preprocess hosts"
   file:
     path: '/etc/systemd/system/build-graphs.service'
     state: "absent"
-  when: "osrm.buildhost != ansible_hostname"
+  when: "osrm__buildhost != ansible_hostname"
 
 - name: "install systemd service for build graphs loop"
   systemd_service:
@@ -117,10 +117,10 @@
         After: syslog.target network.target
       Service:
         Type: simple
-        User: '{{ osrm.user }}'
-        Group: '{{ osrm.user }}'
-        ExecStart: "/bin/bash {{ osrm.basedir }}/scripts/buildgraphs.sh"
+        User: '{{ osrm__user }}'
+        Group: '{{ osrm__user }}'
+        ExecStart: "/bin/bash {{ osrm__basedir }}/scripts/buildgraphs.sh"
         Restart: always
         RestartSec: 700
-  when: "osrm.buildhost == ansible_hostname"
+  when: "osrm__buildhost == ansible_hostname"
 

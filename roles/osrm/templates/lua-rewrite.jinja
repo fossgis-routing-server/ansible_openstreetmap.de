@@ -4,7 +4,7 @@ local regions = {}
 {% if loop.index == 1 %}
 local defaultregion = "{{ region }}"
 {% else %}
-poly{{ region }} = {{ osrm.profilearea[region].poly | replace('[', '{') | replace(']', '}') }}
+poly{{ region }} = {{ osrm__profilearea[region].poly | replace('[', '{') | replace(']', '}') }}
 regions["{{ region }}"] = poly{{ region }}
 {% endif %}
 {% endfor %}

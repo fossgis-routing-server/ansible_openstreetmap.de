@@ -1,7 +1,7 @@
 
 - name: "new graphs script"
   template:
-    dest: "{{ osrm.basedir }}scripts/newgraphs.sh"
+    dest: "{{ osrm__basedir }}scripts/newgraphs.sh"
     src: "new-graphs.j2"
     mode: 0755
 
@@ -10,6 +10,6 @@
     name: osrm new graphs
     cron_file: osrm_newgraphs
     minute: "28,58"
-    job: "{{ osrm.basedir }}scripts/newgraphs.sh"
+    job: "{{ osrm__basedir }}scripts/newgraphs.sh"
     user: root
 

@@ -3,7 +3,7 @@
 import sys, os
 import datetime
 
-transportmodes=["{{ osrm.profiles.keys() | join("\", \"") }}"]
+transportmodes=["{{ osrm__profiles.keys() | join("\", \"") }}"]
 logdir="/var/log/nginx/"
 
 starttime = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(0,300)

@@ -28,10 +28,10 @@
         access_log /var/log/nginx/routing-times-car.log access_times;
     }
 
-{% for profilearea in osrm.profilearea.keys() %}
+{% for profilearea in osrm__profilearea.keys() %}
     location /routed-{{ profilearea }}/ {
         internal;
-        proxy_pass  http://{{ osrm.profilearea[profilearea].host }}.openstreetmap.de:{{ osrm.profilearea[profilearea].port }}/;
+        proxy_pass  http://{{ osrm__profilearea[profilearea].host }}.openstreetmap.de:{{ osrm__profilearea[profilearea].port }}/;
     }
 {% endfor %}
 

@@ -96,67 +96,76 @@ osrm_polyafoce: "[[   0,            -90           ],
                   [ -16.34765625,    34.9219710362],
                   [ -33.7060546875,  14.0939571778],
                   [   0,            -90           ]]"
-osrm:
-  basedir: '/srv/osrm/'
-  websitedir: '/var/www/routing/'
-  user: 'osrm'
-  datauser: 'osrmdata'
-  fronthost: 'goode'
-  buildhost: 'goode'
-  algo: "CH"
-  small: False
 
-  profiles:
-    car:  ["careuasi",  "carafoce",  "caram"]
-    bike: ["bikeeuasi", "bikeafoce", "bikeam"]
-    foot: ["footeuasi", "footafoce", "footam"]
+osrm__basedir: '/srv/osrm/'
+osrm__websitedir: '/var/www/routing/'
+osrm__user: 'osrm'
+osrm__datauser: 'osrmdata'
+osrm__fronthost: 'goode'
+osrm__buildhost: 'goode'
+osrm__algo: "CH"
+osrm__small: True
 
-  profilearea:
+osrm__profilearea:
     careuasi:
       host: "goode"
       poly: "{{ osrm_polyeuasi }}"
+      area: europe asia
       port: 3330
       profile: "car"
     carafoce:
       host: "goode"
       poly: "{{ osrm_polyafoce }}"
+      area: africa oceania
       port: 3338
       profile: "car"
     caram:
       host: "goode"
       poly: "{{ osrm_polyam }}"
+      area: americas
       port: 3331
       profile: "car"
     bikeeuasi:
       host: "goode"
       poly: "{{ osrm_polyeuasi }}"
+      area: europe asia
       port: 3332
       profile: "bike"
     bikeafoce:
       host: "goode"
       poly: "{{ osrm_polyafoce }}"
+      area: africa oceania
       port: 3333
       profile: "bike"
     bikeam:
       host: "goode"
       poly: "{{ osrm_polyam }}"
+      area: americas
       port: 3334
       profile: "bike"
     footeuasi:
       host: "goode"
       poly: "{{ osrm_polyeuasi }}"
+      area: europe asia
       port: 3335
       profile: "foot"
     footafoce:
       host: "goode"
       poly: "{{ osrm_polyafoce }}"
+      area: africa oceania
       port: 3336
       profile: "foot"
     footam:
       host: "goode"
       poly: "{{ osrm_polyam }}"
+      area: americas
       port: 3337
       profile: "foot"
+
+osrm__profiles:
+    car:  ["careuasi",  "carafoce",  "caram"]
+    bike: ["bikeeuasi", "bikeafoce", "bikeam"]
+    foot: ["footeuasi", "footafoce", "footam"]
 
 osrm__acme_certificates:
   - name: osrmde
