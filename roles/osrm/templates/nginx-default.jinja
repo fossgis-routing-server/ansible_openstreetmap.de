@@ -13,7 +13,7 @@ map $http_accept_language $lang {
 
 {% call server([server_name], http='yes', https=cert, listen_params=default_server ) %}
 
-    root /var/www/routing;
+    root {{ root }};
 
     index index.html;
 
@@ -24,7 +24,7 @@ map $http_accept_language $lang {
         }
 
         if ($relang !~ 'en') {
-            rewrite ^ /?hl=$relang redirect;
+            rewrite ^ https://$server_name/?hl=$relang redirect;
         }
     }
 
@@ -32,6 +32,16 @@ map $http_accept_language $lang {
         # First attempt to serve request as file, then
         # as directory, then fall back to displaying a 404.
         try_files $uri $uri/ =404;
+    }
+
+    location /nginx_status {
+        # Enable Nginx stats
+        stub_status on;
+        # Only allow access from localhost
+        allow 127.0.0.1;
+        allow ::1;
+        # Other request should be denied
+        deny all;
     }
 
     # deny access to .htaccess files, if Apache's document root

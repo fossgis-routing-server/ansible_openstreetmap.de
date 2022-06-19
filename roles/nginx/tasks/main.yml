@@ -3,7 +3,7 @@
     msg: nginx and apache cannot be run together.
   when: "(webserver__in_use | default('nginx')) != 'nginx'"
 
-- name: Mark apache the hosts webserver
+- name: Mark nginx the hosts webserver
   set_fact:
     webserver__in_use: nginx
 

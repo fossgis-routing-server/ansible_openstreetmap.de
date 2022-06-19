@@ -52,7 +52,7 @@
     mode: '0644'
   notify: restart nginx
 
-- name: "create directory /var/run/uwsgi for uwsgi socket"
+- name: "create directory /etc/nginx/lua"
   file:
     path: '/etc/nginx/lua/'
     state: directory
@@ -89,6 +89,7 @@
     server_name: "_"
     default_server: "default_server"
     cert: "osrmde"
+    root: "{{ osrm.websitedir }}"
   notify: restart nginx
 
 - name: "nginx site for map.project-osrm.org"
@@ -101,6 +102,7 @@
     server_name: "map.project-osrm.org"
     default_server: ""
     cert: "osrmorg"
+    root: "{{ osrm.websitedir }}"
   notify: restart nginx
 
 - name: "nginx site for router.project-osrm.org"
@@ -180,7 +182,7 @@
   become: yes
   become_user: '{{ osrm.user }}'
 
-- name: "create_about_page"
+- name: "create about page"
   shell:
     cmd: >
         cp splendor/css/splendor.css "{{ osrm.websitedir }}/splendor.css" &&
@@ -195,3 +197,52 @@
   become: yes
   become_user: '{{ osrm.user }}'
 
+# munin statistics for osrm
+- name: munin statistics
+  template:
+    dest: '/etc/munin/plugins/osrm_{{ item }}'
+    src: 'munin_{{ item }}.j2'
+    owner: root
+    group: root
+    mode: '0755'
+  notify: restart munin-node
+  loop:
+    - count
+    - latency.py
+    - size
+    - consumers.py
+
+- name: configuration munin osrm plugins
+  copy:
+    content: |
+      [osrm_*]
+      group adm
+    dest: "/etc/munin/plugin-conf.d/osrm"
+
+- name: "create directory for consumer stats list"
+  file:
+    path: '{{ osrm.basedir }}/stats/'
+    state: directory
+    owner: 'www-data'
+    group: '{{ osrm.user }}'
+    mode: '0775'
+
+# what the top consumers script does:
+# sed: (first -e) remove everything up to referrer and user agent,
+# then (second -e) only print referrer for requests which include a referrer
+# and (third -e) print the user agent where no referrer is given
+# then all consumers are counted, how often they appeared, sorted by count and truncated to the top 50
+
+- name: "create top consumers list"
+  shell:
+    cmd: 'sed -e ''s/^.*+0200] "[^"]\+" [0-9][0-9][0-9] [0-9]\+ //'' -e ''s%"\(https\?://\)\?\(www.\)\?\([^-][^/"]*\)[^"]*" "[^"]\+"$%Referrer \3%'' -e ''s/"-" "\([^"]*\)"$/Agent \1/'' /var/log/nginx/router.log.1 | sort | uniq -c | sort -r -n | head -50 | sed -e ''s/^ *[0-9]\+ //'' > top_consumers'
+    chdir: '{{ osrm.basedir }}/stats/'
+    creates: '{{ osrm.basedir }}/stats/top_consumers'
+  become: yes
+  become_user: 'www-data'
+
+
+- name: daily refresh of top consumers
+  copy:
+    content: '3 0 * * * www-data sed -e ''s/^.*+0200] "[^"]\+" [0-9][0-9][0-9] [0-9]\+ //'' -e ''s%"\(https\?://\)\?\(www.\)\?\([^-][^/"]*\)[^"]*" "[^"]\+"$%Referrer \3%'' -e ''s/"-" "\([^"]*\)"$/Agent \1/'' /var/log/nginx/router.log.1 | sort | uniq -c | sort -r -n | head -50 | sed -e ''s/^ *[0-9]\+ //'' > top_consumers'
+    dest: "/etc/cron.d/daily_top_user_agents"

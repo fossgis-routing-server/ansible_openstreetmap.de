@@ -1,0 +1,29 @@
+#!/bin/bash
+
+transportmodes="{{ osrm.profilearea.keys() | join(" ") }}"
+
+case $1 in
+   config)
+        echo graph_title Routing graph sizes
+        echo graph_vlabel size
+        echo graph_category OSRM
+	echo graph_args --base 1024
+        for tm in $transportmodes
+        do
+            if [ -f /srv/osrm/data/$tm.osrm ]
+            then
+                echo $tm.label $tm
+                echo $tm.min 0
+            fi
+        done
+        exit 0;;
+esac
+
+for tm in $transportmodes
+do
+    if [ -f /srv/osrm/data/$tm.osrm ]
+    then
+        printf "$tm.value "
+        du -bc /srv/osrm/data/$tm.osrm* | tail -1 | cut -f1
+    fi
+done

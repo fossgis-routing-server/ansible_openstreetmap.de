@@ -1,0 +1,113 @@
+#!/usr/bin/env python3
+
+import sys, os
+import datetime
+import re
+
+log_file="/var/log/nginx/router.log"
+top_consumers_file="/srv/osrm/stats/top_consumers"
+
+start_time = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(0,300)
+
+#logline: 1: date
+#         2: not needed (http)
+#         3: not needed (www)
+#         4: referrer
+#         5: agent
+
+log_line = re.compile("^[^[]+\\[([^]]+)\\] \"[^\"]+\" [0-9][0-9][0-9] [0-9]+ \"(https?://)?(www\\.)?([^/\"]+)[^\"]*\" \"([^\"]+)\"$")
+min_samples = 128
+
+top_consumers = list(open(top_consumers_file, "rb").read().decode("utf-8").split('\n'))
+top_consumers.remove("")
+if "Referrer map.project-osrm.org" in top_consumers:
+    top_consumers.remove("Referrer map.project-osrm.org")
+top_consumers.insert(0, "Referrer map.project-osrm.org")
+if "Referrer openstreetmap.org" in top_consumers:
+    top_consumers.remove("Referrer openstreetmap.org")
+top_consumers.insert(0, "Referrer openstreetmap.org")
+top_consumers.insert(0, "other")
+
+def clean_fieldname(text):
+    if text == "root":
+        return "_root"
+    else:
+        return re.sub(r"(^[^A-Za-z_]|[^A-Za-z0-9_])", "_", text)
+
+# read from end, until a time stamp after t is found
+def linesFromEnd(f, t, min_lines = 0):
+    bs = 2**12 # block size 4k. block size must be much larger than log line size!
+               # if block size is smaller than a log line, it will fail to read
+               # the date
+    n_lines = 0
+
+    f.seek(0, 2) # seek end
+    f_size = f.tell()
+    n_blocks = f_size // bs # how many blocks the file has
+    blocks = [] # blocks read, in reverse order
+
+    # the first read is from bs * n_blocks until end
+    f.seek(n_blocks * bs, 0)
+    blocks.append(f.read(f_size - n_blocks * bs))
+    n_lines += blocks[-1].count(b'\n')
+    for i in range(n_blocks - 1, -1, -1):
+        # read another block
+        f.seek(i * bs, 0)
+        blocks.append(f.read(bs))
+        n_lines += blocks[-1].count(b'\n')
+        line_start = blocks[-1].find(b'\n') + 1
+        line_end = blocks[-1].find(b'\n', line_start)
+        if n_lines > min_lines and line_start > 0 and line_end > -1:
+            line = blocks[-1][line_start + 1:line_end]
+            log_match = log_line.match(line.decode("utf-8"))
+            if log_match:
+                date = datetime.datetime.strptime(log_match.group(1), "%d/%b/%Y:%H:%M:%S %z")
+                if date < t:
+                    break
+    return b''.join(reversed(blocks)).splitlines()
+
+
+# for munin: advertise which values will be given and how to label them
+if len(sys.argv) > 1 and sys.argv[1] == "config":
+    print("graph_title Most frequent consumers")
+    print("graph_vlabel Requests per second")
+    print("graph_args --base 1000 -r --allow-shrink")
+    print("graph_category OSRM")
+    print("graph_info number of requests by consumers")
+    if "Agent -" in top_consumers:
+        print("{0}.label {1}".format(clean_fieldname("No user agent"), "No user agent"))
+        top_consumers.remove("Agent -")
+    for consumer in top_consumers:
+        print("{0}.label {1}".format(clean_fieldname(consumer), consumer))
+
+# output the latency values
+else:
+    logfile = open(log_file, "rb")
+    logfile = reversed(linesFromEnd(logfile, start_time, min_lines = min_samples))
+    consumers = dict.fromkeys(top_consumers, 0)
+    for logline in logfile:
+        try:
+            log_match = log_line.match(logline.decode("utf-8"))
+            date = datetime.datetime.strptime(log_match.group(1), "%d/%b/%Y:%H:%M:%S %z")
+            if date < start_time:
+                break
+            referrer = log_match.group(4)
+            ua = log_match.group(5)
+            consumer = ""
+            if referrer != "-":
+                consumer = "Referrer {}".format(referrer)
+            else:
+                consumer = "Agent {}".format(ua)
+            if consumer in top_consumers:
+                consumers[consumer] += 1
+            else:
+                consumers["other"] += 1
+        except:
+          pass
+
+    if "Agent -" in consumers:
+        consumers["No user agent"] = consumers["Agent -"]
+        consumers.pop("Agent -")
+
+    for consumer in consumers:
+        print("{0}.value {1}".format(clean_fieldname(consumer), consumers[consumer]/300.))
