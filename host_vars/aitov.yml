@@ -52,5 +52,5 @@ wordpress_plugins:
   - name: updraftplus
     version: 1.22.14
 wordpress_themes:
-  - ephemeris
+  - name: ephemeris
     version: 1.4.10
