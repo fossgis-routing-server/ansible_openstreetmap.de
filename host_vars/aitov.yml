@@ -4,11 +4,11 @@ mail:
   mailname: weeklyosm.eu
   ssl_name: weeklyosm
   domains:
-    - soldner.openstreetmap.de
+    - aitov.openstreetmap.de
   aliases:
     # Keys of this dictionary: keys of the alias mapping
     # Values of this dictionary: either a string (value of the mapping) or a list of strings (multiple alias recipients)
-    root@soldner.openstreetmap.de: osm-server-ag-admins@fossgis.de
+    root@aitov.openstreetmap.de: osm-server-ag-admins@fossgis.de
     root@weeklyosm.eu: osm-server-ag-admins@fossgis.de
     postmaster: osm-server-ag-admins@fossgis.de
     root: osm-server-ag-admins@fossgis.de
@@ -34,8 +34,9 @@ wordpress_plugins:
     version: 2.25.3
   - name: password-policy-manager
     version: 1.3.2
-  - name: qtranslate-x
-    version: 3.4.6.8
+  #- name: qtranslate-x #security issue https://wordpress.org/plugins/qtranslate-x/
+  #  version: 3.4.6.8
+  #  TODO replace by xt version: https://github.com/qtranslate/qtranslate-xt
   - name: Relevanssi
     version: 4.16.0
   #- name: rich-text-tags
@@ -51,7 +52,5 @@ wordpress_plugins:
   - name: updraftplus
     version: 1.22.14
 wordpress_themes:
-  - name: aletheia
-    version: 1.0.2
-  - name: follet
-    version: 1.1.1
+  - ephemeris
+    version: 1.4.10
