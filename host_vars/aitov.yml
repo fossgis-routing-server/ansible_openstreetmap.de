@@ -16,8 +16,6 @@ mail:
 
 
 wordpress_plugins:
-  - name: antispam-bee
-    version: 2.11.1
   - name: classic-editor
     version: 1.6.2
   - name: co-authors-plus
@@ -30,16 +28,22 @@ wordpress_plugins:
     version: 2.25.4
   - name: password-policy-manager
     version: 1.3.3
+  - name: qtranslate-xt
+    version: 3.12.0
   - name: Relevanssi
     version: 4.16.0
   - name: safe-svg
     version: 2.0.2
+  - name: spam-destroyer
+    version: 2.1.3
   - name: two-factor-authentication
-    version: 1.14.3
+    version: 1.14.4
   - name: updraftplus
     version: 1.22.14
   - name: wordfence
     version: 7.6.0
+  - name: insert-headers-and-footers
+    version: 2.0.1
 wordpress_themes:
   - name: ephemeris
     version: 1.4.10
