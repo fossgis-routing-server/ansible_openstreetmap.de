@@ -10,7 +10,7 @@ osmpodcast_audio__acme_certificates:
     domains:
       - audio.podcast.openstreetmap.de
     on_update:
-      -systemctl reload nginx
+      - systemctl reload nginx
 
 osmpodcast__acme_certificates:
   - name: podcast.openstreetmap.de
