@@ -1,5 +1,33 @@
 # SPDX-License-Identifier: MIT
 ---
+- name: "create sftp group"
+  group:
+    name: sftp
+    system: yes
+
+- name: "create upload user for audio files"
+  user:
+    name: auphonic
+    group: sftp
+    create_home: false
+    home: "/srv/www/audio.podcast.openstreetmap.de/"
+
+- name: "install auphonic public key"
+  authorized_key:
+    user: "auphonic"
+    key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDQw4xFtyDoZA0QeLLSR849HHIWQwogJBFrkG0tyPkfP8jmwg38Yn+5O0DziabqdCoSKvZrJZjjYcyzqUR5Ya6rBkiATshP4Z5USsjmFyPwQClg4guJs22N1AE/1xqbvuCoSyvTNXwoyyOoJueFYmRB8MlQy6fbJdlA/pD9/IAnrR2kLphxcQy3Rel5kQAXh60FLNJko1GW5+TCk4waCXLEqbZpouivQwRLpdHkJhmHkOG9IkVQXr+54sFiSdzFmrM+8b9lmQRa2YtNew5dPodSsqE5BdPnSx3feHLZ272D4lvX/cbt+fP1qP591Gsdsqc8SQC48GMuYNcml5GUDi2x"
+    comment: "sftp upload user"
+
+- name: "configure sftp subsystem"
+  copy: 
+    dest: '/etc/ssh/sshd_config.d/sftp'
+    content: |
+      Subsystem sftp internal-sftp
+
+      Match Group sftp
+        ChrootDirectory %h
+        ForceCommand internal-sftp
+        AllowTcpForwarding no
 
 - name: "create web base directory"
   file:
