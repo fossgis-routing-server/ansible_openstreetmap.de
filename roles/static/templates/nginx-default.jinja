@@ -1,7 +1,7 @@
 {% call server([server_name], http='forward', https=server_name) %}
 
     root /srv/www/{{ folder_name }};
-    index index.html;
+    index index.html index.xml;
 
     location / {
         # First attempt to serve request as file, then
