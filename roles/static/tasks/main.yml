@@ -15,7 +15,7 @@
 - name: Create base directory for audio files
   file:
     dest: "/srv/www/audio.podcast.openstreetmap.de/"
-    owner: "www-data"
+    owner: "auphonic"
     group: "sftp"
     state: directory
     mode: 0775
