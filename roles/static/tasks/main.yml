@@ -28,3 +28,13 @@
     server_name: "podcast.openstreetmap.de"
     default_server: ""
   notify: restart nginx
+
+- name: "nginx site for audio.podcast.openstreetmap.de"
+  nginx_site:
+    site: 'audio.podcast.openstreetmap.de'
+    src:  'nginx-default.jinja'
+  vars:
+    folder_name: "audio.podcast.openstreetmap.de"
+    server_name: "audio.podcast.openstreetmap.de"
+    default_server: ""
+  notify: restart nginx

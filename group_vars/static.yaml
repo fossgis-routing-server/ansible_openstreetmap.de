@@ -5,11 +5,16 @@ osmblog__acme_certificates:
     on_update:
       - systemctl reload nginx
 
+osmpodcast_audio__acme_certificates:
+  - name: audio.podcast.openstreetmap.de
+    domains:
+      - audio.podcast.openstreetmap.de
+    on_update:
+      -systemctl reload nginx
 
-#osmpodcast__acme_certificates:
-#  - name: podcast.openstreetmap.de
-#    domains:
-#      - podcast.openstreetmap.de
-#      - audio.podcast.openstreetmap.de
-#    on_update:
-#      - systemctl reload nginx
+osmpodcast__acme_certificates:
+  - name: podcast.openstreetmap.de
+    domains:
+      - podcast.openstreetmap.de
+    on_update:
+      - systemctl reload nginx
