@@ -1,4 +1,11 @@
 
+- name: "create script directory"
+  file:
+    path: '{{ osrm__basedir }}/scripts'
+    state: directory
+    owner: '{{ osrm__user }}'
+    group: '{{ osrm__user }}'
+
 - name: "new graphs script"
   template:
     dest: "{{ osrm__basedir }}scripts/newgraphs.sh"
