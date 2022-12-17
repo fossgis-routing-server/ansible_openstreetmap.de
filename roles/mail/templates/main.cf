@@ -78,6 +78,7 @@ smtpd_tls_auth_only = yes
 smtpd_sasl_auth_enable = yes
 smtpd_sasl_local_domain = $myhostname
 smtpd_sasl_security_options = noanonymous
+always_add_missing_headers = yes
 
 {% else %}
 smtpd_client_restrictions = permit_mynetworks reject
