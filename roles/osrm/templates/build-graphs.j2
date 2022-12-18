@@ -183,7 +183,7 @@ do
         # stop osrm server before copying if local host is serving the current profile
         case $PROFILEAREA in
 {% for profilearea in osrm__profilearea.keys() %}
-{% if ansible_hostname == osrm__profilearea[profilearea].host %}
+{% if inventory_hostname == osrm__profilearea[profilearea].host %}
             {{ profilearea }})
                 sudo systemctl stop osrm-routed-{{ profilearea }}.service 2>&1 || \
                 echo "osrm-routed-<%= profile %>.service was not started" | $LOGGING_INFO
@@ -203,7 +203,7 @@ do
         # start server again after copying if local host is serving the current profile
         case $PROFILEAREA in
 {% for profilearea in osrm__profilearea.keys() %}
-{% if ansible_hostname == osrm__profilearea[profilearea].host %}
+{% if inventory_hostname == osrm__profilearea[profilearea].host %}
             {{ profilearea }})
                 sudo systemctl start osrm-routed-{{ profilearea }}.service 2>&1 | $LOGGING_INFO
                 echo update {{ osrm__websitedir }}timestamps/${PROFILEAREA}.data_timestamp | $LOGGING_INFO
@@ -223,7 +223,7 @@ do
 {% endfor %}
         esac
         COUNT=1
-        if [ "$DESTINATION_HOST" != "{{ ansible_hostname }}.openstreetmap.de" ]
+        if [ "$DESTINATION_HOST" != "{{ inventory_hostname }}.openstreetmap.de" ]
         then
             while [ "$COUNT" -le 3 ]
             do

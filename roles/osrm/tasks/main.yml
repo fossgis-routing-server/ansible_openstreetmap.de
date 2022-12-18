@@ -3,7 +3,7 @@
 
 - name: "set variable"
   set_fact:
-    this_host_profiles: "{{ osrm__profilearea | dict2items | selectattr(\"value.host\", \"equalto\", ansible_hostname) }}"
+    this_host_profiles: "{{ osrm__profilearea | dict2items | selectattr(\"value.host\", \"equalto\", inventory_hostname) }}"
 
 - name: "this host profiles"
   debug:
@@ -82,7 +82,7 @@
   loop: "{{ osrm__profilearea|dict2items }}"
   loop_control:
     label: '{{ item.key }} - {{ item.value.host }}'
-  when: "item.value.host == ansible_hostname"
+  when: "item.value.host == inventory_hostname"
 
 - name: "remove systemd unit for profiles not on this host"
   file:
@@ -91,7 +91,7 @@
   loop: "{{ osrm__profilearea|dict2items }}"
   loop_control:
     label: '{{ item.key }}'
-  when: "item.value.host != ansible_hostname"
+  when: "item.value.host != inventory_hostname"
 
 # osrm data, build graphs
 
@@ -120,11 +120,11 @@
   file:
     path: "/etc/cron.d/new-graphs"
     state: absent
-  when: "osrm__buildhost == ansible_hostname"
+  when: "osrm__buildhost == inventory_hostname"
 
 - name: "osrm-routed runner tasks"
   include_tasks: "routed.yml"
-  when: "osrm__buildhost != ansible_hostname"
+  when: "osrm__buildhost != inventory_hostname"
 
 - name: "sudoers file for allowing restart of osrm systemd unit"
   template:
@@ -135,28 +135,29 @@
 
 - name: "frontend"
   include_tasks: "frontend.yml"
-  when: "osrm__fronthost == ansible_hostname"
+  when: "osrm__fronthost == inventory_hostname"
 
 # munin monitoring
 
-- name: Setup nginx
-  include_role:
-    name: nginx
-  when: "osrm__fronthost != ansible_hostname"
+- name: "Munin monitoring on hosts that are not the fronthost"
+  block:
+  - name: Setup nginx
+    include_role:
+      name: nginx
 
-- name: "default nginx site (for munin only, no routing)"
-  nginx_site:
-    site: 'default'
-    src:  'nginx-default.jinja'
-  vars:
-    answer_routes: False
-    munin: True
-    server_name: "_"
-    default_server: "default_server"
-    cert: ""
-    root: "{{ osrm__websitedir }}"
-  notify: restart nginx
-  when: "osrm__fronthost != ansible_hostname"
+  - name: "default nginx site (for munin only, no routing)"
+    nginx_site:
+      site: 'default'
+      src:  'nginx-default.jinja'
+    vars:
+      answer_routes: False
+      munin: True
+      server_name: "_"
+      default_server: "default_server"
+      cert: ""
+      root: "{{ osrm__websitedir }}"
+    notify: restart nginx
+  when: "osrm__fronthost != inventory_hostname"
 
 # network stuff
 
