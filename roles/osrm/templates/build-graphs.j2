@@ -17,7 +17,7 @@ function is_not_oldest ()
 {
     for pr in {{ osrm__profilearea.keys() | join(" ") }}
     do
-        if [[ {{ osrm__basedir }}data/$1.osrm -nt {{ osrm__basedir }}data/$pr.osrm ]]
+        if [[ {{ osrm__basedir }}data/$1.osrm.edges -nt {{ osrm__basedir }}data/$pr.osrm.edges ]]
         then
             echo $1 newer than $pr
             break
@@ -56,7 +56,8 @@ do
         then
             echo starting ${PROFILE}: running pyosmium-up-to-date -v {{ osmdatadir }}{{ pbfname }} | $LOGGING_INFO
             pyosmium-up-to-date \
-              -s 10000 -v {{ osmdatadir }}{{ pbfname }} | $LOGGING_INFO
+              -s {{osrm__small | ternary('10', '10000') }} \
+              -v {{ osmdatadir }}{{ pbfname }} | $LOGGING_INFO
 {% if osrm__small %}
             echo small: reduce to extract | $LOGGING_INFO
             mv {{ osmdatadir }}{{ pbfname }} {{ osmdatadir }}small_updated.pbf
@@ -195,7 +196,7 @@ do
 {% if osrm__algo == "MLD" %}
         cp -l ${osminbuild}.osrm* {{ osrm__basedir }}data/ 2>&1 | $LOGGING_ERR
 {% else %}
-        cp -l ${osminbuild}.osrm{,.datasource_names,.ebg_nodes,.edges,.fileIndex,.geometry,.hsgr,.icd,.maneuver_overrides,.names,.nbg_nodes,.properties,.ramIndex,.timestamp,.tld,.tls,.turn_duration_penalties,.turn_weight_penalties} \
+        cp -l ${osminbuild}.osrm{.datasource_names,.ebg_nodes,.edges,.fileIndex,.geometry,.hsgr,.icd,.maneuver_overrides,.names,.nbg_nodes,.properties,.ramIndex,.timestamp,.tld,.tls,.turn_duration_penalties,.turn_weight_penalties} \
             {{ osrm__basedir }}data/ 2>&1 | $LOGGING_ERR
 {% endif %}
 

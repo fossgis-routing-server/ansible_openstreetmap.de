@@ -31,7 +31,11 @@
 {% for profilearea in osrm__profilearea.keys() %}
     location /routed-{{ profilearea }}/ {
         internal;
+{% if osrm__profilearea[profilearea].host == inventory_hostname %}
+        proxy_pass  http://localhost:{{ osrm__profilearea[profilearea].port }}/;
+{% else %}
         proxy_pass  http://{{ osrm__profilearea[profilearea].host }}.openstreetmap.de:{{ osrm__profilearea[profilearea].port }}/;
+{% endif %}
     }
 {% endfor %}
 

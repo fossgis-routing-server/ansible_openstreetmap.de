@@ -72,7 +72,7 @@
     git:
       repo: https://github.com/fossgis-routing-server/cbf-routing-profiles.git
       dest: '{{ osrm__basedir }}/cbf-routing-profiles'
-      version: 'c97c085bb78c6cf401ff6bd68b08f4459f185b11'
+      version: '748352c6191c8975f993c9f4cae387b90641d460'
       force: yes
     become: yes
     become_user: '{{ osrm__user }}'
