@@ -19,31 +19,29 @@ wordpress_plugins:
   - name: classic-editor
     version: 1.6.2
   - name: co-authors-plus
-    version: 3.5.2
+    version: 3.5.6
   - name: enable-media-replace
-    version: 3.6.3
+    version: 4.0.1
   - name: jetpack
-    version: "11.2"
+    version: "11.6"
   - name: limit-login-attempts-reloaded
-    version: 2.25.4
+    version: 2.25.10
   - name: password-policy-manager
-    version: 1.3.3
+    version: 1.4.6
   - name: qtranslate-xt
     version: 3.12.0
   - name: Relevanssi
-    version: 4.16.0
+    version: 4.18.2
   - name: safe-svg
-    version: 2.0.2
+    version: 2.0.3
   - name: spam-destroyer
     version: 2.1.3
   - name: two-factor-authentication
-    version: 1.14.4
+    version: 1.14.11
   - name: updraftplus
-    version: 1.22.14
+    version: 1.22.24
   - name: wordfence
-    version: 7.6.0
-  - name: insert-headers-and-footers
-    version: 2.0.1
+    version: 7.8.2
 wordpress_themes:
   - name: ephemeris
-    version: 1.4.10
+    version: 1.4.11

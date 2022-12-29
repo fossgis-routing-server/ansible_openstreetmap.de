@@ -1,0 +1,18 @@
+# roles/wordpress/tasks/themes.yml
+# Misc. modifications
+---
+
+## create webfinger file so we are found on mastodon with our own domain, too
+
+- name: Create directory .well-known in wordpress directory
+  file:
+    dest: "{{ wordpress_directory }}/.well-known"
+    state: directory
+
+- name: Create webfinger for Mastodon
+  template:
+    dest: "{{ wordpress_directory }}/.well-known/webfinger"
+    src: 'webfinger'
+    owner: 'www-data'
+    group: 'www-data'
+    mode: '0644'
