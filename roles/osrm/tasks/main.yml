@@ -34,7 +34,7 @@
   git:
     repo: https://github.com/fossgis-routing-server/osrm-backend.git
     dest: '{{ osrm__basedir }}/osrm-backend'
-    version: '47f065d0eeb2e953f6b19b3b300cf50f13928d86'
+    version: '0571260d86732c972cd65f724c0435c70dbde183'
   register: osrm_backend_build
   become: yes
   become_user: '{{ osrm__user }}'
