@@ -100,6 +100,22 @@ All playbooks should be written such that they can be run without access to
 the private data. You can define drop in replacements for the data in your
 `host_vars/vagrant.yml` file if need be.
 
+Variable naming convention
+==========================
+
+Variables in ansible have two maybe unexpected properties, which make this convention necessary:
+
+* Variables are globally visible, which means they need unique names. Otherwise, they will get unexpectedly overwritten.
+* Variables are only merged on the top level. That means we use a flat hierachy to have flexiblity in overwriting variables.
+
+Variables should be named as follows:
+
+    <role/group>__<variable_name>
+
+example:
+
+    osrm__basedir: '/srv/osrm/'
+
 License
 =======
 
