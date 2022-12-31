@@ -1,0 +1,17 @@
+/*
+Theme Name: Ephemeris Child Theme
+Description: This is a Child theme for the Ephemeris theme. Ephemeris is a clean, fast and flexible platform for creating beautiful, responsive custom WordPress themes.
+Theme URI: https://skyrocketthemes.com/themes/ephemeris-wordpress-theme
+Author: Anthony Hortin
+Author URI: https://skyrocketthemes.com/themes/ephemeris-wordpress-theme
+Version: 1.0.0
+License: GNU General Public License v2 or later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
+Template: ephemeris
+*/
+
+/* Add your custom styles below here */
+
+
+/* local copy of google fonts (to prevent user tracking) */
+@import "googlefonts.css"

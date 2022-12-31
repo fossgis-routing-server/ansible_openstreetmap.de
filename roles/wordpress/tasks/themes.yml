@@ -58,3 +58,14 @@
   loop: "{{ wordpress_themes|flatten(levels=1) }}"
   when: item.version is not defined
   tags: wordpress
+
+## unpack customized child theme for weeklyosm style adaptations:
+
+- name: Install weeklyOSM child theme
+  copy:
+    dest: /var/www/wordpress/wp-content/themes/
+    src: 'weekly-child-theme/'
+    directory_mode:
+    owner: 'www-data'
+    group: 'www-data'
+    mode: '0644'
