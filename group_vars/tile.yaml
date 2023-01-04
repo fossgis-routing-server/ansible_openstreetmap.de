@@ -1,0 +1,8 @@
+tile__basedir: /srv/tile
+tile__user: tile
+
+# tile__small = true will make it load only a small extract
+# tile__small = false will load the whole planet
+tile__small: true
+
+tile__flatnode: '{{ tile__basedir }}/flatnode'

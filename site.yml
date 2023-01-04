@@ -98,3 +98,8 @@
   tags: overpass_dev
   roles:
     - role: overpass_dev
+- hosts: tile
+  become: yes
+  tags: tile
+  roles:
+    - role: tile

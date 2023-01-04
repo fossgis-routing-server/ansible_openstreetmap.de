@@ -1,0 +1,79 @@
+
+# SPDX-License-Identifier: MIT
+---
+
+- name: Setup apache
+  include_role:
+    name: apache
+
+- name: Create tile system account
+  system_account:
+    name: "{{ tile__user }}"
+    home: "{{ tile__basedir }}"
+
+- name: Set up postgresql user
+  postgresql_user:
+    name: www-data
+  become_user: postgres
+
+- name: Set up postgresql database
+  postgresql_db:
+    name: osm
+  become_user: postgres
+
+- name: Set up postgis, hstore on database osm
+  postgresql_ext:
+    name: "{{ item }}"
+    db: osm
+  become_user: postgres
+  loop:
+    - postgis
+    - hstore
+
+# osm2pgsql from backports
+- name: Add bullseye backports
+  apt_repository:
+    repo: deb http://deb.debian.org/debian bullseye-backports main
+
+- name: install osm2pgsql
+  apt:
+    name: [osm2pgsql, pyosmium]
+    default_release: bullseye-backports
+
+- name: install required packages with apt
+  apt:
+    name: [renderd, git]
+
+- name: import script
+  template:
+      dest: "/usr/local/sbin/import-osm2pgsql"
+      src: "import-osm2pgsql.j2"
+      mode: 0755
+  vars:
+    dbname: osm
+    style: '{{ tile__basedir }}/openstreetmap-carto-de'
+    lua: '{{ tile__basedir }}/osml10n/openstreetmap-carto-hstore-only-l10n.lua'
+    sequence: '{{ tile__basedir }}/replication/sequence'
+
+
+- name: german style
+  git:
+    repo: https://github.com/giggls/openstreetmap-carto-de.git
+    dest: '{{ tile__basedir }}/openstreetmap-carto-de'
+
+- name: Dependencies for localization functions for OpenStreetMap
+  apt:
+    name: [libunac1-dev, luarocks, lua5.3, libpcre3-dev, liblua5.3-dev,
+           python3-icu, python3-shapely, python3-pip, python3-sdnotify,
+           python3-requests ]
+
+- name: Localization functions for OpenStreetMap
+  git:
+    repo: https://github.com/giggls/osml10n.git
+    dest: '{{ tile__basedir }}/osml10n'
+
+- name: tirex
+  git:
+    repo: https://github.com/openstreetmap/tirex.git
+    dest: '{{ tile__basedir }}/tirex'
+
