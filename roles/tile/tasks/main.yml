@@ -35,14 +35,14 @@
   apt_repository:
     repo: deb http://deb.debian.org/debian bullseye-backports main
 
-- name: install osm2pgsql
+- name: install osm2pgsql from backports
   apt:
     name: [osm2pgsql, pyosmium]
     default_release: bullseye-backports
 
 - name: install required packages with apt
   apt:
-    name: [renderd, git]
+    name: [renderd, git, dpkg-dev, debhelper, libmapnik-dev]
 
 - name: import script
   template:
@@ -51,29 +51,121 @@
       mode: 0755
   vars:
     dbname: osm
-    style: '{{ tile__basedir }}/openstreetmap-carto-de'
-    lua: '{{ tile__basedir }}/osml10n/openstreetmap-carto-hstore-only-l10n.lua'
-    sequence: '{{ tile__basedir }}/replication/sequence'
+    style: "{{ tile__basedir }}/openstreetmap-carto-de"
+    lua: "{{ tile__basedir }}/sources/osml10n/openstreetmap-carto-hstore-only-l10n.lua"
+    sequence: "{{ tile__basedir }}/replication/sequence"
 
+- name: Directory for the replication sequence number
+  file:
+    state: directory
+    path: "{{ tile__basedir }}/replication"
+    owner: www-data
+    mode: 0755
 
+- name: Make sure destination dir for flatnode file and planet exist
+  file:
+    path: "{{ item | dirname }}"
+    state: directory
+  loop:
+    - "{{ tile__flatnode }}"
+    - "{{ tile__planet }}"
+
+# style
 - name: german style
   git:
     repo: https://github.com/giggls/openstreetmap-carto-de.git
-    dest: '{{ tile__basedir }}/openstreetmap-carto-de'
+    dest: "{{ tile__basedir }}/openstreetmap-carto-de"
+  become: yes
+  become_user: "{{ tile__user }}"
 
 - name: Dependencies for localization functions for OpenStreetMap
   apt:
-    name: [libunac1-dev, luarocks, lua5.3, libpcre3-dev, liblua5.3-dev,
-           python3-icu, python3-shapely, python3-pip, python3-sdnotify,
-           python3-requests ]
+    name: [ libunac1-dev, luarocks, lua5.3, libpcre3-dev, liblua5.3-dev,
+            python3-icu, python3-shapely, python3-pip, python3-sdnotify,
+            python3-requests, fakeroot, build-essential ]
+
+- name: Lua dependencies for localization functions for OpenStreetMap
+  shell:
+    cmd: "luarocks install lrexlib-pcre"
+
+- name: Python dependencies for localization functions for OpenStreetMap
+  pip:
+    name: [scikit-learn, pykakasi, tltk, pinyin_jyutping_sentence]
 
 - name: Localization functions for OpenStreetMap
   git:
     repo: https://github.com/giggls/osml10n.git
-    dest: '{{ tile__basedir }}/osml10n'
+    dest: "{{ tile__basedir }}/sources/osml10n"
+  register: tile_osml10n_sources
+  become: yes
+  become_user: "{{ tile__user }}"
+
+- name: clear outdated .deb packages of osml10n
+  shell:
+    cmd: "rm -f {{ tile__basedir }}/sources/osml10n*.deb {{ tile__basedir }}/sources/osml10n/*.deb"
+  become: yes
+  become_user: "{{ tile__user }}"
+  when: tile_osml10n_sources.changed
+
+- name: Build osml10n debian packages
+  shell:
+    cmd: "make deb"
+    chdir: "{{ item }}"
+  become: yes
+  become_user: "{{ tile__user }}"
+  loop:
+    - "{{ tile__basedir }}/sources/osml10n"
+    - "{{ tile__basedir }}/sources/osml10n/lua_unac"
+
+- name: Find buildt .deb packages
+  find:
+    paths:
+      - "{{ tile__basedir }}/sources/osml10n/"
+      - "{{ tile__basedir }}/sources/"
+    patterns: ["osml10n*.deb", "lua*.deb"]
+  register: tile_osml10n_deb
+
+- name: Install osml10n debian package and dependency lua-unaccent
+  apt:
+    deb: "{{ item }}"
+  with_items: "{{ tile_osml10n_deb.files | map(attribute='path') }}"
+
+# tirex tile server
+- name: install tirex dependencies with apt
+  apt:
+    name: [renderd, libmapnik-dev, devscripts, dh-apache2,
+           libjson-perl, libipc-sharelite-perl, libgd-perl]
 
 - name: tirex
   git:
     repo: https://github.com/openstreetmap/tirex.git
-    dest: '{{ tile__basedir }}/tirex'
+    dest: "{{ tile__basedir }}/sources/tirex"
+  register: tile_tirex_sources
+  become: yes
+  become_user: "{{ tile__user }}"
+
+- name: clear outdated .deb packages of tirex
+  shell:
+    cmd: "rm -f {{ tile__basedir }}/sources/tirex*.deb"
+  become: yes
+  become_user: "{{ tile__user }}"
+  when: tile_tirex_sources.changed
+
+- name: Build tirex debian packages
+  shell:
+    cmd: "debuild -b -rfakeroot -us -uc"
+    chdir: "{{ tile__basedir }}/sources/tirex"
+  become: yes
+  become_user: "{{ tile__user }}"
+
+- name: Find buildt .deb packages
+  find:
+    paths: "{{ tile__basedir }}/sources/"
+    patterns: ["tirex_*.deb", "tirex-backend-mapnik*.deb"]
+  register: tile_tirex_deb
+
+- name: Install tirex debian package
+  apt:
+    deb: "{{ item }}"
+  with_items: "{{ tile_tirex_deb.files | map(attribute='path') }}"
 

@@ -5,4 +5,7 @@ tile__user: tile
 # tile__small = false will load the whole planet
 tile__small: true
 
+# location of flatnode file
 tile__flatnode: '{{ tile__basedir }}/flatnode'
+# storage for planet pbf file during import
+tile__planet: '{{ tile__basedir }/planet.osm.pbf}'

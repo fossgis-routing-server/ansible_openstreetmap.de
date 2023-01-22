@@ -6,24 +6,33 @@
 
 set -e
 
-{% if osrm__small %}
+{% if tile__small %}
 OSM_SOURCE=http://download.geofabrik.de/europe/liechtenstein-latest.osm.pbf
 {% else %}
 OSM_SOURCE=https://ftp5.gwdg.de/pub/misc/openstreetmap/planet.openstreetmap.org/pbf/planet-latest.osm.pbf
 {% endif %}
 
-sudo -u {{ tile__user }} wget $OSM_SOURCE -O {{ tile__basedir }}/planet.osm.pbf
+#create planet file with correct permissions
+sudo touch {{ tile__planet }} && sudo chown {{ tile__user }} {{ tile__planet }}
 
-{% if not osrm__small %}
-sudo -u tile pyosmium-up-to-date <%= @planet %> -s 10000
+sudo -u {{ tile__user }} wget -N $OSM_SOURCE -O {{ tile__planet }}
+
+{% if not tile__small %}
+sudo -u tile pyosmium-up-to-date {{ tile__planet }} -s 10000
 
 {% endif %}
 
-sudo -u www-data osm2pgsql -G -c -d {{ dbname }} --slim -C 100000 -O flex \
+#create flatnode file with correct permissions
+sudo touch {{ tile__flatnode }} && sudo chown www-data {{ tile__flatnode }}
+
+sudo -u www-data osm2pgsql -G -c -d {{ dbname }} --slim -C 0 -O flex \
   --number-processes {{ ansible_facts['processor_cores'] }} -S {{ lua }} \
-  --flat-nodes {{ tile__flatnode }} --middle-way-node-index-id-shift 5 \
-  {{ tile__basedir }}/planet.osm.pbf
+{% if not tile__small %}
+  --flat-nodes {{ tile__flatnode }} \
+{% endif %}
+  --middle-way-node-index-id-shift 5 \
+  {{ tile__planet }}
 
-sudo -u www-data psql -d gis -f {{ style }}/indexes.sql
+sudo -u www-data psql -d {{ dbname }} -f {{ style }}/indexes-hstore.sql
 
-pyosmium-get-changes -O {{ tile__basedir }}/planet.osm.pbf -f {{ sequence }} --ignore-osmosis-headers
+sudo -u www-data pyosmium-get-changes -O {{ tile__planet }} -f {{ sequence }} --ignore-osmosis-headers
