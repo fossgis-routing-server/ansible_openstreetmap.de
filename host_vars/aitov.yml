@@ -19,13 +19,13 @@ wordpress_plugins:
   - name: classic-editor
     version: 1.6.2
   - name: co-authors-plus
-    version: 3.5.6
+    version: 3.5.10
   - name: enable-media-replace
-    version: 4.0.1
+    version: 4.0.2
   - name: jetpack
-    version: "11.6"
+    version: 11.7.1
   - name: limit-login-attempts-reloaded
-    version: 2.25.10
+    version: 2.25.11
   - name: password-policy-manager
     version: 1.4.6
   - name: qtranslate-xt
