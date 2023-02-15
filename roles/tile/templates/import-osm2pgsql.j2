@@ -23,9 +23,9 @@ sudo -u tile pyosmium-up-to-date {{ tile__planet }} -s 10000
 {% endif %}
 
 #create flatnode file with correct permissions
-sudo touch {{ tile__flatnode }} && sudo chown www-data {{ tile__flatnode }}
+sudo touch {{ tile__flatnode }} && sudo chown _tirex {{ tile__flatnode }}
 
-sudo -u www-data osm2pgsql -G -c -d {{ dbname }} --slim -C 0 -O flex \
+sudo -u _tirex osm2pgsql -G -c -d {{ dbname }} --slim -C 0 -O flex \
   --number-processes {{ ansible_facts['processor_cores'] }} -S {{ lua }} \
 {% if not tile__small %}
   --flat-nodes {{ tile__flatnode }} \
@@ -33,6 +33,14 @@ sudo -u www-data osm2pgsql -G -c -d {{ dbname }} --slim -C 0 -O flex \
   --middle-way-node-index-id-shift 5 \
   {{ tile__planet }}
 
-sudo -u www-data psql -d {{ dbname }} -f {{ style }}/indexes-hstore.sql
+sudo -u _tirex psql -d {{ dbname }} -f {{ style }}/indexes-hstore.sql
 
-sudo -u www-data pyosmium-get-changes -O {{ tile__planet }} -f {{ sequence }} --ignore-osmosis-headers
+sudo -u _tirex {{ style }}/views_osmde/apply-views.sh {{ dbname }}
+
+sudo -u _tirex pyosmium-get-changes -O {{ tile__planet }} -f {{ sequence }} --ignore-osmosis-headers
+
+# make sure auxiliary data is loaded
+cd {{ style }}
+sudo mkdir -p data
+sudo chown _tirex data
+sudo -u _tirex scripts/get-external-data.py -d {{ dbname }}

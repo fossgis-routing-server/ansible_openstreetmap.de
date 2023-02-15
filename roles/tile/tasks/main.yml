@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MIT
 ---
 
+# apache, system accounts, set up db
 - name: Setup apache
   include_role:
     name: apache
@@ -11,14 +12,20 @@
     name: "{{ tile__user }}"
     home: "{{ tile__basedir }}"
 
+- name: Create _tirex system account
+  system_account:
+    name: "_tirex"
+    home: "/nonexistent"
+
 - name: Set up postgresql user
   postgresql_user:
-    name: www-data
+    name: _tirex
   become_user: postgres
 
 - name: Set up postgresql database
   postgresql_db:
     name: osm
+    owner: _tirex
   become_user: postgres
 
 - name: Set up postgis, hstore on database osm
@@ -59,7 +66,7 @@
   file:
     state: directory
     path: "{{ tile__basedir }}/replication"
-    owner: www-data
+    owner: _tirex
     mode: 0755
 
 - name: Make sure destination dir for flatnode file and planet exist
@@ -78,11 +85,24 @@
   become: yes
   become_user: "{{ tile__user }}"
 
-- name: Dependencies for localization functions for OpenStreetMap
+- name: Dependencies for style and localization functions for OpenStreetMap
   apt:
-    name: [ libunac1-dev, luarocks, lua5.3, libpcre3-dev, liblua5.3-dev,
+    name: [ nodejs, npm, fonts-noto, fonts-noto-ui-core, fonts-noto-cjk-extra,
+            fonts-dejavu, fonts-hanazono, python3-yaml, gdal-bin,
+            #localization functions:
+            libunac1-dev, luarocks, lua5.3, libpcre3-dev, liblua5.3-dev,
             python3-icu, python3-shapely, python3-pip, python3-sdnotify,
-            python3-requests, fakeroot, build-essential ]
+            python3-requests, fakeroot, build-essential, ]
+
+- name: node carto for style transformation
+  shell:
+    cmd: "npm install --global carto"
+    creates: "/usr/local/bin/carto"
+
+- name: generate mapnik xml
+  shell:
+    cmd: "make"
+    chdir: "{{ tile__basedir }}/openstreetmap-carto-de"
 
 - name: Lua dependencies for localization functions for OpenStreetMap
   shell:
@@ -130,6 +150,18 @@
     deb: "{{ item }}"
   with_items: "{{ tile_osml10n_deb.files | map(attribute='path') }}"
 
+- name: Add osmde map style
+  set_fact:
+    tile__styles: "{{ tile__styles|default([]) + osmde }}"
+  vars:
+    osmde:
+      - name: "osmde"
+        xml: "{{ tile__basedir }}/openstreetmap-carto-de/osm-de.xml"
+
+# !!!---------------------------------------------------------------------------!!!
+# !!!            tile__styles must be fixed beyond this point!                  !!!
+# !!!            Do all style entries above this line                           !!!
+# !!!---------------------------------------------------------------------------!!!
 # tirex tile server
 - name: install tirex dependencies with apt
   apt:
@@ -169,3 +201,30 @@
     deb: "{{ item }}"
   with_items: "{{ tile_tirex_deb.files | map(attribute='path') }}"
 
+- name: Tirex mapnik style config
+  template:
+    dest: "/etc/tirex/renderer/mapnik/{{ item.name }}.conf"
+    src: tirex_style_conf.j2
+  vars:
+    name: "{{ item.name }}"
+    mapfile: "{{ item.xml }}"
+  loop: "{{ tile__styles }}"
+
+- name: Create tile directory
+  file:
+    path: "/var/cache/tirex/tiles/{{ item.name }}"
+    state: directory
+    owner: _tirex
+    mode: 0755
+  loop: "{{ tile__styles }}"
+
+# apache http server conf
+- name: default apache site
+  apache_site:
+    site: 'default'
+    src:  'apache-default.j2'
+  vars:
+    server_name: "_"
+    cert: "tilede"
+    styles: "{{ tile__styles }}"
+  notify: reload apache

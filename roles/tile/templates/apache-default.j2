@@ -1,0 +1,18 @@
+
+{% call server(["tile.openstreetmap.de", "a.tile.openstreetmap.de", "b.tile.openstreetmap.de", "c.tile.openstreetmap.de", "ptolemy.openstreetmap.de"], http='yes', https='tilede') %}
+  ModTileRenderdSocketName /run/tirex/modtile.sock 
+  ModTileTileDir           /var/cache/tirex/tiles
+  AddTileConfig            /test/ test
+{% for style in styles %}
+  AddTileConfig            /{{ style.name }}/ {{ style.name }}
+{% endfor %}
+  ModTileRequestTimeout    0
+
+  DocumentRoot {{ tile__basedir }}/site
+  <Directory {{ tile__basedir }}/site>
+    Options FollowSymLinks MultiViews
+    AllowOverride None
+    Require all granted
+  </Directory>
+  
+{% endcall %}
