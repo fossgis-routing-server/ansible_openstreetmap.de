@@ -29,7 +29,7 @@ wordpress_plugins:
   - name: password-policy-manager
     version: 1.4.6
   - name: qtranslate-xt
-    version: 3.12.0
+    download: https://github.com/qtranslate/qtranslate-xt/archive/refs/tags/3.12.0.zip
   - name: Relevanssi
     version: 4.18.2
   - name: safe-svg
