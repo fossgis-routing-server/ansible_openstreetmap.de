@@ -21,17 +21,17 @@ wordpress_plugins:
   - name: co-authors-plus
     version: 3.5.10
   - name: enable-media-replace
-    version: 4.0.2
+    version: 4.0.3
   - name: jetpack
-    version: 11.7.1
+    version: 11.8.4
   - name: limit-login-attempts-reloaded
-    version: 2.25.11
+    version: 2.25.12
   - name: password-policy-manager
     version: 1.4.6
   - name: qtranslate-xt
-    version: 3.12.0
+    download: https://github.com/qtranslate/qtranslate-xt/archive/refs/tags/3.13.0.zip
   - name: Relevanssi
-    version: 4.18.2
+    version: 4.18.3
   - name: safe-svg
     version: 2.0.3
   - name: spam-destroyer
@@ -41,7 +41,7 @@ wordpress_plugins:
   - name: updraftplus
     version: 1.22.24
   - name: wordfence
-    version: 7.8.2
+    version: 7.9.0
 wordpress_themes:
   - name: ephemeris
     version: 1.4.11
