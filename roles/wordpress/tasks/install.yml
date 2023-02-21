@@ -106,7 +106,7 @@
 
 - name: "Add Wordpress configuration redirect/include placeholder"
   template:
-    dest: /var/www/wp-config.php
+    dest: /var/www/wordpress/wp-config.php
     src: 'wp-config.php'
     owner: 'www-data'
     group: 'www-data'
