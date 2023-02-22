@@ -1,0 +1,31 @@
+{% call server(overpass__acme_certificates[0].domains, http='yes', https='overpass') -%}
+        DeflateFilterNote Input plainsize
+
+        LogLevel debug ssl:warn deflate:warn authz_core:warn
+        CustomLog /var/log/apache2/overpass-access.log "%t runtime: %T, return size: %B, %{plainsize}n, status: %>s, remote host: %h, completed: %X, query string: %U%q, referer: %{Referer}i, user agent: %{User-agent}i"
+
+        DocumentRoot {{ overpass__basedir }}/site
+        <Directory />
+                Options FollowSymLinks
+                AllowOverride None
+        </Directory>
+        <Directory "{{ overpass__basedir }}/site" >
+                Options Indexes FollowSymLinks MultiViews
+                AllowOverride None
+
+                Require all granted
+        </Directory>
+
+        ScriptAlias /api/ {{ overpass__basedir }}/cgi-bin/
+        <Directory "{{ overpass__basedir }}/cgi-bin/">
+                SetOutputFilter DEFLATE
+
+                AllowOverride None
+                Options +ExecCGI -MultiViews +FollowSymLinks
+                Require all granted
+        </Directory>
+
+        ErrorLog /var/log/apache2/overpass-error.log
+        TimeOut 3600
+{% endcall %}
+

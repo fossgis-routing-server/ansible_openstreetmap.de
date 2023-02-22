@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Install dependencies
+  apt:
+    name: [build-essential, libexpat1-dev, zlib1g-dev, liblz4-dev]
+    state: latest
+
+- name: Determine source directory
+  set_fact:
+    overpass__srcdir: "{{ overpass__basedir }}/src/osm-3s_v{{overpass__version}}"
+
+- name: Get release tarball
+  become_user: overpass
+  get_url:
+    dest: "{{ overpass__srcdir }}.tar.gz"
+    url: "https://dev.overpass-api.de/releases/osm-3s_v{{overpass__version}}.tar.gz"
+
+- name: Unpack tarball
+  become_user: overpass
+  unarchive:
+    remote_src: yes
+    src: "{{ overpass__srcdir }}.tar.gz"
+    dest: "{{ overpass__basedir }}/src"
+    creates: "{{ overpass__srcdir }}"
+
+- name: Configure overpass
+  become_user: overpass
+  command:
+    cmd: "./configure --enable-lz4 --prefix={{ overpass__basedir }}"
+    chdir: "{{ overpass__srcdir }}"
+
+- name: Build and install overpass
+  become_user: overpass
+  make:
+    target: install
+    chdir: "{{ overpass__srcdir }}"
+
+- name: Copy site content from source
+  copy:
+    remote_src: yes
+    src: "{{overpass__srcdir }}/html/"
+    dest: "{{ overpass__basedir }}/site"
+    owner: "{{ overpass__user }}"
+    group: "{{ overpass__user }}"
+
+- name: Copy area rules and templates to database
+  copy:
+    remote_src: yes
+    src: "{{overpass__srcdir }}/{{item}}"
+    dest: "{{ overpass__basedir }}/db/"
+    owner: "{{ overpass__user }}"
+    group: "{{ overpass__user }}"
+  loop:
+    - rules
+    - templates

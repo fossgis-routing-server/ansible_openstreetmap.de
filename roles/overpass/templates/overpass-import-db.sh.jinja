@@ -1,0 +1,39 @@
+#!/bin/bash -e
+
+URL=$1
+
+if [[ "x$URL" == "x" ]]; then
+  echo "Usage: overpass-import-db.sh <URL of xml OSM file>"
+  exit 1
+fi
+
+case "$URL" in
+  *.gz) UNPACKER=gunzip ;;
+  *.bz2) UNPACKER=bunzip2 ;;
+  *) UNPACKER='osmium cat -o - -f xml' ;;
+esac
+
+case "{{ overpass__meta_mode }}" in
+  no)    META= ;;
+  meta)  META=--meta ;;
+  attic) META=--keep-attic ;;
+  *) echo "Unknown meta setting {{ overpass__meta_mode }}"
+esac
+
+sudo systemctl stop overpass-area-processor.timer
+sudo systemctl stop overpass-update
+sudo systemctl stop overpass-area-dispatcher
+sudo systemctl stop overpass-dispatcher
+
+OUTFILE=/tmp/`basename "$URL"`
+
+wget -O $OUTFILE "$URL"
+
+sudo -u {{ overpass__user }} rm {{ overpass__basedir }}/db/* && yes
+
+$UNPACKER < $OUTFILE | sudo -u {{ overpass__user }} {{ overpass__basedir }}/bin/update_database --db-dir={{ overpass__basedir }}/db $META --compression-method={{ overpass__compression_mode }} --map-compression-method={{ overpass__compression_mode }}
+
+echo "Import done."
+echo ""
+echo "WARNING: you now need to manually create areas and set /srv/overpass/db/replication_id."
+
