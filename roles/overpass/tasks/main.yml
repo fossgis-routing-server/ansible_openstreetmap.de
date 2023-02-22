@@ -1,0 +1,170 @@
+- name: Create overpass account
+  system_account:
+    name: "{{ overpass__user }}"
+    home: "{{ overpass__basedir }}"
+
+- name: Setup sub-directories
+  file:
+    path: "{{ overpass__basedir }}/{{ item }}"
+    state: directory
+    owner: "{{ overpass__user }}"
+    group: "{{ overpass__user }}"
+  loop:
+    - site
+    - diffs
+    - db
+    - src
+
+- name: Install Overpass
+  import_tasks: install.yml
+  tags: overpass_install
+
+- name: "Install maintenance script '{{ item }}'"
+  template:
+    src: "{{ item }}.jinja"
+    dest: "/usr/local/bin/{{ item }}"
+    force: yes
+    mode: 0755
+  loop:
+    - overpass-import-db.sh
+    - overpass-clone-db.sh
+
+- name: Copy site content from ansible
+  copy:
+    src: site/
+    dest: "{{ overpass__basedir }}/site"
+    force: yes
+    owner: "{{ overpass__user }}"
+    group: "{{ overpass__user }}"
+
+- name: Enable Apache CGI module
+  apache_module:
+    name: cgi
+  notify: reload apache2
+
+- name: Enable apache site
+  apache_site:
+    site: overpass
+    src: overpass_site.apache.jinja
+  notify: reload apache2
+
+- name: Set up log directory
+  file:
+    path: "{{ overpass__logdir }}"
+    state: directory
+    owner: "{{ overpass__user }}"
+    group: adm
+
+- name: Systemd service for main dispatcher
+  systemd_service:
+    name: overpass-dispatcher
+    enabled: true
+    service:
+      Unit:
+        Description: Overpass Main Dispatcher
+        Wants: "overpass-area-dispatcher.service"
+      Service:
+        WorkingDirectory: "{{ overpass__basedir }}"
+        ExecStart: "{{ overpass__basedir }}/bin/dispatcher --osm-base {{ meta[overpass__meta_mode] }} --db-dir={{ overpass__basedir }}/db --rate-limit={{overpass__rate_limit}} --space={{overpass__dispatcher_space | human_to_bytes }}"
+        ExecStop: "{{ overpass__basedir }}/bin/dispatcher --osm-base --terminate"
+        StandardOutput: "append:{{ overpass__logdir }}/osm_base.log"
+        StandardError: "null"
+        User: "{{ overpass__user }}"
+        Group: "{{ overpass__user }}"
+        Type: "simple"
+      Install:
+        WantedBy: multi-user.target
+  vars:
+    meta:
+      "no":
+      meta: --meta
+      attic: --attic
+
+- name: Systemd service for area dispatcher
+  systemd_service:
+    name: overpass-area-dispatcher
+    enabled: true
+    service:
+      Unit:
+        Description: Overpass Main Dispatcher
+        After: "overpass-dispatcher.service"
+      Service:
+        WorkingDirectory: "{{ overpass__basedir }}"
+        ExecStart: "{{ overpass__basedir }}/bin/dispatcher --areas --db-dir={{ overpass__basedir }}/db"
+        ExecStop: "{{ overpass__basedir }}/bin/dispatcher --areas --terminate"
+        StandardOutput: "append:{{ overpass__logdir }}/areas.log"
+        StandardError: "null"
+        User: "{{ overpass__user }}"
+        Group: "{{ overpass__user }}"
+        Type: "simple"
+      Install:
+        WantedBy: multi-user.target
+
+- name: Systemd service for applying data updates
+  systemd_service:
+    name: overpass-update-apply
+    enabled: true
+    service:
+      Unit:
+        Description: Overpass Update Application
+      Service:
+        WorkingDirectory: "{{ overpass__basedir }}"
+        ExecStart: "{{ overpass__basedir }}/bin/apply_osc_to_db.sh {{ overpass__basedir }}/diffs auto --meta={{ meta[overpass__meta_mode] }}"
+        StandardOutput: "append:{{ overpass__logdir }}/apply_osc_to_db.log"
+        StandardError: "null"
+        User: "{{ overpass__user }}"
+        Group: "{{ overpass__user }}"
+        Type: "simple"
+      Install:
+        WantedBy: multi-user.target
+  vars:
+    meta:
+      "no": "no"
+      meta: "yes"
+      attic: "attic"
+
+# Fetching updates is disabled by intention.
+# Manually start using 'systemctl start overpass-update-fetch'
+#  after cloning/importing data and after any reboot.
+- name: Systemd service for fetching data updates
+  systemd_service:
+    name: overpass-update-fetch
+    enabled: false
+    service:
+      Unit:
+        Description: Overpass Update Fetcher
+        After: "overpass-dispatcher.service"
+        Wants: "overpass-area-processor.service"
+      Service:
+        WorkingDirectory: "{{ overpass__basedir }}"
+        ExecStart: "{{ overpass__basedir }}/bin/fetch_osc.sh $(cat {{ overpass__basedir }}/db/replicate_id) {{ overpass__replication_url }} {{ overpass__basedir }}/diffs"
+        StandardOutput: "append:{{ overpass__logdir }}/fetch_osc.log"
+        StandardError: "null"
+        User: "{{ overpass__user }}"
+        Group: "{{ overpass__user }}"
+        Type: "simple"
+      Install:
+        WantedBy: multi-user.target
+
+
+- name: Systemd service for processing areas
+  systemd_service:
+    name: overpass-area-processor
+    service:
+      Unit:
+        Description: Overpass Area Processor
+        After: overpass-area-dispatcher.service overpass-update.service
+      Service:
+        WorkingDirectory: "{{ overpass__basedir }}"
+        ExecStart: "{{ overpass__basedir }}/bin/osm3s_query --progress --rules"
+        StandardInput: "file:{{ overpass__basedir }}/db/rules/areas.osm3s"
+        StandardOutput: "append:{{ overpass__logdir }}/area_processor.log"
+        StandardError: "null"
+        User: "{{ overpass__user }}"
+        Group: "{{ overpass__user }}"
+        Type: "simple"
+        Nice: 19
+        Restart: on-success
+        RestartSec: 4h
+      Install:
+        WantedBy: multi-user.target
