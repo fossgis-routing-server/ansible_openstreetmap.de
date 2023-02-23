@@ -74,7 +74,7 @@
 
 - name: Download (unofficial) plugins with download links
   get_url:
-    url: "{{ item.link }}"
+    url: "{{ item.download }}"
     dest: "/tmp/{{ item.name }}.zip"
     force: false
   with_items: "{{ wordpress_plugins }}"
