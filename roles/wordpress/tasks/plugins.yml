@@ -36,7 +36,7 @@
     creates: "{{ wordpress_plugin_directory }}/{{ item.name }}/"
     copy: false
   with_items: "{{ wordpress_plugins }}"
-  when: item.version is defined
+  when: item.version is defined and item.download is not defined
   tags: wordpress
 
 ## Plugins without a version number, e.g.
@@ -51,7 +51,7 @@
     dest: "/tmp/{{ item.name }}.zip"
     force: false
   with_items: "{{ wordpress_plugins }}"
-  when: item.version is not defined
+  when: item.version is not defined and item.download is not defined
   tags: wordpress
 
 - name: Unpack plugins without version numbers
@@ -61,5 +61,32 @@
     creates: "{{ wordpress_plugin_directory }}/{{ item.name }}/"
     copy: false
   with_items: "{{ wordpress_plugins }}"
-  when: item.version is not defined
+  when: item.version is not defined and item.download is not defined
+  tags: wordpress
+
+## (unofficial) plugins with a download link, e.g.
+#
+# wordpress_plugins:
+#   - name: foo
+#     download: https://example.com/foo/release.zip
+#   - name: bar
+#     version: https://example.com/bar/release.zip
+
+- name: Download (unofficial) plugins with download links
+  get_url:
+    url: "{{ item.download }}"
+    dest: "/tmp/{{ item.name }}.zip"
+    force: false
+  with_items: "{{ wordpress_plugins }}"
+  when: item.download is defined
+  tags: wordpress
+
+- name: Unpack (unofficial) plugins with download links
+  unarchive:
+    src: "/tmp/{{ item.name }}.zip"
+    dest: "{{ wordpress_plugin_directory }}"
+    creates: "{{ wordpress_plugin_directory }}/{{ item.name }}/"
+    copy: false
+  with_items: "{{ wordpress_plugins }}"
+  when: item.download is defined
   tags: wordpress
