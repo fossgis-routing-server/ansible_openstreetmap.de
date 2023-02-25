@@ -138,7 +138,7 @@
         Wants: "overpass-update-apply.service"
       Service:
         WorkingDirectory: "{{ overpass__basedir }}"
-        ExecStart: "{{ overpass__basedir }}/bin/fetch_osc.sh $(cat {{ overpass__basedir }}/db/replicate_id) {{ overpass__replication_url }} {{ overpass__basedir }}/diffs"
+        ExecStart: "{{ overpass__basedir }}/bin/fetch_osc.sh auto {{ overpass__replication_url }} {{ overpass__basedir }}/diffs"
         StandardOutput: "append:{{ overpass__logdir }}/fetch_osc.log"
         StandardError: "null"
         User: "{{ overpass__user }}"
