@@ -107,6 +107,7 @@
     service:
       Unit:
         Description: Overpass Update Application
+        Wants: "overpass-area-processor.service"
       Service:
         WorkingDirectory: "{{ overpass__basedir }}"
         ExecStart: "{{ overpass__basedir }}/bin/apply_osc_to_db.sh {{ overpass__basedir }}/diffs auto --meta={{ meta[overpass__meta_mode] }}"
@@ -134,7 +135,7 @@
       Unit:
         Description: Overpass Update Fetcher
         After: "overpass-dispatcher.service"
-        Wants: "overpass-area-processor.service"
+        Wants: "overpass-update-apply.service"
       Service:
         WorkingDirectory: "{{ overpass__basedir }}"
         ExecStart: "{{ overpass__basedir }}/bin/fetch_osc.sh $(cat {{ overpass__basedir }}/db/replicate_id) {{ overpass__replication_url }} {{ overpass__basedir }}/diffs"
