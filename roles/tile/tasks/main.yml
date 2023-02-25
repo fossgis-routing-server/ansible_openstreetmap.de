@@ -156,7 +156,19 @@
   vars:
     osmde:
       - name: "osmde"
-        xml: "{{ tile__basedir }}/openstreetmap-carto-de/osm-de.xml"
+        url:  ""
+        xml:  "{{ tile__basedir }}/openstreetmap-carto-de/osm-de.xml"
+        order: 99 # needs to be last, because it ith / and would override the other
+
+- name: Add osmhrb map style
+  set_fact:
+    tile__styles: "{{ tile__styles|default([]) + osmhrb }}"
+  vars:
+    osmhrb:
+      - name: "osmhrb"
+        url:  "osmhrb/"
+        xml:  "{{ tile__basedir }}/openstreetmap-carto-de/osm-hrb.xml"
+        order: 1
 
 # !!!---------------------------------------------------------------------------!!!
 # !!!            tile__styles must be fixed beyond this point!                  !!!
@@ -168,7 +180,7 @@
     name: [renderd, libmapnik-dev, devscripts, dh-apache2,
            libjson-perl, libipc-sharelite-perl, libgd-perl]
 
-- name: tirex
+- name: clone tirex git
   git:
     repo: https://github.com/openstreetmap/tirex.git
     dest: "{{ tile__basedir }}/sources/tirex"
@@ -200,6 +212,16 @@
   apt:
     deb: "{{ item }}"
   with_items: "{{ tile_tirex_deb.files | map(attribute='path') }}"
+
+- name: Tirex main config
+  copy:
+    dest: "/etc/tirex/tirex.conf"
+    src: "tirex.conf"
+
+- name: Trex mapnik backend config
+  copy:
+    dest: "/etc/tirex/renderer/mapnik.conf"
+    src: "mapnik.conf"
 
 - name: Tirex mapnik style config
   template:

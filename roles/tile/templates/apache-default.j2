@@ -3,8 +3,8 @@
   ModTileRenderdSocketName /run/tirex/modtile.sock 
   ModTileTileDir           /var/cache/tirex/tiles
   AddTileConfig            /test/ test
-{% for style in styles %}
-  AddTileConfig            /{{ style.name }}/ {{ style.name }}
+{% for style in styles | sort(attribute='order') %}
+  AddTileConfig            /{{ style.url }} {{ style.name }}
 {% endfor %}
   ModTileRequestTimeout    0
 
