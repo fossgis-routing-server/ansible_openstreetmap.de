@@ -1,6 +1,11 @@
 #!/bin/bash
 
-sudo -u {{ overpass__user }} rm {{ overpass__basedir }}/db/*
+sudo systemctl stop overpass-area-processor.timer
+sudo systemctl stop overpass-update
+sudo systemctl stop overpass-area-dispatcher
+sudo systemctl stop overpass-dispatcher
+
+sudo -u {{ overpass__user }} rm -R {{ overpass__basedir }}/db/*
 
 sudo -u {{ overpass__user }} {{ overpass__basedir }}/bin/download_clone.sh --source={{ overpass__clone_url }} --db-dir='{{ overpass__basedir }}/db' --meta={{ overpass__meta_mode }}
 

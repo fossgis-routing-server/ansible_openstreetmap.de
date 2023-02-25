@@ -29,7 +29,7 @@ OUTFILE=/tmp/`basename "$URL"`
 
 wget -O $OUTFILE "$URL"
 
-sudo -u {{ overpass__user }} rm {{ overpass__basedir }}/db/* && yes
+sudo -u {{ overpass__user }} rm -R {{ overpass__basedir }}/db/* && yes
 
 $UNPACKER < $OUTFILE | sudo -u {{ overpass__user }} {{ overpass__basedir }}/bin/update_database --db-dir={{ overpass__basedir }}/db $META --compression-method={{ overpass__compression_mode }} --map-compression-method={{ overpass__compression_mode }}
 
