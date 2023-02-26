@@ -21,7 +21,7 @@
     {% if loop.first %}ServerName{% else %}ServerAlias{% endif %} {{ fqdn }}
     {% endfor %}
 
-    {% if http == 'forward' -%}
+    {% if https -%}
     RewriteEngine On
 
     RewriteCond %{REQUEST_URI} ^/.well-known/acme-challenge

@@ -34,7 +34,6 @@
   make:
     target: install
     chdir: "{{ overpass__srcdir }}"
-    jobs: 16
 
 - name: Copy site content from source
   copy:
