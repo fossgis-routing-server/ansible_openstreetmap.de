@@ -42,9 +42,15 @@
     name: cgi
   notify: reload apache2
 
+- name: Enable apache-munin site
+  apache_site:
+    site: overpass-munin
+    src: overpass_munin.apache.jinja
+  notify: reload apache2
+
 - name: Enable apache site
   apache_site:
-    site: overpass
+    site: 000-overpass
     src: overpass_site.apache.jinja
   notify: reload apache2
 
