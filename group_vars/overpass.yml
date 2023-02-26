@@ -3,7 +3,7 @@
 overpass__user: overpass
 overpass__basedir: /srv/overpass
 overpass__logdir: /var/log/overpass
-overpass__version: 0.7.59.2
+overpass__version: 0.7.59.3
 # Meta data to index. One of: no, meta, attic
 overpass__meta_mode: attic
 # Compression mode for the database. One of: no, gz, lz4
