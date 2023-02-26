@@ -21,3 +21,8 @@ overpass__acme_certificates:
       - www.overpass-api.de
     on_update:
       - systemctl reload apache2
+  - name: overpass-munin
+    domains:
+      - munin.lambert.openstreetmap.de
+    on_update:
+      - systemctl reload apache2

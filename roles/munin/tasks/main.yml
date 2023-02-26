@@ -2,6 +2,7 @@
   apt:
     name:
       - munin
+      - munin-node
 
 - name: Install nginx plugins
   munin_plugin:
