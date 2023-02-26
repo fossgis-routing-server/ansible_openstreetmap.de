@@ -21,6 +21,10 @@
   include_tasks: acme_cert_client.yml
   when: "hostvars[inventory_hostname]|var_merge_lists(suffix='__acme_certificates')"
 
+- name: Import task to set timezone
+  import_tasks: timezone.yml
+  tags: base
+
 - import_role:
     name: 'roles/mail'
   vars:
