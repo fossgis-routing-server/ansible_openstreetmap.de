@@ -7,7 +7,7 @@
       when: "item.hosts == 'all' or inventory_hostname in item.hosts"
       user:
         name: "{{ item.name }}"
-        groups: sudo
+        groups: [sudo, adm]
         password: ""
         shell: "/bin/bash"
         update_password: on_create
