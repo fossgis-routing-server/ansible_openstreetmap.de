@@ -1,0 +1,13 @@
+- name: Enable Apache CGI module
+  apache_module:
+    name: cgi
+  notify: reload apache2
+
+# This is just the example site to copy SSL setup from, neither enable nor disable.
+- name: Set up the default apache site
+  template:
+    src: roles/apache/templates/apache_site.jinja
+    dest: /etc/apache2/sites-available/000-default.conf
+  vars:
+    apache_site_body: overpass_dev.default.apache.jinja
+  notify: reload apache2

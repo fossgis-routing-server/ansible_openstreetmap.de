@@ -1,8 +1,0 @@
-overpass__acme_certificates:
-  - name: overpass
-    domains:
-      - overpass-api.de
-      - www.overpass-api.de
-    on_update:
-      - systemctl reload apache2
-

@@ -1,0 +1,7 @@
+overpass_dev__acme_certificates:
+  - name: overpass_dev
+    domains:
+      - dev.overpass-api.de
+    on_update:
+      - systemctl reload apache2
+

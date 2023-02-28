@@ -1,0 +1,17 @@
+# DO NOT EDIT. File will be overwritten by Ansible!
+#
+# This is just the default configuration you can use to copy SSL settings from.
+#
+# To create your own apache configuration not controled by Ansible:
+#   * add a new /etc/apache2/sites-available/overpass_dev.conf
+#   * disable the default site (sudo a2dissite 000-default)
+#   * enable your new site (sudo a2ensite overpass_dev)
+#   * reload apache (sudo systemctl reload apache2)
+#
+# If you follow these instructions, your configuration will survive Ansible runs.
+
+{% call server(overpass_dev__acme_certificates[0].domains, http='yes', https='overpass_dev') -%}
+
+DocumentRoot /var/www/html
+
+{% endcall %}
