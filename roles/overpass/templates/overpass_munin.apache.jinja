@@ -1,6 +1,6 @@
 {% call server(overpass__acme_certificates[1].domains, http='yes', https='overpass_munin') -%}
 
-ServerRoot /var/cache/munin/www
+DocumentRoot /var/cache/munin/www
 
 <Directory /var/cache/munin/www>
         Require all granted
