@@ -28,6 +28,15 @@
     owner: _tirex
   become_user: postgres
 
+- name: Adapt postgres configuration
+  postgresql_config:
+    name: tile-de
+    config:
+      max_parallel_workers_per_gather: 0
+      work_mem: "128MB"
+      temp_buffers: "32MB"
+      random_page_cost: "1.1"
+
 - name: Set up postgis, hstore on database osm
   postgresql_ext:
     name: "{{ item }}"
