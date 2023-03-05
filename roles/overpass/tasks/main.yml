@@ -54,6 +54,11 @@
     src: overpass_site.apache.jinja
   notify: reload apache2
 
+- name: Assert that Git is installed
+  ansible.builtin.apt:
+    name: git
+    state: present
+
 - name: Checkout extra files from FOSSGIS-GitLab
   ansible.builtin.git:
     repo: 'https://gitlab.fossgis.de/osm-server/overpass_extra_files.git'
