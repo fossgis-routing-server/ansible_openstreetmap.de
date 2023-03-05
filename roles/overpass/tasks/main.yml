@@ -54,6 +54,16 @@
     src: overpass_site.apache.jinja
   notify: reload apache2
 
+- name: Checkout extra files from FOSSGIS-GitLab
+  ansible.builtin.git:
+    repo: 'https://gitlab.fossgis.de/osm-server/overpass_extra_files.git'
+    dest: "{{ overpass__basedir }}/site"
+
+- name: Delete .git directory
+  file:
+    state: absent
+    path: "{{ overpass__basedir }}/site/.git"
+
 - name: Set up log directory
   file:
     path: "{{ overpass__logdir }}"
