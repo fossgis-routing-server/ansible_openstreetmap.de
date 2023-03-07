@@ -42,6 +42,11 @@
     name: cgi
   notify: reload apache2
 
+- name: Set mpm_event configuration
+  ansible.builtin.template:
+    src: overpass_mpm_event.apache.jinja
+    dest: /etc/apache2/mods-available/mpm_event.conf
+
 - name: Enable apache-munin site
   apache_site:
     site: overpass-munin
