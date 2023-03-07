@@ -59,15 +59,23 @@
     name: git
     state: present
 
+- name: Clear overpass_extry Git target directory before Git checkout
+  file:
+    state: absent
+    path: "{{ overpass__basedir }}/site/overpass_extra"
+
 - name: Checkout extra files from FOSSGIS-GitLab
   ansible.builtin.git:
     repo: 'https://gitlab.fossgis.de/osm-server/overpass_extra_files.git'
-    dest: "{{ overpass__basedir }}/site"
+    dest: "{{ overpass__basedir }}/site/overpass_extra"
 
 - name: Delete .git directory
   file:
     state: absent
-    path: "{{ overpass__basedir }}/site/.git"
+    path: "{{ overpass__basedir }}/site/overpass_extra/.git"
+
+- name: Move extra files to proper place
+  ansible.builtin.command: bash -c 'mv {{ overpass__basedir }}/site/overpass_extra/* {{ overpass__basedir }}/site/'
 
 - name: Set up log directory
   file:
