@@ -54,28 +54,24 @@
     src: overpass_site.apache.jinja
   notify: reload apache2
 
-- name: Assert that Git is installed
-  ansible.builtin.apt:
-    name: git
-    state: present
-
-- name: Clear overpass_extry Git target directory before Git checkout
-  file:
-    state: absent
-    path: "{{ overpass__basedir }}/site/overpass_extra"
+- name: Add extra tools for ansible
+  apt:
+    name:
+      - git
+      - rsync
 
 - name: Checkout extra files from FOSSGIS-GitLab
   ansible.builtin.git:
     repo: 'https://gitlab.fossgis.de/osm-server/overpass_extra_files.git'
-    dest: "{{ overpass__basedir }}/site/overpass_extra"
+    dest: "{{ overpass__basedir }}/src/overpass_extra"
 
-- name: Delete .git directory
-  file:
-    state: absent
-    path: "{{ overpass__basedir }}/site/overpass_extra/.git"
-
-- name: Move extra files to proper place
-  ansible.builtin.command: bash -c 'mv {{ overpass__basedir }}/site/overpass_extra/* {{ overpass__basedir }}/site/'
+- name: Syncronize extra files into site
+  ansible.posix.synchronize:
+    src: "{{ overpass__basedir }}/src/overpass_extra/"
+    dest: "{{ overpass__basedir }}/site/"
+    recursive: true
+    rsync_opts: "--exclude .git"
+  delegate_to: "{{ inventory_hostname }}"
 
 - name: Set up log directory
   file:
