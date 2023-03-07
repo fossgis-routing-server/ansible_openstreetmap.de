@@ -26,7 +26,9 @@
 
     RewriteCond %{REQUEST_URI} ^/.well-known/acme-challenge
     RewriteRule (.*) http://{{ hostvars[groups.acme.0].acme__fqdn }}%{REQUEST_URI} [R=301,L]
+    {% endif %}
 
+    {% if http == 'forward' -%}
     RewriteCond %{HTTPS} off
     RewriteRule (.*) https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
     {% else -%}
