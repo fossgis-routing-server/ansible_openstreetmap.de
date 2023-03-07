@@ -1,7 +1,7 @@
 {% call server(overpass__acme_certificates[0].domains, http='yes', https='overpass') -%}
         DeflateFilterNote Input plainsize
 
-        LogLevel debug ssl:warn deflate:warn authz_core:warn
+        LogLevel info ssl:warn deflate:warn authz_core:warn
         CustomLog /var/log/apache2/overpass-access.log "%t runtime: %T, return size: %B, %{plainsize}n, status: %>s, remote host: %h, completed: %X, query string: %U%q, referer: %{Referer}i, user agent: %{User-agent}i"
 
         DocumentRoot {{ overpass__basedir }}/site
