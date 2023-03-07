@@ -54,3 +54,15 @@
   loop:
     - rules
     - templates
+
+- name: Copy munin scripts to global directory
+  copy:
+    remote_src: yes
+    src: "{{overpass__srcdir }}/munin/{{item}}"
+    dest: "/etc/munin/plugins/{{item}}"
+    mode: "755"
+  loop:
+    - osm_db_lag
+    - osm_db_request_count
+    - osm_mem_status
+    - osm_timeout_status
