@@ -3,6 +3,7 @@
     name:
       - munin
       - munin-node
+      - liblwp-useragent-determined-perl
 
 - name: Install nginx plugins
   munin_plugin:
