@@ -10,5 +10,15 @@
   loop:
     - nginx_request
     - nginx_status
-  when: "'nginx' in ansible_role_names"
+  when: "webserver__in_use == 'nginx'"
+  notify: restart munin-node
+
+- name: Install apache plugins
+  munin_plugin:
+    name: "{{ item }}"
+  loop:
+    - apache_accesses
+    - apache_processes
+    - apache_volume
+  when: "webserver__in_use == 'apache2'"
   notify: restart munin-node
