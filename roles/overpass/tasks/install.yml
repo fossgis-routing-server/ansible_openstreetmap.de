@@ -55,7 +55,7 @@
     - rules
     - templates
 
-- name: Replace overpass directory in munin scripts
+- name: Replace overpass DB directory in munin scripts
   replace:
     path: "{{overpass__srcdir }}/munin/{{item}}"
     regexp: "/OVERPASS_DB_DIR/"
@@ -66,10 +66,21 @@
     - osm_mem_status
     - osm_timeout_status
 
-- name: Replace overpass directory in munin scripts
+- name: Replace overpass exec directory in munin scripts (I)
   replace:
     path: "{{overpass__srcdir }}/munin/{{item}}"
     regexp: "/OVERPASS_EXEC_DIR/"
+    replace: "{{ overpass__basedir }}/"
+  loop:
+    - osm_db_lag
+    - osm_db_request_count
+    - osm_mem_status
+    - osm_timeout_status
+
+- name: Replace overpass exec directory in munin scripts (II)
+  replace:
+    path: "{{overpass__srcdir }}/munin/{{item}}"
+    regexp: "/opt/osm-3s/v0.7.54/"
     replace: "{{ overpass__basedir }}/"
   loop:
     - osm_db_lag
