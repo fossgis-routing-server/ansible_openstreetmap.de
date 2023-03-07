@@ -34,6 +34,7 @@
   make:
     target: install
     chdir: "{{ overpass__srcdir }}"
+    jobs: "{{ ansible_facts['processor_cores'] }}"
 
 - name: Copy site content from source
   copy:
