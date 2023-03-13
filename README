@@ -77,7 +77,7 @@ can access the machine via the root account.
 
 Next you need an inventory:
 
-    ./init-vagrant-inventory.sh
+    ./init_vagrant_inventory.sh
 
 This creates a file vagrant.ini with the right connection IP. Edit the file
 to put the vagrant test machine into the group you want to test.
