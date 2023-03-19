@@ -1,0 +1,14 @@
+diff --git a/mainapp/models.py b/mainapp/models.py
+index 803e645..82f6634 100644
+--- a/mainapp/models.py
++++ b/mainapp/models.py
+@@ -21,7 +21,8 @@ class Profile(models.Model):
+ 
+     @property
+     def avatar(self):
+-        return self.user.social_auth.first().extra_data['avatar'].replace('http://', 'https://', 1)
++        avatar = self.user.social_auth.first().extra_data['avatar']
++        return avatar.replace('http://', 'https://', 1) if avatar is not None else None
+ 
+ @receiver(post_save, sender=User)
+ def create_user_profile(sender, instance, created, **kwargs):
