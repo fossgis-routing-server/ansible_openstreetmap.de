@@ -14,6 +14,9 @@ aitov:
 lambert:
 	ansible-playbook -l lambert -i hosts.ini site.yml
 
+gall:
+	ansible-playbook -l gall -i hosts.ini site.yml
+
 dev-overpass:
 	ansible-playbook -l dev.overpass-api.de -i hosts.ini site.yml
 
