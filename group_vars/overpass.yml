@@ -23,6 +23,6 @@ overpass__acme_certificates:
       - systemctl reload apache2
   - name: overpass_munin
     domains:
-      - munin.lambert.openstreetmap.de
+      - "munin.{{ ansible_host }}"
     on_update:
       - systemctl reload apache2
