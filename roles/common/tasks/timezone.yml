@@ -3,4 +3,4 @@
 - name: Set time zone to UTC
   community.general.timezone:
     name: UTC
-
+  notify: restart cron

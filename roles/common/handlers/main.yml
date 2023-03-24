@@ -3,3 +3,8 @@
   systemd:
     name: 'ssh'
     state: 'reloaded'
+
+- name: 'restart cron'
+  systemd:
+    name: cron
+    state: restarted
