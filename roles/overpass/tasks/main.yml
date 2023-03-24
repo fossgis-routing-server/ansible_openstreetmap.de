@@ -19,6 +19,14 @@
   import_tasks: install.yml
   tags: overpass_install
 
+- name: Export server name
+  copy:
+    dest: "{{ overpass__basedir }}/db/server_name"
+    owner: "{{ overpass__user }}"
+    group: "{{ overpass__user }}"
+    content: "{{ ansible_host }}"
+    mode: "0644"
+
 - name: "Install maintenance script '{{ item }}'"
   template:
     src: "{{ item }}.jinja"
