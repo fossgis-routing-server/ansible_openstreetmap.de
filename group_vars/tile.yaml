@@ -8,7 +8,7 @@ tile__small: true
 # location of flatnode file
 tile__flatnode: '{{ tile__basedir }}/flatnode'
 # storage for planet pbf file during import
-tile__planet: '{{ tile__basedir }/planet.osm.pbf}'
+tile__planet: '{{ tile__basedir }}/planet.osm.pbf'
 
 
 tile__acme_certificates:
