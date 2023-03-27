@@ -2,4 +2,3 @@ postgresql__version: 13
 postgresql__postgis_version: 3
 
 postgresql__conf_shared_buffers: "1GB"
-postgresql__conf_jit: "on"

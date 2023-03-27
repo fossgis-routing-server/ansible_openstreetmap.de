@@ -36,6 +36,8 @@
       work_mem: "128MB"
       temp_buffers: "32MB"
       random_page_cost: "1.1"
+      random_page_cost: "1.1"
+      jit: "off"
 
 - name: Set up postgis, hstore on database osm
   postgresql_ext:
@@ -258,4 +260,4 @@
     server_name: "_"
     cert: "tilede"
     styles: "{{ tile__styles }}"
-  notify: reload apache
+  notify: reload apache2
