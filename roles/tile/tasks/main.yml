@@ -36,7 +36,6 @@
       work_mem: "128MB"
       temp_buffers: "32MB"
       random_page_cost: "1.1"
-      random_page_cost: "1.1"
       jit: "off"
 
 - name: Set up postgis, hstore on database osm
@@ -215,7 +214,7 @@
 
 - name: Find buildt .deb packages
   find:
-    paths: "{{ tile__basedir }}/sources/"
+    paths: "{{ tile__basedir }}/sources/tirex/"
     patterns: ["tirex_*.deb", "tirex-backend-mapnik*.deb"]
   register: tile_tirex_deb
 
@@ -224,15 +223,39 @@
     deb: "{{ item }}"
   with_items: "{{ tile_tirex_deb.files | map(attribute='path') }}"
 
+- name: Create directory /etc/tirex
+  file:
+    path: "/etc/tirex"
+    state: directory
+    owner: '{{ tile__user }}'
+    group: '{{ tile__user  }}'
+    mode: 0755
+
 - name: Tirex main config
   copy:
     dest: "/etc/tirex/tirex.conf"
     src: "tirex.conf"
 
+- name: Create directory /etc/tirex/renderer
+  file:
+    path: "/etc/tirex/renderer"
+    state: directory
+    owner: '{{ tile__user }}'
+    group: '{{ tile__user  }}'
+    mode: 0755
+
 - name: Trex mapnik backend config
   copy:
     dest: "/etc/tirex/renderer/mapnik.conf"
     src: "mapnik.conf"
+
+- name: Create directory /etc/tirex/renderer/mapnik
+  file:
+    path: "/etc/tirex/renderer/mapnik"
+    state: directory
+    owner: '{{ tile__user }}'
+    group: '{{ tile__user  }}'
+    mode: 0755
 
 - name: Tirex mapnik style config
   template:
@@ -250,6 +273,22 @@
     owner: _tirex
     mode: 0755
   loop: "{{ tile__styles }}"
+
+# static website
+- name: Create directory for site
+  file:
+    path: "{{ tile__basedir }}/site"
+    state: directory
+    owner: '{{ tile__user }}'
+    group: '{{ tile__user  }}'
+    mode: 0755
+
+- name: static website
+  git:
+    repo: https://github.com/giggls/tileserver-web.git
+    dest: "{{ tile__basedir }}/site/tileserver-web"
+  become: yes
+  become_user: "{{ tile__user }}"
 
 # apache http server conf
 - name: default apache site
