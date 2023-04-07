@@ -222,6 +222,7 @@
   apt:
     deb: "{{ item }}"
   with_items: "{{ tile_tirex_deb.files | map(attribute='path') }}"
+  become: yes
 
 - name: Create directory /etc/tirex
   file:
