@@ -290,6 +290,16 @@
     mode: 0755
   loop: "{{ tile__styles }}"
 
+- name: Make sure tirex-backend-manager is running
+  ansible.builtin.systemd:
+    state: started
+    name: tirex-backend-manager
+
+- name: Make sure tirex-master is running
+  ansible.builtin.systemd:
+    state: started
+    name: tirex-master
+
 # static website
 - name: Create directory for site
   file:
@@ -299,12 +309,24 @@
     group: '{{ tile__user  }}'
     mode: 0755
 
-- name: static website
+- name: Clone static website repo
   git:
-    repo: https://github.com/giggls/tileserver-web.git
-    dest: "{{ tile__basedir }}/site/tileserver-web"
+    repo: https://github.com/astridx/tileserver-web.git
+    dest: "{{ tile__basedir }}/tileserver-web"
+    force: yes
   become: yes
   become_user: "{{ tile__user }}"
+
+- name: install required packages with apt
+  apt:
+    name: [rsync]
+
+- name: Sync static website dist with DocumentRoot
+  ansible.posix.synchronize:
+    src: "{{ tile__basedir }}/tileserver-web/src/dist/"
+    dest: "{{ tile__basedir }}/site/"
+    recursive: true
+  delegate_to: "{{ inventory_hostname }}"
 
 # apache http server conf
 - name: default apache site
