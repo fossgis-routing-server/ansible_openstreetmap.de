@@ -214,7 +214,7 @@
 
 - name: Find buildt .deb packages
   find:
-    paths: "{{ tile__basedir }}/sources/tirex/"
+    paths: "{{ tile__basedir }}/sources/"
     patterns: ["tirex_*.deb", "tirex-backend-mapnik*.deb"]
   register: tile_tirex_deb
 
