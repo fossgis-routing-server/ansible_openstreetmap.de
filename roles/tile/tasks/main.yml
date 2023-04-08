@@ -111,8 +111,10 @@
 
 - name: generate mapnik xml
   shell:
-    cmd: "make"
+    cmd: "make; git checkout project.mml"
     chdir: "{{ tile__basedir }}/openstreetmap-carto-de"
+  become: yes
+  become_user: "{{ tile__user }}"
 
 - name: Lua dependencies for localization functions for OpenStreetMap
   shell:
@@ -120,7 +122,8 @@
 
 - name: Python dependencies for localization functions for OpenStreetMap
   pip:
-    name: [scikit-learn, pykakasi, tltk, pinyin_jyutping_sentence]
+    name: [scikit-learn, pykakasi, tltk, pinyin_jyutping_sentence, numpy]
+    extra_args: -U
 
 - name: Localization functions for OpenStreetMap
   git:
@@ -212,16 +215,28 @@
   become: yes
   become_user: "{{ tile__user }}"
 
-- name: Find buildt .deb packages
+- name: Find buildt tirex .deb package
   find:
     paths: "{{ tile__basedir }}/sources/"
-    patterns: ["tirex_*.deb", "tirex-backend-mapnik*.deb"]
+    patterns: "tirex_*.deb"
   register: tile_tirex_deb
 
 - name: Install tirex debian package
   apt:
     deb: "{{ item }}"
   with_items: "{{ tile_tirex_deb.files | map(attribute='path') }}"
+  become: yes
+
+- name: Find buildt tirex mapnik .deb package
+  find:
+    paths: "{{ tile__basedir }}/sources/"
+    patterns: "tirex-backend-mapnik*.deb"
+  register: tile_tirex_mapnik_deb
+
+- name: Install tirex mapnik debian package
+  apt:
+    deb: "{{ item }}"
+  with_items: "{{ tile_tirex_mapnik_deb.files | map(attribute='path') }}"
   become: yes
 
 - name: Create directory /etc/tirex
