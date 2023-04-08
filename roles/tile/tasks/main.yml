@@ -293,11 +293,13 @@
 - name: Make sure tirex-backend-manager is running
   ansible.builtin.systemd:
     state: started
+    enabled: true
     name: tirex-backend-manager
 
 - name: Make sure tirex-master is running
   ansible.builtin.systemd:
     state: started
+    enabled: true
     name: tirex-master
 
 # static website
