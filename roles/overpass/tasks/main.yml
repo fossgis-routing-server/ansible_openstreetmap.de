@@ -128,7 +128,7 @@
         After: "overpass-dispatcher.service"
       Service:
         WorkingDirectory: "{{ overpass__basedir }}"
-        ExecStart: "{{ overpass__basedir }}/bin/dispatcher --areas --db-dir={{ overpass__basedir }}/db"
+        ExecStart: "{{ overpass__basedir }}/bin/dispatcher --areas --db-dir={{ overpass__basedir }}/db --space={{overpass__dispatcher_space | human_to_bytes }}"
         ExecStop: "{{ overpass__basedir }}/bin/dispatcher --areas --terminate"
         StandardOutput: "append:{{ overpass__logdir }}/areas.log"
         StandardError: "null"
