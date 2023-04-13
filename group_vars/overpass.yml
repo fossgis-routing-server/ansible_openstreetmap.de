@@ -19,6 +19,8 @@ overpass__acme_certificates:
     domains:
       - overpass-api.de
       - www.overpass-api.de
+      - z.overpass-api.de
+      - lz4.overpass-api.de
     on_update:
       - systemctl reload apache2
   - name: overpass_munin
