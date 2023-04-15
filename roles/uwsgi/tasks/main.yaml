@@ -1,0 +1,12 @@
+---
+- name: Install uwsgi
+  become: yes
+  apt:
+    name: ['uwsgi-emperor', 'uwsgi-plugin-python3']
+    state: latest
+
+- name: Configure master fifo for communication
+  lineinfile:
+    path: /etc/uwsgi-emperor/emperor.ini
+    regexp: "master-fifo = "
+    line: master-fifo = /run/uwsgi/master.fifo

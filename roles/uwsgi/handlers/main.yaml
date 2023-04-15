@@ -1,0 +1,4 @@
+---
+- name: reload uwsgi
+  become: yes
+  shell: "echo r > /run/uwsgi/master.fifo"
