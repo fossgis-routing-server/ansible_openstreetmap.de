@@ -11,8 +11,8 @@ overpass__compression_mode: lz4
 overpass__clone_url: "http://dev.overpass-api.de/api_drolbr/"
 overpass__replication_url: "https://planet.openstreetmap.org/replication/minute/"
 
-overpass__rate_limit: 2
-overpass__dispatcher_space: 10GB
+overpass__rate_limit: 6
+overpass__dispatcher_space: 24GB
 
 overpass__acme_certificates:
   - name: overpass
