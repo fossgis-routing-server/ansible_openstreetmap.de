@@ -3,8 +3,14 @@
     name: sudo
 
 - block:
-    - name: "Create user accounts"
-      when: "item.hosts == 'all' or inventory_hostname in item.hosts"
+    - name: Gather active accounts
+      set_fact:
+        accounts__active: "{{accounts__active|default([]) + [item.0.name]}}"
+      when: "item.1 in group_names or item.1 == 'all'"
+      loop: "{{ _users | subelements('groups', skip_missing=True) }}"
+
+    - name: Create user accounts
+      when: "item.name in accounts__active"
       user:
         name: "{{ item.name }}"
         groups: [sudo, adm]
@@ -14,21 +20,21 @@
       loop: "{{ _users }}"
 
     - name: "Remove users who do not have permissions to access this host"
-      when: "item.hosts != 'all' and inventory_hostname not in item.hosts"
+      when: "item.name not in accounts__active"
       user:
         name: "{{ item.name }}"
         state: absent
       loop: "{{ _users }}"
 
     - name: "Add SSH public keys"
-      when: "item.0.hosts == 'all' or inventory_hostname in item.0.hosts"
+      when: "item.0.name in accounts__active"
       authorized_key:
         user: "{{ item.0.name }}"
         key: "{{ item.1 }}"
       loop: "{{ _users|subelements('ssh_public_keys') }}"
 
     - name: "Add SSH public keys of all users for direct root login (required by Ansible)"
-      when: "item.0.hosts == 'all' or inventory_hostname in item.0.hosts"
+      when: "item.0.name in accounts__active"
       authorized_key:
         user: "root"
         key: "{{ item.1 }}"
