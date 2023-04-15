@@ -11,3 +11,14 @@
   vars:
     apache_site_body: overpass_dev.default.apache.jinja
   notify: reload apache2
+
+- name: Set up basic dev software
+  apt:
+    name:
+      - wget
+      - g++
+      - make
+      - expat
+      - libexpat1-dev
+      - zlib1g-dev
+      - liblz4-dev
