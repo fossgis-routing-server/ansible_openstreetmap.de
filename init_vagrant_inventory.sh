@@ -14,9 +14,10 @@
 # If no inventory file is given, use 'vagrant.ini'.
 
 CONFIG=${1:-vagrant.ini}
-SSH_IP=`vagrant ssh-config | grep HostName | sed 's:.*HostName *::'`
-SSH_Port=`vagrant ssh-config | grep Port | sed 's:.*Port *::'`
-SSH_IdentityFile=`vagrant ssh-config | grep IdentityFile | sed 's:.*IdentityFile *::'`
+VAGRANTCFG=`vagrant ssh-config`
+SSH_IP=`echo "$VAGRANTCFG" | grep HostName | sed 's:.*HostName *::'`
+SSH_Port=`echo "$VAGRANTCFG" | grep Port | sed 's:.*Port *::'`
+SSH_IdentityFile=`echo "$VAGRANTCFG" | grep IdentityFile | sed 's:.*IdentityFile *::'`
 
 if [[ -f $CONFIG ]]; then
     # just make sure the IP address, Port and IdentityFile is set correctly
