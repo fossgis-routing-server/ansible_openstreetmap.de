@@ -25,5 +25,13 @@ if [[ -f $CONFIG ]]; then
     sed -i "s:ansible_ssh_private_key_file=.*:ansible_ssh_private_key_file=$SSH_IdentityFile:" $CONFIG
 else
    # create a new inventory file for vagrant
-   echo [your test group]$'\n'vagrant ansible_host=$SSH_IP ansible_port=$SSH_Port ansible_ssh_private_key_file=$SSH_IdentityFile$'\n'$'\n'[acme]$'\n'dummy > $CONFIG
+   cat > $CONFIG <<EOF
+vagrant ansible_host=$SSH_IP ansible_port=$SSH_Port ansible_ssh_private_key_file=$SSH_IdentityFile
+
+[acme]
+dummy
+
+[your test group]
+vagrant
+EOF
 fi
