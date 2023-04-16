@@ -5,6 +5,9 @@ vagrant:
 miller:
 	ansible-playbook -l miller -i hosts.ini site.yml
 
+ptolemy:
+	ansible-playbook -l ptolemy -i hosts.ini site.yml
+
 robinson:
 	ansible-playbook -l robinson -i hosts.ini site.yml
 
