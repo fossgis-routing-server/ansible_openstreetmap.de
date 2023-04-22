@@ -1,0 +1,23 @@
+[Unit]
+Description=render database update
+After=syslog.target network.target
+
+[Service]
+Type=simple
+User=_tirex
+Group=_tirex
+ExecStartPre=truncate -s 0 {{ difffile }}
+ExecStart=osm2pgsql-replication update -d {{ dbname }} --max-diff-size 10 \
+  --diff-file {{ difffile }} --post-processing {{ expiretiles }} -- \
+  -G --slim -C 0 -O flex \
+  --number-processes {{ ansible_facts['processor_cores'] }} -S {{ lua }} \
+{% if not tile__small %}
+  --flat-nodes {{ tile__flatnode }} \
+{% endif %}
+
+Restart=always
+RestartSec=50
+StandardOutput=append:/var/log/osm2pgsql-updates.log
+
+[Install]
+WantedBy=multi-user.target

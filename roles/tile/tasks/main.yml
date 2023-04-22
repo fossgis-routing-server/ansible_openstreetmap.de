@@ -75,22 +75,25 @@
     dbname: osm
     style: "{{ tile__basedir }}/openstreetmap-carto-de"
     lua: "{{ tile__basedir }}/sources/osml10n/openstreetmap-carto-hstore-only-l10n.lua"
-    sequence: "{{ tile__basedir }}/replication/sequence"
 
-- name: Directory for the replication sequence number
-  file:
-    state: directory
-    path: "{{ tile__basedir }}/replication"
-    owner: _tirex
-    mode: 0755
-
-- name: Make sure destination dir for flatnode file and planet exist
+- name: Make sure destination dir for flatnode file, planet and bin dir exist
   file:
     path: "{{ item | dirname }}"
     state: directory
   loop:
     - "{{ tile__flatnode }}"
     - "{{ tile__planet }}"
+    - "{{ tile__basedir }}/bin/expire-tiles-single.py"
+
+- name: render database updates from minutely
+  template:
+      dest: "/etc/systemd/system/updatedb.service"
+      src: "updatedb.j2"
+  vars:
+    dbname: osm
+    lua: "{{ tile__basedir }}/sources/osml10n/openstreetmap-carto-hstore-only-l10n.lua"
+    difffile: /tmp/latest_changes.osc
+    expiretiles: "{{ tile__basedir }}/bin/expire-tiles.sh"
 
 # style
 - name: german style
@@ -176,7 +179,7 @@
       - name: "osmde"
         url:  ""
         xml:  "{{ tile__basedir }}/openstreetmap-carto-de/osm-de.xml"
-        order: 99 # needs to be last, because it ith / and would override the other
+        order: 99 # needs to be last, because it binds / and would override the other
 
 - name: Add osmhrb map style
   set_fact:
@@ -306,6 +309,28 @@
     state: started
     enabled: true
     name: tirex-master
+
+# tile expiry
+# the tile expiry python script is from
+# https://github.com/openstreetmap/chef/blob/master/cookbooks/tile/files/default/bin/expire-tiles-single
+- name: tile expiry python script
+  copy:
+    dest: "{{ tile__basedir }}/bin/expire-tiles-single.py"
+    src: "expire-tiles-single.py"
+
+- name: required python package for expire-tiles-single
+  apt:
+    name: [python3-pyproj]
+
+- name: tile expiry script
+  template:
+    dest: "{{ tile__basedir }}/bin/expire-tiles.sh"
+    src: "expire-tiles.j2"
+    mode: 0755
+  vars:
+    difffile: /tmp/latest_changes.osc
+    expiretilessingle: "{{ tile__basedir }}/bin/expire-tiles-single.py"
+    styles: "{{ tile__styles }}"
 
 # static website
 - name: Create directory for site

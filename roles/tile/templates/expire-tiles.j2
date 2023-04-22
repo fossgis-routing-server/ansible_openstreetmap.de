@@ -1,0 +1,8 @@
+#!/bin/bash
+
+python3 {{ expiretilessingle }} \
+    --node-cache {{ tile__flatnode }} \
+{% for s in styles %}
+    -t /var/cache/tirex/tiles/{{ s.name }} \
+{% endfor %}
+    {{ difffile }}

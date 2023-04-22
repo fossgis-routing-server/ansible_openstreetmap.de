@@ -6,16 +6,23 @@
 
 set -e
 
+# stop render database updates if they are running
+sudo systemctl disable updatedb
+sudo systemctl stop updatedb
+
 {% if tile__small %}
-OSM_SOURCE=http://download.geofabrik.de/europe/liechtenstein-latest.osm.pbf
+OSM_SOURCE=http://download.geofabrik.de/europe/germany/sachsen-latest.osm.pbf
 {% else %}
 OSM_SOURCE=https://ftp5.gwdg.de/pub/misc/openstreetmap/planet.openstreetmap.org/pbf/planet-latest.osm.pbf
 {% endif %}
 
+cd $(dirname $(realpath {{ tile__planet }}))
+
 #create planet file with correct permissions
 sudo touch {{ tile__planet }} && sudo chown {{ tile__user }} {{ tile__planet }}
 
-sudo -u {{ tile__user }} wget -N $OSM_SOURCE -O {{ tile__planet }}
+sudo -u {{ tile__user }} wget -N $OSM_SOURCE
+sudo -u {{ tile__user }} ln -f $(basename $OSM_SOURCE) $(basename $(realpath {{ tile__planet }}))
 
 {% if not tile__small %}
 sudo -u tile pyosmium-up-to-date {{ tile__planet }} -s 10000
@@ -37,10 +44,18 @@ sudo -u _tirex psql -d {{ dbname }} -f {{ style }}/indexes-hstore.sql
 
 sudo -u _tirex {{ style }}/views_osmde/apply-views.sh {{ dbname }}
 
-sudo -u _tirex pyosmium-get-changes -O {{ tile__planet }} -f {{ sequence }} --ignore-osmosis-headers
+{% if tile__small %}
+sudo -u _tirex osm2pgsql-replication init  -d {{ dbname }} --osm-file {{ tile__planet }}
+{% else %}
+sudo -u _tirex osm2pgsql-replication init  -d {{ dbname }} --server https://planet.openstreetmap.org/replication/minute
+{% endif %}
 
 # make sure auxiliary data is loaded
 cd {{ style }}
 sudo mkdir -p data
 sudo chown _tirex data
 sudo -u _tirex scripts/get-external-data.py -d {{ dbname }}
+
+# enable minutely updates
+sudo systemctl enable updatedb
+sudo systemctl start updatedb
