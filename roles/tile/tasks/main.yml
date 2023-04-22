@@ -1,6 +1,11 @@
-
 # SPDX-License-Identifier: MIT
 ---
+# Setup for tile.openstreetmap.de
+#
+# To finish the setup you need to
+#
+#  - run sudo /usr/local/sbin/import-osm2pgsql
+#
 
 # apache, system accounts, set up db
 - name: Setup apache
