@@ -360,6 +360,13 @@
     recursive: true
   delegate_to: "{{ inventory_hostname }}"
 
+# Run the script that sets the variables of the website 
+# (carto version, l10n version, hostname) correctly
+- name: Replace vars on static website
+  shell:
+    cmd: "bash {{ tile__basedir }}/tileserver-web/scripts/replace.sh"
+  become: yes
+
 # apache http server conf
 - name: default apache site
   apache_site:
