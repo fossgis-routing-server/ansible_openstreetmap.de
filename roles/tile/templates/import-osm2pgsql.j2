@@ -21,7 +21,7 @@ cd $(dirname $(realpath {{ tile__planet }}))
 #create planet file with correct permissions
 sudo touch {{ tile__planet }} && sudo chown {{ tile__user }} {{ tile__planet }}
 
-sudo -u {{ tile__user }} wget -N $OSM_SOURCE
+sudo -u {{ tile__user }} wget -N $OSM_SOURCE -O {{ tile__planet }}
 sudo -u {{ tile__user }} ln -f $(basename $OSM_SOURCE) $(basename $(realpath {{ tile__planet }}))
 
 {% if not tile__small %}
