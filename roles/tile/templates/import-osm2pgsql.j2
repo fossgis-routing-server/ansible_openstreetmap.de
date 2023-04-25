@@ -30,7 +30,6 @@ sudo -u {{ tile__user }} ln -f $(basename $OSM_SOURCE) $(basename $(realpath {{ 
 
 {% if not tile__small %}
 sudo -u tile pyosmium-up-to-date {{ tile__planet }} -s 10000
-
 {% endif %}
 
 #create flatnode file with correct permissions
