@@ -34,7 +34,7 @@
     src: "/tmp/{{ item.name }}.{{ item.version }}.zip"
     dest: "{{ wordpress_plugin_directory }}"
     creates: "{{ wordpress_plugin_directory }}/{{ item.name }}/"
-    copy: false
+    remote_src: true
   with_items: "{{ wordpress_plugins }}"
   when: item.version is defined and item.download is not defined
   tags: wordpress
@@ -59,7 +59,7 @@
     src: "/tmp/{{ item.name }}.zip"
     dest: "{{ wordpress_plugin_directory }}"
     creates: "{{ wordpress_plugin_directory }}/{{ item.name }}/"
-    copy: false
+    remote_src: true
   with_items: "{{ wordpress_plugins }}"
   when: item.version is not defined and item.download is not defined
   tags: wordpress
@@ -84,9 +84,11 @@
 - name: Unpack (unofficial) plugins with download links
   unarchive:
     src: "/tmp/{{ item.name }}.zip"
-    dest: "{{ wordpress_plugin_directory }}"
-    creates: "{{ wordpress_plugin_directory }}/{{ item.name }}/"
-    copy: false
+    dest: "{{ wordpress_plugin_directory }}/{{ item.name }}/"
+    extra_opts: [--strip-components=1]
+    remote_src: true
+    owner: www-data
+    group: www-data
   with_items: "{{ wordpress_plugins }}"
   when: item.download is defined
   tags: wordpress
