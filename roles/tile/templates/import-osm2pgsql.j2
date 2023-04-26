@@ -26,7 +26,6 @@ sudo -u {{ tile__user }} wget -N $OSM_SOURCE -O {{ tile__planet }}
 {% else %}
 sudo -u {{ tile__user }} wget -N $OSM_SOURCE
 {% endif %}
-sudo -u {{ tile__user }} ln -f $(basename $OSM_SOURCE) $(basename $(realpath {{ tile__planet }}))
 
 {% if not tile__small %}
 sudo -u tile pyosmium-up-to-date {{ tile__planet }} -s 10000
