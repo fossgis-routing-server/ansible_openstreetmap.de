@@ -1,0 +1,15 @@
+# Created by chef. DO NOT EDIT.
+
+[Unit]
+Description=Tile proxy, converting to grayscale on the fly
+
+[Service]
+User=tile
+Group=tile
+WorkingDirectory={{ workdir }}
+ExecStart=starman app.psgi --listen localhost:5000
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+

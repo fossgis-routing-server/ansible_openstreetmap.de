@@ -247,39 +247,27 @@
   with_items: "{{ tile_tirex_mapnik_deb.files | map(attribute='path') }}"
   become: yes
 
-- name: Create directory /etc/tirex
+- name: Create directories in /etc/tirex
   file:
-    path: "/etc/tirex"
+    path: "{{ item }}"
     state: directory
     owner: '{{ tile__user }}'
     group: '{{ tile__user  }}'
     mode: 0755
+  loop:
+    - "/etc/tirex"
+    - "/etc/tirex/renderer"
+    - "/etc/tirex/renderer/mapnik"
 
 - name: Tirex main config
   copy:
     dest: "/etc/tirex/tirex.conf"
     src: "tirex.conf"
 
-- name: Create directory /etc/tirex/renderer
-  file:
-    path: "/etc/tirex/renderer"
-    state: directory
-    owner: '{{ tile__user }}'
-    group: '{{ tile__user  }}'
-    mode: 0755
-
 - name: Trex mapnik backend config
   copy:
     dest: "/etc/tirex/renderer/mapnik.conf"
     src: "mapnik.conf"
-
-- name: Create directory /etc/tirex/renderer/mapnik
-  file:
-    path: "/etc/tirex/renderer/mapnik"
-    state: directory
-    owner: '{{ tile__user }}'
-    group: '{{ tile__user  }}'
-    mode: 0755
 
 - name: Tirex mapnik style config
   template:
@@ -332,6 +320,54 @@
     expiretilessingle: "{{ tile__basedir }}/bin/expire-tiles-single.py"
     styles: "{{ tile__styles }}"
 
+# script to identify rhb tile rendered area, gray out outside area
+- name: install inbbox script
+  copy:
+    dest: "{{ tile__basedir }}/bin/inbbox.py"
+    src: "inbbox.py"
+    mode: 0755
+
+- name: Create directories for gray
+  file:
+    path: "{{ tile__basedir }}/gray"
+    state: directory
+    owner: '{{ tile__user }}'
+    group: '{{ tile__user  }}'
+    mode: 0755
+
+- name: required packages for TileProxy-Grayscale
+  apt:
+    name: [starman, libplack-perl, libimage-magick-perl, librouter-simple-perl]
+
+- name: clone App-TileProxy-Grayscale git
+  git:
+    repo: https://github.com/mstock/App-TileProxy-Grayscale.git
+    dest: "{{ tile__basedir }}/gray/App-TileProxy-Grayscale"
+  register: tile_tirex_sources
+  become: yes
+  become_user: "{{ tile__user }}"
+
+- name: App-TileProxy-Grayscale config
+  template:
+    dest: "{{ tile__basedir }}/gray/app.psgi"
+    src: "TileProxy-Grayscale-config.j2"
+  vars:
+    libdir: "{{ tile__basedir }}/gray/App-TileProxy-Grayscale/lib"
+
+- name: App-TileProxy-Grayscale systemd service
+  template:
+    dest: "/etc/systemd/system/tileproxy-grayscale.service"
+    src: "TileProxy-Grayscale-systemd.j2"
+  vars:
+    workdir: "{{ tile__basedir }}/gray/"
+
+- name: Make sure tileproxy-grayscale is running
+  ansible.builtin.systemd:
+    state: started
+    enabled: true
+    name: tileproxy-grayscale
+
+
 # static website
 - name: Create directory for site
   file:
@@ -361,6 +397,10 @@
   delegate_to: "{{ inventory_hostname }}"
 
 # apache http server conf
+- name: apache enable proxy module
+  apache_module:
+    name: proxy_http
+
 - name: default apache site
   apache_site:
     site: 'default'

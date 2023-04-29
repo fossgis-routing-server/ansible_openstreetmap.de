@@ -2,11 +2,18 @@
 {% call server(["tile.openstreetmap.de", "a.tile.openstreetmap.de", "b.tile.openstreetmap.de", "c.tile.openstreetmap.de", "ptolemy.openstreetmap.de"], http='yes', https='tilede') %}
   ModTileRenderdSocketName /run/tirex/modtile.sock 
   ModTileTileDir           /var/cache/tirex/tiles
-  AddTileConfig            /test/ test
 {% for style in styles | sort(attribute='order') %}
   AddTileConfig            /{{ style.url }} {{ style.name }}
 {% endfor %}
   ModTileRequestTimeout    0
+  ModTileMissingRequestTimeout 240
+  ModTileMaxLoadOld 10
+  ModTileMaxLoadMissing 12
+  ModTileEnableTileThrottling On
+  ModTileThrottlingTiles 10000 5
+  # Anzahl nicht-vorgerenderte Tiles (400) danach eines alle 2 Sekunden
+  ModTileThrottlingRenders 400 0.5
+  ModTileCacheDurationMinimum 259200
 
   DocumentRoot {{ tile__basedir }}/site
   <Directory {{ tile__basedir }}/site>
@@ -14,5 +21,21 @@
     AllowOverride None
     Require all granted
   </Directory>
+
+  RewriteEngine on
+  RedirectMatch 404 /\.git
+
+  # Redirect old tile URL
+  RewriteRule "^/tiles/osmhrb/(.*)$" "/osmhrb/$1" [R=permanent,L]
+  RewriteRule "^/tiles/osmde/(.*)$" "/$1" [R=permanent,L]
+
+  ProxyPass /tilesbw/ http://localhost:5000/ max=5 ttl=120 retry=0 disablereuse=On
+
+  # use mod-rewrite to limit osmhrb style to a certain bounding box
+  Rewritemap inbbox "prg:{{ tile__basedir }}/bin/inbbox.py -b 13.42 50.75 15.39 52.27 -m 8" www-data:www-data
+  RewriteCond %{REQUEST_URI} ^/osmhrb
+  RewriteCond ${inbbox:$1} "FALSE"
+  RewriteRule "^/osmhrb/(.*)$" "/tilesbw/osmde/$1" [R,L]
+
   
 {% endcall %}

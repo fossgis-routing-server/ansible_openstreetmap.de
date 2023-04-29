@@ -16,7 +16,11 @@ ExecStart=osm2pgsql-replication update -d {{ dbname }} --max-diff-size 10 \
 {% endif %}
 
 Restart=always
+{% if tile__small %}
+RestartSec=6h
+{% else %}
 RestartSec=50
+{% endif %}
 StandardOutput=append:/var/log/osm2pgsql-updates.log
 
 [Install]

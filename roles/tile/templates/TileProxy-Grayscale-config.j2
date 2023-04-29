@@ -1,0 +1,24 @@
+#!/usr/bin/env plackup
+
+use strict;
+use warnings;
+
+use lib qw({{ libdir }});
+use App::TileProxy::Grayscale;
+use Plack::Builder;
+use Plack::App::Directory;
+
+my $tile_proxy_app = App::TileProxy::Grayscale->new({
+        layers => {
+                osmde => 'https://tile.openstreetmap.de/{z}/{x}/{y}.png',
+                osmhrb => 'https://tile.openstreetmap.de/osmhrb/{z}/{x}/{y}.png',
+        },
+})->to_app();
+my $directory_app = Plack::App::Directory->new({
+        root => 'static',
+})->to_app();
+
+my $app = builder {
+        mount '/' => $tile_proxy_app;
+};
+
