@@ -19,10 +19,13 @@ OSM_SOURCE=https://ftp5.gwdg.de/pub/misc/openstreetmap/planet.openstreetmap.org/
 cd $(dirname $(realpath {{ tile__planet }}))
 
 #create planet file with correct permissions
-sudo touch {{ tile__planet }} && sudo chown {{ tile__user }} {{ tile__planet }}
+if [ ! -f  $(basename $OSM_SOURCE) ]
+then sudo touch -d 2000-01-01 $(basename $OSM_SOURCE)
+fi
+sudo chown {{ tile__user }} $(basename $OSM_SOURCE)
 
 sudo -u {{ tile__user }} wget -N $OSM_SOURCE
-sudo -u {{ tile__user }} ln -f $(basename $OSM_SOURCE) $(basename $(realpath {{ tile__planet }}))
+sudo ln -f $(basename $OSM_SOURCE) $(basename $(realpath {{ tile__planet }}))
 
 {% if not tile__small %}
 sudo -u tile pyosmium-up-to-date {{ tile__planet }} -s 10000
