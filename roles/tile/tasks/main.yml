@@ -398,10 +398,62 @@
 
 # Run the script that sets the variables of the website 
 # (carto version, l10n version, hostname) correctly
+
+- name: build html list of servers for the tile page
+  set_fact:
+    tile__server_html_list: "{{ tile__server_html_list|default(\"\") }}
+      <li>
+          <a href=\"/?server={{ item }}.openstreetmap.de\\&folder=\">
+              {{ item }}, Folder: / (de)
+          </a>
+      </li><li>
+          <a href=\"/?server={{ item }}.openstreetmap.de\\&folder=osmhrb\">
+              {{ item }}, Folder: osmhrb
+          </a>
+      </li>"
+  loop: "{{ groups.tile }}"
+
+- name: list localhost for if tile__small is set (vagrant use case)
+  set_fact:
+    tile__server_html_list: "
+      <li>
+      <a href=\"/?server=localhost:8443\\&folder=\">
+              {{ item }}, Folder: / (de)
+          </a>
+      </li><li>
+      <a href=\"/?server=localhost:8443\\&folder=osmhrb\">
+              {{ item }}, Folder: osmhrb
+          </a>
+      </li>"
+  loop: "{{ groups.tile }}"
+  when: tile__small
+
 - name: Replace vars on static website
   shell:
-    cmd: "bash {{ tile__basedir }}/tileserver-web/scripts/replace.sh"
+    cmd: "CARTO_VERSION=$(git -C /srv/tile/openstreetmap-carto-de/ describe --tags);
+          l10n_VERSION=$(git -C /srv/tile/sources/osml10n describe --tags);
+
+          cd {{ tile__basedir }}/site/assets;
+
+          sed -i \"s/VITE_OSML10N_VERSION/$l10n_VERSION/g\" *.js;
+          sed -i \"s/VITE_OPENSTREETMAP_CARTO_DE_VERSION/$CARTO_VERSION/g\" *.js;
+          sed -i \"s/VITE_HOSTNAME/{{ inventory_hostname }}/g\" *.js;
+          sed -i \"s/ + HOSTNAME + folder + / + server + folder + /g\" *.js;
+
+          cd {{ tile__basedir }}/site;
+
+          sed -i 's%VITE_NAVIGATION_LIST%<li>
+            <a href=\"/?server=tile.openstreetmap.de\\&folder=\">
+              tile.openstreetmap.de, Folder: / (de)
+            </a></li><li>
+            <a href=\"/?server=tile.openstreetmap.de\\&folder=osmhrb\">
+              tile.openstreetmap.de, Folder: osmhrb
+            </a></li>{{tile__server_html_list }}%' index.html;
+          "
   become: yes
+  become_user: "{{ tile__user }}"
+  vars:
+    hostname: "{{ 'localhost:8443' if tile__small else '.openstreetmap.de' }}"
 
 # apache http server conf
 - name: apache enable proxy module
