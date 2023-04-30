@@ -15,6 +15,10 @@
   ModTileThrottlingRenders 400 0.5
   ModTileCacheDurationMinimum 259200
 
+  # Fremden Webseiten erlauben uns per Javascript
+  # nachzuladen
+  Header set Access-Control-Allow-Origin "*"
+
   DocumentRoot {{ tile__basedir }}/site
   <Directory {{ tile__basedir }}/site>
     Options FollowSymLinks MultiViews

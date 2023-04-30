@@ -40,8 +40,7 @@ sudo -u _tirex osm2pgsql -G -c -d {{ dbname }} --slim -C 0 -O flex \
 {% if not tile__small %}
   --flat-nodes {{ tile__flatnode }} \
 {% endif %}
-  --middle-way-node-index-id-shift 5 \
-  {{ tile__planet }}
+  {{ tile__planet }} 2>&1 | sudo tee /var/log/osm2pgsql-import.log
 
 sudo -u _tirex psql -d {{ dbname }} -f {{ style }}/indexes-hstore.sql
 
