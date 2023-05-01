@@ -401,6 +401,10 @@
   apache_module:
     name: proxy_http
 
+- name: apache enable header module
+  apache_module:
+    name: headers
+
 - name: default apache site
   apache_site:
     site: 'default'

@@ -51,6 +51,7 @@ sudo -u _tirex osm2pgsql-replication init  -d {{ dbname }} --osm-file {{ tile__p
 {% else %}
 sudo -u _tirex osm2pgsql-replication init  -d {{ dbname }} --server https://planet.openstreetmap.org/replication/minute
 {% endif %}
+sudo -u _tirex osm2pgsql-replication status -d {{ dbname }} | sudo tee -a /var/log/osm2pgsql-import.log
 
 # make sure auxiliary data is loaded
 cd {{ style }}
