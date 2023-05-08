@@ -403,11 +403,11 @@
   set_fact:
     tile__server_html_list: "{{ tile__server_html_list|default(\"\") }}
       <li>
-          <a href=\"https:\/\/{{ item }}.openstreetmap.de/?server={{ item }}.openstreetmap.de\\&folder=\">
+          <a href=\"https://{{ item }}.openstreetmap.de/?server={{ item }}.openstreetmap.de\\&folder=\">
               {{ item }}, Folder: / (de)
           </a>
       </li><li>
-          <a href=\"https:\/\/{{ item }}.openstreetmap.de/?server={{ item }}.openstreetmap.de\\&folder=osmhrb\">
+          <a href=\"https://{{ item }}.openstreetmap.de/?server={{ item }}.openstreetmap.de\\&folder=osmhrb\">
               {{ item }}, Folder: osmhrb
           </a>
       </li>"
