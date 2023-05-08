@@ -456,7 +456,7 @@
             </a></li><li>
             <a href=\"https://tile.openstreetmap.de/?server=tile.openstreetmap.de\\&folder=osmhrb\">
               tile.openstreetmap.de, Folder: osmhrb
-            </a></li>{{tile__server_html_list}}%' index.html;
+            </a></li>{{ tile__server_html_list }}%' index.html;
           "
   become: yes
   become_user: "{{ tile__user }}"
