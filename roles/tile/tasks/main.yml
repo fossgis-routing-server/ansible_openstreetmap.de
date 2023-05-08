@@ -417,11 +417,11 @@
   set_fact:
     tile__server_html_list: "
       <li>
-      <a href=\"https:\/\/localhost:8443/?server=localhost:8443\\&folder=\">
+      <a href=\"https://localhost:8443/?server=localhost:8443\\&folder=\">
               {{ item }}, Folder: / (de)
           </a>
       </li><li>
-      <a href=\"https:\/\/localhost:8443/?server=localhost:8443\\&folder=osmhrb\">
+      <a href=\"https://localhost:8443/?server=localhost:8443\\&folder=osmhrb\">
               {{ item }}, Folder: osmhrb
           </a>
       </li>"
