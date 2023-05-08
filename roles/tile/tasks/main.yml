@@ -430,13 +430,11 @@
 
 - name: set vite_hostname 
   set_fact:
-    vite_hostname: "{{ inventory_hostname }}"
-    vite_domain: ".openstreetmap.de"
+    tile__hostname: "{{ inventory_hostname }}.openstreetmap.de"
 
 - name: set vite_hostname if tile__small is set (vagrant use case)
   set_fact:
-    vite_hostname: "localhost:8443"
-    vite_domain: ""
+    tile__hostname: "localhost:8443"
   when: tile__small
 
 - name: Replace vars on static website
@@ -448,15 +446,15 @@
 
           sed -i \"s/VITE_OSML10N_VERSION/$l10n_VERSION/g\" *.js;
           sed -i \"s/VITE_OPENSTREETMAP_CARTO_DE_VERSION/$CARTO_VERSION/g\" *.js;
-          sed -i 's%VITE_HOSTNAME%{{vite_hostname}}{{vite_domain}}%' *.js;
+          sed -i 's%VITE_HOSTNAME%{{ tile__hostname }}%' *.js;
 
           cd {{ tile__basedir }}/site;
 
           sed -i 's%VITE_NAVIGATION_LIST%<li>
-            <a href=\"https:\/\/tile.openstreetmap.de/?server=tile.openstreetmap.de\\&folder=\">
+            <a href=\"https://tile.openstreetmap.de/?server=tile.openstreetmap.de\\&folder=\">
               tile.openstreetmap.de, Folder: / (de)
             </a></li><li>
-            <a href=\"https:\/\/tile.openstreetmap.de/?server=tile.openstreetmap.de\\&folder=osmhrb\">
+            <a href=\"https://tile.openstreetmap.de/?server=tile.openstreetmap.de\\&folder=osmhrb\">
               tile.openstreetmap.de, Folder: osmhrb
             </a></li>{{tile__server_html_list}}%' index.html;
           "
