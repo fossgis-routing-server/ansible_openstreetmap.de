@@ -62,3 +62,6 @@ sudo -u _tirex scripts/get-external-data.py -d {{ dbname }}
 # enable minutely updates
 sudo systemctl enable updatedb
 sudo systemctl start updatedb
+
+# queue up prerendering of low zooms
+tirex-batch --prio=99 map=osmde z=1-12 lon=-180,180 lat=-90,90
