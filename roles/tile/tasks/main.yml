@@ -64,7 +64,7 @@
 
 - name: install required packages with apt
   apt:
-    name: [renderd, git, dpkg-dev, debhelper, libmapnik-dev]
+    name: [git, dpkg-dev, debhelper, libmapnik-dev]
 
 - name: import script
   template:
@@ -200,6 +200,12 @@
   apt:
     name: [renderd, libmapnik-dev, devscripts, dh-apache2,
            libjson-perl, libipc-sharelite-perl, libgd-perl]
+
+- name: disable renderd (enabled after installation)
+  ansible.builtin.systemd:
+    state: stopped
+    enabled: false
+    name: renderd
 
 - name: clone tirex git
   git:
@@ -479,3 +485,21 @@
     cert: "tilede"
     styles: "{{ tile__styles }}"
   notify: reload apache2
+
+# rerendering of low zooms
+- name: queue low zoom tiles for rerendering periodically (systemd timer)
+  systemd_service:
+    name: lowzoom_rerender
+    enabled: true
+    service:
+      Unit:
+        Description: Queue up rerendering of low zoom tiles with tirex-batch
+      Service:
+        Type: oneshot
+        ExecStart: tirex-batch --prio=99 map=osmde z=1-12 lon=-180,180 lat=-90,90
+        User: "{{ tile__user }}"
+        Group: "{{ tile__user }}"
+    timer:
+      OnCalendar: "Sat *-*-* 00:00:00"
+      RandomizedDelaySec: 43200
+      Persistent: "true"
