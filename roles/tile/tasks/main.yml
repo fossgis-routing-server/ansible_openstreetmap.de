@@ -409,11 +409,11 @@
   set_fact:
     tile__server_html_list: "{{ tile__server_html_list|default(\"\") }}
       <li>
-          <a href=\"https://{{ item }}.openstreetmap.de/?server={{ item }}.openstreetmap.de\\&folder=\">
+          <a href=\"https://{{ item }}.openstreetmap.de/?folder=\">
               {{ item }}, Folder: / (de)
           </a>
       </li><li>
-          <a href=\"https://{{ item }}.openstreetmap.de/?server={{ item }}.openstreetmap.de\\&folder=osmhrb\">
+          <a href=\"https://{{ item }}.openstreetmap.de/?folder=osmhrb\">
               {{ item }}, Folder: osmhrb
           </a>
       </li>"
@@ -423,11 +423,11 @@
   set_fact:
     tile__server_html_list: "
       <li>
-      <a href=\"https://localhost:8443/?server=localhost:8443\\&folder=\">
+      <a href=\"https://localhost:8443?folder=\">
               {{ item }}, Folder: / (de)
           </a>
       </li><li>
-      <a href=\"https://localhost:8443/?server=localhost:8443\\&folder=osmhrb\">
+      <a href=\"https://localhost:8443?folder=osmhrb\">
               {{ item }}, Folder: osmhrb
           </a>
       </li>"
@@ -457,10 +457,10 @@
           cd {{ tile__basedir }}/site;
 
           sed -i 's%VITE_NAVIGATION_LIST%<li>
-            <a href=\"https://tile.openstreetmap.de/?server=tile.openstreetmap.de\\&folder=\">
+            <a href=\"https://tile.openstreetmap.de/?folder=\">
               tile.openstreetmap.de, Folder: / (de)
             </a></li><li>
-            <a href=\"https://tile.openstreetmap.de/?server=tile.openstreetmap.de\\&folder=osmhrb\">
+            <a href=\"https://tile.openstreetmap.de/?folder=osmhrb\">
               tile.openstreetmap.de, Folder: osmhrb
             </a></li>{{ tile__server_html_list }}%' index.html;
           "
