@@ -178,17 +178,18 @@
         WorkingDirectory: "{{ overpass__basedir }}"
         ExecStart: "{{ overpass__basedir }}/bin/fetch_osc.sh auto {{ overpass__replication_url }} {{ overpass__basedir }}/diffs"
         StandardOutput: "append:{{ overpass__logdir }}/fetch_osc.log"
-        StandardError: "null"
+        StandardError: "append:{{ overpass__logdir }}/fetch_osc.log"
         User: "{{ overpass__user }}"
         Group: "{{ overpass__user }}"
         Type: "simple"
       Install:
         WantedBy: multi-user.target
 
-
+# Also intentionally configured for manual start. Shall not run at all on bessel, and elswhere not until the updates have catched up.
 - name: Systemd service for processing areas
   systemd_service:
     name: overpass-area-processor
+    enabled: false
     service:
       Unit:
         Description: Overpass Area Processor
@@ -198,7 +199,7 @@
         ExecStart: "{{ overpass__basedir }}/bin/osm3s_query --progress --rules"
         StandardInput: "file:{{ overpass__basedir }}/db/rules/areas.osm3s"
         StandardOutput: "append:{{ overpass__logdir }}/area_processor.log"
-        StandardError: "null"
+        StandardError: "append:{{ overpass__logdir }}/area_processor.log"
         User: "{{ overpass__user }}"
         Group: "{{ overpass__user }}"
         Type: "simple"
