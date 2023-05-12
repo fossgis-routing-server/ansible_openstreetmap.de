@@ -208,3 +208,11 @@
         RestartSec: 4h
       Install:
         WantedBy: multi-user.target
+
+- name: Daily cronjob to run the clone process. On bessel only.
+  ansible.builtin.cron:
+    name: "clone overpass database"
+    enabled: {{ overpass__is_clone_origin }}
+    minute "0"
+    hour: "3"
+    job: "/srv/overpass/bin/clone.sh https://bessel.openstreetmap.de/clone/" 

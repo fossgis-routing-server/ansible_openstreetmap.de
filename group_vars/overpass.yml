@@ -14,6 +14,8 @@ overpass__replication_url: "https://planet.openstreetmap.org/replication/minute/
 overpass__rate_limit: 6
 overpass__dispatcher_space: 24GB
 
+overpass__is_clone_origin: false
+
 overpass__acme_certificates:
   - name: overpass
     domains:
