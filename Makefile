@@ -20,6 +20,9 @@ lambert:
 gall:
 	ansible-playbook -l gall -i hosts.ini site.yml
 
+bessel:
+	ansible-playbook -l bessel -i hosts.ini site.yml
+
 dev-overpass:
 	ansible-playbook -l dev.overpass-api.de -i hosts.ini site.yml
 
