@@ -212,7 +212,7 @@
 - name: Daily cronjob to run the clone process. On bessel only.
   ansible.builtin.cron:
     name: "clone overpass database"
-    enabled: {{ overpass__is_clone_origin }}
+    enabled: "{{ overpass__is_clone_origin }}"
     user: overpass
     minute: "0"
     hour: "3"
