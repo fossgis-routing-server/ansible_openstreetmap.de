@@ -214,6 +214,6 @@
     name: "clone overpass database"
     enabled: {{ overpass__is_clone_origin }}
     user: overpass
-    minute "0"
+    minute: "0"
     hour: "3"
     job: "/srv/overpass/bin/clone.sh https://bessel.openstreetmap.de/clone/" 
