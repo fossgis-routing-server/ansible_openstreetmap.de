@@ -486,6 +486,11 @@
     styles: "{{ tile__styles }}"
   notify: reload apache2
 
+- name: apache mpm config
+  copy:
+    dest: "/etc/apache2/mods-available/mpm_event.conf"
+    src: mpm_event.conf
+
 # rerendering of low zooms
 - name: queue low zoom tiles for rerendering periodically (systemd timer)
   systemd_service:
