@@ -1,6 +1,9 @@
 tile__basedir: /srv/tile
 tile__user: tile
 
+tile__style_version: v5.6.2-de0
+tile__osml10n_version: 8a32693dfad956e37ade5b5cb60a73bee49eca6e
+
 # tile__small = true will make it load only a small extract
 # tile__small = false will load the whole planet
 # This value may be overwritten with an entry in the host_vars (host_vars/ptolemy.yml)

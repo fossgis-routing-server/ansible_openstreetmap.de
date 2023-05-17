@@ -100,6 +100,7 @@
   git:
     repo: https://github.com/giggls/openstreetmap-carto-de.git
     dest: "{{ tile__basedir }}/openstreetmap-carto-de"
+    version: "{{ tile__style_version }}"
   become: yes
   become_user: "{{ tile__user }}"
 
@@ -137,6 +138,7 @@
   git:
     repo: https://github.com/giggls/osml10n.git
     dest: "{{ tile__basedir }}/sources/osml10n"
+    version: "{{ tile__osml10n_version }}"
   register: tile_osml10n_sources
   become: yes
   become_user: "{{ tile__user }}"
@@ -445,13 +447,10 @@
 
 - name: Replace vars on static website
   shell:
-    cmd: "CARTO_VERSION=$(git -C /srv/tile/openstreetmap-carto-de/ describe --tags);
-          l10n_VERSION=$(git -C /srv/tile/sources/osml10n describe --tags);
+    cmd: "cd {{ tile__basedir }}/site/assets;
 
-          cd {{ tile__basedir }}/site/assets;
-
-          sed -i \"s/VITE_OSML10N_VERSION/$l10n_VERSION/g\" *.js;
-          sed -i \"s/VITE_OPENSTREETMAP_CARTO_DE_VERSION/$CARTO_VERSION/g\" *.js;
+          sed -i \"s/VITE_OSML10N_VERSION/{{ tile__osml10n_version }}/g\" *.js;
+          sed -i \"s/VITE_OPENSTREETMAP_CARTO_DE_VERSION/{{ tile__style_version }}/g\" *.js;
           sed -i 's%VITE_HOSTNAME%{{ tile__hostname }}%' *.js;
 
           cd {{ tile__basedir }}/site;
