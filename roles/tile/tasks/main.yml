@@ -387,7 +387,7 @@
 
 - name: Clone static website repo
   git:
-    repo: https://github.com/astridx/tileserver-web.git
+    repo: https://gitlab.fossgis.de/osm-server/tileserver-web.git
     dest: "{{ tile__basedir }}/tileserver-web"
     force: yes
   become: yes
