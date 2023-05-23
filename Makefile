@@ -8,6 +8,9 @@ miller:
 ptolemy:
 	ansible-playbook -l ptolemy -i hosts.ini site.yml
 
+bonne:
+	ansible-playbook -l bonne -i hosts.ini site.yml
+
 robinson:
 	ansible-playbook -l robinson -i hosts.ini site.yml
 
