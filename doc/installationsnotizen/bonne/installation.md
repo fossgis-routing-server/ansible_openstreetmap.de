@@ -294,6 +294,7 @@ IMAGE /root/.oldroot/nfs/install/../images/Debian-1106-bullseye-amd64-base.tar.g
 #### Ergebnis
 
 ```
+
                 Hetzner Online GmbH - installimage
 
   Your server will be installed now, this will take some minutes
@@ -305,7 +306,7 @@ IMAGE /root/.oldroot/nfs/install/../images/Debian-1106-bullseye-amd64-base.tar.g
    1/16  :  Deleting partitions                             done 
    2/16  :  Test partition size                             done 
    3/16  :  Creating partitions and /etc/fstab              done 
-   4/16  :  Creating software RAID level 5                  done 
+   4/16  :  Creating software RAID level 1                  done 
    5/16  :  Formatting partitions
          :    formatting /dev/md/0 with swap                done 
          :    formatting /dev/md/1 with ext3                done 
@@ -337,10 +338,7 @@ IMAGE /root/.oldroot/nfs/install/../images/Debian-1106-bullseye-amd64-base.tar.g
  same credentials that you used to log into the rescue system.
 ```
 
-
 #### Erstes Login
-
-
 
 ```
 astrid@astrid-virtual-machine:~$ ssh root@168.119.11.226
@@ -376,42 +374,7 @@ astrid@astrid-virtual-machine:~$ ssh root@168.119.11.226
 root@168.119.11.226's password:
 ```
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ### ZFS
-
 
 ##### Aktuell (vor zfs)
 
@@ -429,7 +392,7 @@ tmpfs on /run/lock type tmpfs (rw,nosuid,nodev,noexec,relatime,size=5120k)
 cgroup2 on /sys/fs/cgroup type cgroup2 (rw,nosuid,nodev,noexec,relatime,nsdelegate,memory_recursiveprot)
 pstore on /sys/fs/pstore type pstore (rw,nosuid,nodev,noexec,relatime)
 none on /sys/fs/bpf type bpf (rw,nosuid,nodev,noexec,relatime,mode=700)
-systemd-1 on /proc/sys/fs/binfmt_misc type autofs (rw,relatime,fd=30,pgrp=1,timeout=0,minproto=5,maxproto=5,direct,pipe_ino=440)
+systemd-1 on /proc/sys/fs/binfmt_misc type autofs (rw,relatime,fd=30,pgrp=1,timeout=0,minproto=5,maxproto=5,direct,pipe_ino=15785)
 hugetlbfs on /dev/hugepages type hugetlbfs (rw,relatime,pagesize=2M)
 mqueue on /dev/mqueue type mqueue (rw,nosuid,nodev,noexec,relatime)
 debugfs on /sys/kernel/debug type debugfs (rw,nosuid,nodev,noexec,relatime)
@@ -438,15 +401,17 @@ fusectl on /sys/fs/fuse/connections type fusectl (rw,nosuid,nodev,noexec,relatim
 configfs on /sys/kernel/config type configfs (rw,nosuid,nodev,noexec,relatime)
 /dev/md1 on /boot type ext3 (rw,relatime)
 tmpfs on /run/user/0 type tmpfs (rw,nosuid,nodev,relatime,size=13182872k,nr_inodes=3295718,mode=700)
-tmpfs on /run/user/1000 type tmpfs (rw,nosuid,nodev,relatime,size=13182872k,nr_inodes=3295718,mode=700,uid=1000,gid=1000)
-
 ```
-
-
 
 ```
 root@bonne ~ # sudo fdisk -l /dev/md1
 Disk /dev/md1: 1022 MiB, 1071644672 bytes, 2093056 sectors
+Units: sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+root@bonne ~ # ^C
+root@bonne ~ # sudo fdisk -l /dev/md0
+Disk /dev/md0: 4 GiB, 4289724416 bytes, 8378368 sectors
 Units: sectors of 1 * 512 = 512 bytes
 Sector size (logical/physical): 512 bytes / 512 bytes
 I/O size (minimum/optimal): 512 bytes / 512 bytes
@@ -463,161 +428,113 @@ fdisk: cannot open /dev/md3: No such file or directory
 root@bonne ~ # df -h
 Filesystem      Size  Used Avail Use% Mounted on
 udev             63G     0   63G   0% /dev
-tmpfs            13G  752K   13G   1% /run
-/dev/md2         49G  1.8G   45G   4% /
+tmpfs            13G  720K   13G   1% /run
+/dev/md2         49G  1.1G   46G   3% /
 tmpfs            63G     0   63G   0% /dev/shm
 tmpfs           5.0M     0  5.0M   0% /run/lock
-/dev/md1        989M  106M  832M  12% /boot
+/dev/md1        989M   60M  879M   7% /boot
 tmpfs            13G     0   13G   0% /run/user/0
-tmpfs            13G     0   13G   0% /run/user/1000
 ```
-
 
 ```
 root@bonne ~ # cat /proc/mdstat 
 Personalities : [raid1] [linear] [multipath] [raid0] [raid6] [raid5] [raid4] [raid10] 
-md0 : active (auto-read-only) raid1 nvme2n1p1[1] nvme0n1p1[0] nvme1n1p1[2]
-      4189184 blocks super 1.2 [3/3] [UUU]
-      
-md2 : active raid1 nvme2n1p3[1] nvme1n1p3[2] nvme0n1p3[0]
+md2 : active raid1 nvme1n1p3[0] nvme2n1p3[2] nvme0n1p3[1]
       52395008 blocks super 1.2 [3/3] [UUU]
       
-md1 : active raid1 nvme2n1p2[1] nvme1n1p2[2] nvme0n1p2[0]
+md1 : active raid1 nvme1n1p2[0] nvme2n1p2[2] nvme0n1p2[1]
       1046528 blocks super 1.2 [3/3] [UUU]
+      
+md0 : active (auto-read-only) raid1 nvme1n1p1[0] nvme2n1p1[2] nvme0n1p1[1]
+      4189184 blocks super 1.2 [3/3] [UUU]
       
 unused devices: <none>
 ```
 
-
-
+```
+root@bonne ~ # lsblk
+NAME        MAJ:MIN RM   SIZE RO TYPE  MOUNTPOINT
+nvme0n1     259:0    0 953.9G  0 disk  
+├─nvme0n1p1 259:1    0     4G  0 part  
+│ └─md0       9:0    0     4G  0 raid1 [SWAP]
+├─nvme0n1p2 259:2    0     1G  0 part  
+│ └─md1       9:1    0  1022M  0 raid1 /boot
+└─nvme0n1p3 259:3    0    50G  0 part  
+  └─md2       9:2    0    50G  0 raid1 /
+nvme1n1     259:4    0 953.9G  0 disk  
+├─nvme1n1p1 259:5    0     4G  0 part  
+│ └─md0       9:0    0     4G  0 raid1 [SWAP]
+├─nvme1n1p2 259:6    0     1G  0 part  
+│ └─md1       9:1    0  1022M  0 raid1 /boot
+└─nvme1n1p3 259:7    0    50G  0 part  
+  └─md2       9:2    0    50G  0 raid1 /
+nvme2n1     259:8    0   3.5T  0 disk  
+├─nvme2n1p1 259:9    0     4G  0 part  
+│ └─md0       9:0    0     4G  0 raid1 [SWAP]
+├─nvme2n1p2 259:10   0     1G  0 part  
+│ └─md1       9:1    0  1022M  0 raid1 /boot
+└─nvme2n1p3 259:11   0    50G  0 part  
+  └─md2       9:2    0    50G  0 raid1 /
 
 ```
-root@bonne ~ # sudo fdisk -l
-Disk /dev/nvme0n1: 953.87 GiB, 1024209543168 bytes, 2000409264 sectors
-Disk model: KXG60ZNV1T02 TOSHIBA                    
-Units: sectors of 1 * 512 = 512 bytes
-Sector size (logical/physical): 512 bytes / 512 bytes
-I/O size (minimum/optimal): 512 bytes / 512 bytes
-Disklabel type: dos
-Disk identifier: 0xdec80c13
-
-Device         Boot    Start       End   Sectors Size Id Type
-/dev/nvme0n1p1          2048   8390655   8388608   4G fd Linux raid autodetect
-/dev/nvme0n1p2       8390656  10487807   2097152   1G fd Linux raid autodetect
-/dev/nvme0n1p3      10487808 115345407 104857600  50G fd Linux raid autodetect  
-
-
-Disk /dev/nvme1n1: 953.87 GiB, 1024209543168 bytes, 2000409264 sectors
-Disk model: KXG60ZNV1T02 TOSHIBA                    
-Units: sectors of 1 * 512 = 512 bytes
-Sector size (logical/physical): 512 bytes / 512 bytes
-I/O size (minimum/optimal): 512 bytes / 512 bytes
-Disklabel type: dos
-Disk identifier: 0xb7245810
-
-Device         Boot    Start       End   Sectors Size Id Type
-/dev/nvme1n1p1          2048   8390655   8388608   4G fd Linux raid autodetect
-/dev/nvme1n1p2       8390656  10487807   2097152   1G fd Linux raid autodetect
-/dev/nvme1n1p3      10487808 115345407 104857600  50G fd Linux raid autodetect
-
-
-Disk /dev/nvme2n1: 3.49 TiB, 3840755982336 bytes, 7501476528 sectors
-Disk model: KXD51RUE3T84 TOSHIBA                    
-Units: sectors of 1 * 512 = 512 bytes
-Sector size (logical/physical): 512 bytes / 512 bytes
-I/O size (minimum/optimal): 512 bytes / 512 bytes
-Disklabel type: dos
-Disk identifier: 0x7b07370b
-
-Device         Boot    Start       End   Sectors Size Id Type
-/dev/nvme2n1p1          2048   8390655   8388608   4G fd Linux raid autodetect
-/dev/nvme2n1p2       8390656  10487807   2097152   1G fd Linux raid autodetect
-/dev/nvme2n1p3      10487808 115345407 104857600  50G fd Linux raid autodetect
-
-
-Disk /dev/md1: 1022 MiB, 1071644672 bytes, 2093056 sectors
-Units: sectors of 1 * 512 = 512 bytes
-Sector size (logical/physical): 512 bytes / 512 bytes
-I/O size (minimum/optimal): 512 bytes / 512 bytes
-
-
-Disk /dev/md2: 49.97 GiB, 53652488192 bytes, 104790016 sectors
-Units: sectors of 1 * 512 = 512 bytes
-Sector size (logical/physical): 512 bytes / 512 bytes
-I/O size (minimum/optimal): 512 bytes / 512 bytes
-
-
-Disk /dev/md0: 4 GiB, 4289724416 bytes, 8378368 sectors
-Units: sectors of 1 * 512 = 512 bytes
-Sector size (logical/physical): 512 bytes / 512 bytes
-I/O size (minimum/optimal): 512 bytes / 512 bytes
-
-
-```
-
-
-
-
-> sudo screen
-
-
-
-
-##### Notizen
-
-zfs for 1T SSD, better performance for postgres. Otherwise, disk consumtion keeps rising
-
-50G für root als raid1
-
-sudo apt install zfs-dkms zfsutils-linux
-sudo zpool create -f ssd -o ashift=12 /dev/nvme..
-sudo zfs set compression=lz4 ssd
-sudo zfs set xattr=sa ssd
-sudo zfs set atime=off ssd
-sudo zfs create ssd/postgresql
-sudo zfs set recordsize=64K ssd/postgresql
-sudo zfs create ssd/flatnode
-sudo zfs set recordsize=64K ssd/flatnode
 
 ##### Partitionieren
 
+```
+cfdisk /dev/nvme0n1
+cfdisk /dev/nvme1n1
+cfdisk /dev/nvme2n1
+```
 
+dos kann per gdisk in gpt geändert werden.
+
+```
+gdisk /dev/nvme2n1
+```
+
+https://wiki.ubuntuusers.de/gdisk/
 
 
 ##### Befehle
 
+> Via `sudo screen` kann man zusammen eine Konsole ansehen.
 
 
 ```
 sudo apt install linux-headers-amd64
-```
-
-
+sudo apt install linux-image-amd64
 sudo apt install zfs-dkms zfsutils-linux
 ```
 
 > `zfs-dkms` enthält die SPA (Storage Pool Allocator), DMU (Data Management Unit), ZVOL (ZFS-Volumes) und ZPL ((ZFS POSIX Layer) Komponenten von OpenZFS (https://packages.debian.org/sid/zfs-dkms/; https://wiki.lustre.org/images/4/49/Beijing-2010.2-ZFS_overview_3.1_Dilger.pdf)
 > `zfsutils-linux` enthält die Befehle `zfs` und `zpool`, um OpenZFS-Dateisysteme zu erstellen und zu verwalten (https://packages.debian.org/de/sid/zfsutils-linux). 
 
-
-
-
-
-
-
-
-
-
-
+```
+sudo /sbin/modprobe zfs  
+```
 
 ```
-sudo zpool create -f ssd ashift=12 /dev/nvme0n1 /dev/nvme1n1 /dev/nvme2n1
+zpool create -f ssd -o ashift=12 /dev/nvme0n1p4 /dev/nvme1n1p4 /dev/nvme2n1p4
 ```
 
 > Mittels `sudo zpool create -f [new pool name] /Laufwerk /Laufwerk` wird ein Speicherpool erstellt, in dem die Daten auf alle angegebenen Laufwerke verteilt werden (RAID0). Der Verlust eines der Laufwerke hat den Verlust aller Daten zur Folge. (https://blog.programster.org/zfs-create-disk-pools) 
 
 > Ashift teilt ZFS die zugrunde liegende physikalische Blockgröße mit, die die Festplatten verwenden. Sie wird in Bits angegeben, also bedeutet ashift=9 512B-Sektoren (verwendet von allen alten Festplatten), ashift=12 bedeutet 4K-Sektoren (verwendet von den meisten modernen Festplatten) und ashift=13 bedeutet 8K-Sektoren (verwendet von einigen modernen SSDs).
 Wenn man sich hier irrt, sollte man sich möglichst hoch irren. Ein zu niedriger ashift-Wert wird die Leistungsfähigkeit einschränken. Ein zu hoher ashift-Wert hat bei fast jeder normalen Arbeitslast keine große Auswirkung (https://jrs-s.net/2018/08/17/zfs-tuning-cheat-sheet/).
+
+
+Überprüfen mit:
+```
+root@bonne ~ # sudo zpool list -v
+NAME          SIZE  ALLOC   FREE  CKPOINT  EXPANDSZ   FRAG    CAP  DEDUP    HEALTH  ALTROOT
+ssd          5.19T   408K  5.19T        -         -     0%     0%  1.00x    ONLINE  -
+  nvme0n1p4   896G   152K   896G        -         -     0%  0.00%      -  ONLINE  
+  nvme1n1p4   896G   104K   896G        -         -     0%  0.00%      -  ONLINE  
+  nvme2n1p4  3.44T   152K  3.44T        -         -     0%  0.00%      -  ONLINE  
+root@bonne ~ # sudo zfs list 
+NAME   USED  AVAIL     REFER  MOUNTPOINT
+ssd    408K  5.03T       96K  /ssd
+```
 
 ```
 sudo zfs set compression=lz4 ssd
@@ -638,8 +555,6 @@ sudo zfs set atime=off ssd
 
 > Wenn atime aktiviert ist - was standardmäßig der Fall ist - muss das System das Attribut "Accessed" jeder Datei jedes Mal aktualisieren, wenn darauf zugegriffen wird. Allein dadurch kann sich die IOPS-Last eines Systems leicht verdoppeln. Interessiert es jemanden, wann eine bestimmte Datei das letzte Mal geöffnet oder ein Verzeichnis das letzte Mal durchgelesen wurde? Wahrscheinlich nicht (https://jrs-s.net/2018/08/17/zfs-tuning-cheat-sheet/).
 
-
-
 ```
 sudo zfs create ssd/postgresql
 sudo zfs set recordsize=64K ssd/postgresql
@@ -650,43 +565,41 @@ sudo zfs create ssd/flatnode
 sudo zfs set recordsize=64K ssd/flatnode
 ```
 
-
-##### Weitere Optionen?
-
-1. In ZFS definiert `recordsize` die Größe jedes Schreibvorgangs. Der Standardwert für `recordsize` ist 128Kb. 
-
 ```
-astrid@ptolemy:/var/cache/tirex/tiles/osmde/20/133/86/40/51$ ls -lh
-total 213K
--rw-r--r-- 1 _tirex _tirex  90K May 22 16:40 136.meta
--rw-r--r-- 1 _tirex _tirex 109K May 22 16:40 8.meta
-
-astrid@ptolemy:/var/cache/tirex/tiles/osmde/19/100/98/2/110$ ls -lh
-total 277K
--rw-r--r-- 1 _tirex _tirex 136K May 22 17:21 136.meta
--rw-r--r-- 1 _tirex _tirex 129K May 22 17:21 8.meta
-
-astrid@ptolemy:/var/cache/tirex/tiles/osmde/14/0/16/203/8$ ls -lh
-total 25K
--rw-r--r-- 1 _tirex _tirex 9.1K May 22 13:57 136.meta
--rw-r--r-- 1 _tirex _tirex  26K May 22 13:57 8.meta
-
-astrid@ptolemy:/var/cache/tirex/tiles/osmde/9/0/0/17/20$ ls -lh
-total 18K
--rw-r--r-- 1 _tirex _tirex 7.0K May 10 23:31 0.meta
--rw-r--r-- 1 _tirex _tirex 7.0K May 10 23:31 128.meta
--rw-r--r-- 1 _tirex _tirex 7.0K May 10 23:31 136.meta
--rw-r--r-- 1 _tirex _tirex 7.0K May 10 23:31 8.meta
-
-astrid@ptolemy:/var/cache/tirex/tiles/osmde/2/0/0/0/0$ ls -lh
-total 77K
--rw-r--r-- 1 _tirex _tirex 71K May 21 21:32 0.meta
-
-astrid@ptolemy:/var/cache/tirex/tiles/osmde/0/0/0/0/0$ ls -lh
-total 8.5K
--rw-r--r-- 1 _tirex _tirex 7.3K May 21 22:39 0.meta
+sudo zfs create ssd/tiles
+sudo zfs set recordsize=64K ssd/tiles
 ```
 
-2. Caching mit L2ARC (lesen - Level 2 ARC) oder Separate Log (schreiben - kurz SLOG) https://www.starline.de/magazin/technische-artikel/ram-und-ssd-cache-optionen-fuer-openzfs 
+Überprüfen:
 
+```
+root@bonne ~ # sudo zpool list -v
+NAME          SIZE  ALLOC   FREE  CKPOINT  EXPANDSZ   FRAG    CAP  DEDUP    HEALTH  ALTROOT
+ssd          5.19T  1.13M  5.19T        -         -     0%     0%  1.00x    ONLINE  -
+  nvme0n1p4   896G   448K   896G        -         -     0%  0.00%      -  ONLINE  
+  nvme1n1p4   896G   260K   896G        -         -     0%  0.00%      -  ONLINE  
+  nvme2n1p4  3.44T   448K  3.44T        -         -     0%  0.00%      -  ONLINE  
+root@bonne ~ # sudo zfs list 
+NAME             USED  AVAIL     REFER  MOUNTPOINT
+ssd             1.02M  5.03T      112K  /ssd
+ssd/flatnode      96K  5.03T       96K  /ssd/flatnode
+ssd/postgresql    96K  5.03T       96K  /ssd/postgresql
+ssd/tiles         96K  5.03T       96K  /ssd/tiles
+```
 
+```
+zfs set mountpoint=/var/cache/tirex/ ssd/tiles
+zfs set mountpoint=/var/lib/postgresql ssd/postgresql
+```
+
+Überprüfen
+
+```
+root@bonne ~ # sudo zfs list                                                                                  |
+NAME             USED  AVAIL     REFER  MOUNTPOINT
+ssd             1.06M  5.03T      104K  /ssd
+ssd/flatnode      96K  5.03T       96K  /ssd/flatnode
+ssd/postgresql    96K  5.03T       96K  /var/lib/postgresql
+ssd/tiles         96K  5.03T       96K  /var/cache/tirex/
+
+```

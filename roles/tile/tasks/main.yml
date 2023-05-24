@@ -172,6 +172,7 @@
   apt:
     deb: "{{ item }}"
   with_items: "{{ tile_osml10n_deb.files | map(attribute='path') }}"
+  become: yes
 
 - name: Add osmde map style
   set_fact:
