@@ -497,7 +497,7 @@ https://wiki.ubuntuusers.de/gdisk/
 
 ##### Befehle
 
-> Via `sudo screen` kann man zusammen eine Konsole ansehen.
+> Via `sudo screen` kann man zusammen eine Konsole ansehen. Man kann den screen verlassen mit `ctrl-a ctrl-d` und wieder hervorholen mit `screen -r`. `screen -r xxxx` und `ctrl-a ` dann `k` zum `killen`.
 
 
 ```
