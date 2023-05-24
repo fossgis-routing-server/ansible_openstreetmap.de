@@ -1,4 +1,4 @@
 tile__small: false
 
-tile__flatnode: '/database/flatnode/flatnode'
-tile__planet:   '/database/tile/planet.osm.pbf'
+tile__flatnode: '/ssd/flatnode'
+tile__planet:   '/ssd/planet/planet.osm.pbf'

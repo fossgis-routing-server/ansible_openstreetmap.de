@@ -590,16 +590,19 @@ ssd/tiles         96K  5.03T       96K  /ssd/tiles
 ```
 zfs set mountpoint=/var/cache/tirex/ ssd/tiles
 zfs set mountpoint=/var/lib/postgresql ssd/postgresql
+zfs set mountpoint=/ssd/planet ssd/planet
+
+sudo chown tile /ssd/planet/
 ```
 
 Überprüfen
 
 ```
-root@bonne ~ # sudo zfs list                                                                                  |
+astrid@bonne:~$ sudo zfs list
 NAME             USED  AVAIL     REFER  MOUNTPOINT
-ssd             1.06M  5.03T      104K  /ssd
-ssd/flatnode      96K  5.03T       96K  /ssd/flatnode
-ssd/postgresql    96K  5.03T       96K  /var/lib/postgresql
-ssd/tiles         96K  5.03T       96K  /var/cache/tirex/
-
+ssd             69.0G  4.96T      104K  /ssd
+ssd/flatnode      96K  4.96T       96K  /ssd/flatnode
+ssd/planet      69.0G  4.96T     69.0G  /ssd/planet
+ssd/postgresql  15.6M  4.96T     15.6M  /var/lib/postgresql
+ssd/tiles        104K  4.96T      104K  /var/cache/tirex/
 ```
