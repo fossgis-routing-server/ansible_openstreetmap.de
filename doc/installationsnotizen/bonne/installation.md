@@ -374,6 +374,10 @@ astrid@astrid-virtual-machine:~$ ssh root@168.119.11.226
 root@168.119.11.226's password:
 ```
 
+#### Bootstrap
+
+Alle Konten erstellen via `ansible-playbook -l bonne bootstrap.yml`
+
 ### ZFS
 
 ##### Aktuell (vor zfs)
@@ -606,3 +610,14 @@ ssd/planet      69.0G  4.96T     69.0G  /ssd/planet
 ssd/postgresql  15.6M  4.96T     15.6M  /var/lib/postgresql
 ssd/tiles        104K  4.96T      104K  /var/cache/tirex/
 ```
+
+## Tile
+
+### Playbook für Tile
+
+`ansible-playbook -l bonne -i hosts.ini site.yml`
+
+`sudo /usr/local/sbin/import-osm2pgsql`
+
+Überprüfung: `https://bonne.openstreetmap.de/0/0/0.png` sollte eine Tile laden.
+
