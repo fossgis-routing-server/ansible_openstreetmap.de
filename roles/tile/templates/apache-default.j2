@@ -1,5 +1,5 @@
 
-{% call server(["tile.openstreetmap.de", "a.tile.openstreetmap.de", "b.tile.openstreetmap.de", "c.tile.openstreetmap.de", "{{ inventory_hostname }}.openstreetmap.de"], http='yes', https='tilede') %}
+{% call server(["tile.openstreetmap.de", "a.tile.openstreetmap.de", "b.tile.openstreetmap.de", "c.tile.openstreetmap.de", tile__hostname], http='yes', https='tilede') %}
   ModTileRenderdSocketName /run/tirex/modtile.sock 
   ModTileTileDir           /var/cache/tirex/tiles
 {% for style in styles | sort(attribute='order') %}
