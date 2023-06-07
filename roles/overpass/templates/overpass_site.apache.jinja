@@ -26,6 +26,7 @@
         </Directory>
 
         ErrorLog /var/log/apache2/overpass-error.log
-        TimeOut 3600
+        CGIDScriptTimeout 86400
+        TimeOut 15
 {% endcall %}
 
