@@ -72,6 +72,11 @@
     src: overpass_site.apache.jinja
   notify: reload apache2
 
+- ansible.posix.sysctl:
+    name: net.netfilter.nf_conntrack_tcp_timeout_established
+    value: '600'
+    sysctl_set: true
+
 - name: Add extra tools for ansible
   apt:
     name:
