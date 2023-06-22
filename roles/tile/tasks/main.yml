@@ -52,15 +52,10 @@
     - postgis
     - hstore
 
-# osm2pgsql from backports
-- name: Add bullseye backports
-  apt_repository:
-    repo: deb http://deb.debian.org/debian bullseye-backports main
-
-- name: install osm2pgsql from backports
+# osm2pgsql
+- name: install osm2pgsql with apt
   apt:
     name: [osm2pgsql, pyosmium]
-    default_release: bullseye-backports
 
 - name: install required packages with apt
   apt:
@@ -132,7 +127,7 @@
 - name: Python dependencies for localization functions for OpenStreetMap
   pip:
     name: [scikit-learn, pykakasi, tltk, pinyin_jyutping_sentence, numpy]
-    extra_args: -U
+    extra_args: -U --break-system-packages
 
 - name: Localization functions for OpenStreetMap
   git:
@@ -210,39 +205,9 @@
     enabled: false
     name: renderd
 
-- name: clone tirex git
-  git:
-    repo: https://github.com/openstreetmap/tirex.git
-    dest: "{{ tile__basedir }}/sources/tirex"
-  register: tile_tirex_sources
-  become: yes
-  become_user: "{{ tile__user }}"
-
-- name: clear outdated .deb packages of tirex
-  shell:
-    cmd: "rm -f {{ tile__basedir }}/sources/tirex*.deb"
-  become: yes
-  become_user: "{{ tile__user }}"
-  when: tile_tirex_sources.changed
-
-- name: Build tirex debian packages
-  shell:
-    cmd: "debuild -b -rfakeroot -us -uc"
-    chdir: "{{ tile__basedir }}/sources/tirex"
-  become: yes
-  become_user: "{{ tile__user }}"
-
-- name: Find buildt tirex .deb package
-  find:
-    paths: "{{ tile__basedir }}/sources/"
-    patterns: "tirex_*.deb"
-  register: tile_tirex_deb
-
-- name: Install tirex debian package
+- name: Install tirex with apt
   apt:
-    deb: "{{ item }}"
-  with_items: "{{ tile_tirex_deb.files | map(attribute='path') }}"
-  become: yes
+    name: tirex
 
 - name: Find buildt tirex mapnik .deb package
   find:

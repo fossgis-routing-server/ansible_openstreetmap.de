@@ -2,3 +2,5 @@ tile__small: false
 
 tile__flatnode: '/ssd/flatnode/flatnode'
 tile__planet:   '/ssd/planet/planet.osm.pbf'
+
+postgresql__version: 15
