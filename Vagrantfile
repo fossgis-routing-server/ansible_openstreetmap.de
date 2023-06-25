@@ -20,4 +20,12 @@ Vagrant.configure("2") do |config|
         s.playbook = "bootstrap.yml"
       end
   end
+
+  # Note: Makefile does not work yet.
+  config.vm.define "bookworm" do |sub|
+    sub.vm.box = "debian/bookworm64"
+    sub.vm.provision :ansible do |s|
+      s.playbook = "bootstrap.yml"
+    end
+  end
 end
