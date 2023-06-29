@@ -155,15 +155,40 @@
     - "{{ tile__basedir }}/sources/osml10n"
     - "{{ tile__basedir }}/sources/osml10n/lua_unac"
 
-- name: Find buildt .deb packages
+- name: Find buildt .deb packages lua-unaccent
   find:
     paths:
       - "{{ tile__basedir }}/sources/osml10n/"
+    patterns: ["lua-unaccent_*.deb"]
+  register: lua_unaccent_deb
+
+- name: Install lua-unaccent debian package
+  apt:
+    deb: "{{ item }}"
+  with_items: "{{ lua_unaccent_deb.files | map(attribute='path') }}"
+  become: yes
+
+- name: Find buildt .deb packages lua-unaccent-dbgsym
+  find:
+    paths:
+      - "{{ tile__basedir }}/sources/osml10n/"
+    patterns: ["lua-unaccent-dbgsym_*.deb"]
+  register: lua_unaccent_dbgsym_deb
+
+- name: Install lua-unaccent-dbgsym debian package
+  apt:
+    deb: "{{ item }}"
+  with_items: "{{ lua_unaccent_dbgsym_deb.files | map(attribute='path') }}"
+  become: yes
+
+- name: Find buildt .deb packages tile_osml10n
+  find:
+    paths:
       - "{{ tile__basedir }}/sources/"
-    patterns: ["osml10n*.deb", "lua*.deb"]
+    patterns: ["osml10n*.deb"]
   register: tile_osml10n_deb
 
-- name: Install osml10n debian package and dependency lua-unaccent
+- name: Install osml10n debian package
   apt:
     deb: "{{ item }}"
   with_items: "{{ tile_osml10n_deb.files | map(attribute='path') }}"
@@ -208,18 +233,6 @@
 - name: Install tirex with apt
   apt:
     name: tirex
-
-- name: Find buildt tirex mapnik .deb package
-  find:
-    paths: "{{ tile__basedir }}/sources/"
-    patterns: "tirex-backend-mapnik*.deb"
-  register: tile_tirex_mapnik_deb
-
-- name: Install tirex mapnik debian package
-  apt:
-    deb: "{{ item }}"
-  with_items: "{{ tile_tirex_mapnik_deb.files | map(attribute='path') }}"
-  become: yes
 
 - name: Create directories in /etc/tirex
   file:
