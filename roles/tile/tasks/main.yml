@@ -270,6 +270,7 @@
     path: "/var/cache/tirex/tiles/{{ item.name }}"
     state: directory
     owner: _tirex
+    group: _tirex
     mode: 0755
   loop: "{{ tile__styles }}"
 
