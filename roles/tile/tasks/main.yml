@@ -221,7 +221,7 @@
 # tirex tile server
 - name: install tirex dependencies with apt
   apt:
-    name: [renderd, libmapnik-dev, devscripts, dh-apache2,
+    name: [renderd, devscripts, dh-apache2,
            libjson-perl, libipc-sharelite-perl, libgd-perl]
 
 - name: disable renderd (enabled after installation)
