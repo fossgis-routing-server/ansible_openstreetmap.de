@@ -59,7 +59,7 @@
 
 - name: install required packages with apt
   apt:
-    name: [git, dpkg-dev, debhelper, libmapnik-dev]
+    name: [git, dpkg-dev, debhelper, libmapnik-dev, mapnik-utils, python3-mapnik]
 
 - name: import script
   template:
