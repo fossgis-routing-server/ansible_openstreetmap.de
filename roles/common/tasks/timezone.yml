@@ -4,3 +4,10 @@
   community.general.timezone:
     name: UTC
   notify: restart cron
+
+- name: Set to generate locales
+  ansible.builtin.debconf:
+    name: locales
+    question: locales/locales_to_be_generated
+    value: en_US.UTF-8 UTF-8, en_GB.UTF-8 UTF-8, de_DE.UTF-8 UTF-8, de_CH.UTF-8 UTF-8
+    vtype: multiselect
