@@ -11,7 +11,7 @@ sudo systemctl disable updatedb
 sudo systemctl stop updatedb
 
 {% if tile__small %}
-OSM_SOURCE=http://download.geofabrik.de/europe/germany/sachsen-latest.osm.pbf
+OSM_SOURCE=http://download.geofabrik.de/europe/monaco-latest.osm.pbf
 {% else %}
 OSM_SOURCE=https://ftp5.gwdg.de/pub/misc/openstreetmap/planet.openstreetmap.org/pbf/planet-latest.osm.pbf
 {% endif %}
@@ -62,6 +62,9 @@ sudo -u _tirex scripts/get-external-data.py -d {{ dbname }}
 # enable minutely updates
 sudo systemctl enable updatedb
 sudo systemctl start updatedb
+
+sudo systemctl restart tirex-backend-manager
+sudo systemctl restart tirex-master
 
 # queue up prerendering of low zooms
 tirex-batch --prio=99 map=osmde z=1-12 lon=-180,180 lat=-90,90
