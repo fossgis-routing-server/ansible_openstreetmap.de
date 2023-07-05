@@ -59,7 +59,7 @@
 
 - name: install required packages with apt
   apt:
-    name: [git, dpkg-dev, debhelper, libmapnik-dev]
+    name: [git, dpkg-dev, debhelper, libmapnik-dev, python3-sklearn]
 
 - name: import script
   template:
@@ -126,12 +126,8 @@
 
 - name: Python dependencies for localization functions for OpenStreetMap
   pip:
-    name: [scikit-learn, pykakasi, tltk, pinyin_jyutping_sentence, numpy]
+    name: [pykakasi, tltk, pinyin_jyutping_sentence]
     extra_args: -U --break-system-packages
-
-- name: install required packages with apt
-  apt:
-    name: [mapnik-utils, python3-mapnik]
 
 - name: Localization functions for OpenStreetMap
   git:
