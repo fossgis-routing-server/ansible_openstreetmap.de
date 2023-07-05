@@ -8,11 +8,17 @@ from collections.abc import Mapping
 from ansible.plugins.action import ActionBase
 from ansible.errors import AnsibleActionFail
 
+import jinja2
+
 class ActionModule(ActionBase):
     def run(self, tmp=None, task_vars=None):
         result = super(ActionModule, self).run(tmp, task_vars)
 
-        pgver = task_vars.get('postgresql__version')
+        jinjaenv = jinja2.Environment()
+        pgvertemplate = jinjaenv.from_string(task_vars.get('postgresql__version'))
+        pgver = pgvertemplate.render(
+                ansible_distribution_major_version =
+                        task_vars.get('ansible_distribution_major_version'))
 
         name = self._task.args.get('name')
         config = self._task.args.get('config')

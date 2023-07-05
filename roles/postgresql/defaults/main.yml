@@ -1,4 +1,11 @@
-postgresql__version: 13
+postgresql__version: |-
+  {{
+      {
+        '11': 13,
+        '12': 15
+      }[ansible_distribution_major_version]
+  }}
+
 postgresql__postgis_version: 3
 
 postgresql__conf_shared_buffers: "1GB"
