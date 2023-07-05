@@ -10,12 +10,19 @@ Vagrant.configure("2") do |config|
   config.vm.synced_folder ".", "/vagrant", disabled: true
 
   config.vm.provider "libvirt" do |lv, override|
-    lv.memory = 8196
+    lv.memory = 2048
     lv.nested = true
   end
 
+  config.vm.define "bullseye", primary: true do |sub|
+      sub.vm.box = "debian/bullseye64"
+      sub.vm.provision :ansible do |s|
+        s.playbook = "bootstrap.yml"
+      end
+  end
+
   # Note: Makefile does not work yet.
-  config.vm.define "bookworm", primary: true do |sub|
+  config.vm.define "bookworm" do |sub|
     sub.vm.box = "debian/bookworm64"
     sub.vm.provision :ansible do |s|
       s.playbook = "bootstrap.yml"
