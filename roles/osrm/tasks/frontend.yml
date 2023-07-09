@@ -157,9 +157,9 @@
   shell:
     cmd: >
         cp splendor/css/splendor.css "{{ osrm__websitedir }}/splendor.css" &&
-        echo '<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\">
+        echo '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">
         <title>About routing.openstreetmap.de</title>
-        <link rel=\"stylesheet\" href=\"splendor.css\">
+        <link rel="stylesheet" href="splendor.css">
         </head><body>' > "{{ osrm__websitedir }}/about.html" &&
         markdown_py about.md -o html5 >> "{{ osrm__websitedir }}/about.html" &&
         echo '</body></html>' >> "{{ osrm__websitedir }}/about.html"
