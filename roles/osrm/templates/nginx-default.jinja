@@ -74,7 +74,7 @@ map $http_accept_language $lang {
     location /routed-{{ profilearea }}/ {
         internal;
 {% if osrm__profilearea[profilearea].host == inventory_hostname %}
-        proxy_pass  http://localhost:{{ osrm__profilearea[profilearea].port }}/;
+        proxy_pass  http://127.0.0.1:{{ osrm__profilearea[profilearea].port }}/;
 {% else %}
         proxy_pass  http://{{ osrm__profilearea[profilearea].host }}.openstreetmap.de:{{ osrm__profilearea[profilearea].port }}/;
 {% endif %}
