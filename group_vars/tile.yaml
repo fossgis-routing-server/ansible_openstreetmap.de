@@ -22,3 +22,4 @@ tile__acme_certificates:
       - a.tile.openstreetmap.de
       - b.tile.openstreetmap.de
       - c.tile.openstreetmap.de
+      - d.tile.openstreetmap.de
