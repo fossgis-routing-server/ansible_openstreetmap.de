@@ -6,7 +6,7 @@
 
 - name: DNS zone serial
   set_fact:
-    dns_serial: "{{ ansible_date_time.year }}{{ ansible_date_time.month }}{{ ansible_date_time.day }}00"
+    dns_serial: "{{ ansible_date_time.year }}{{ ansible_date_time.month }}{{ ansible_date_time.day }}02"
 
 - name: Zone File for openstreetmap.de
   template:
