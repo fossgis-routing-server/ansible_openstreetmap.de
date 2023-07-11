@@ -1,0 +1,3 @@
+VAGRANT_MEMORY=8192
+VAGRANT_NAME=bookworm
+VAGRANT_OS=debian/bookworm64

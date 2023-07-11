@@ -75,6 +75,15 @@ Spin up the test machine:
 This spins up a Debian Bullseye machine and sets up accounts, so that Ansible
 can access the machine via the root account.
 
+> You can use the environment variables 
+> - `VAGRANT_MEMORY` (default: 2048)
+> - `VAGRANT_NAME` (default: "bullseye")
+> - `VAGRANT_OS` (default: "debian/bullseye64")
+> 
+> For Example: `VAGRANT_MEMORY=8191 VAGRANT_NAME=bookworm VAGRANT_OS=debian/bookworm64 vagrant up`
+>
+> If you like to use an `.env`-File, you can add the plugin `vagrant-env` via `vagrant plugin install vagrant-env`. Whenever you run a Vagrant command it’ll load `.env` into `ENV`. When creating the .env file, you can use the env_example file as a guide. If an environment variable is not created in the .env file, the default value is used.
+
 Next you need an inventory:
 
     ./init_vagrant_inventory.sh
