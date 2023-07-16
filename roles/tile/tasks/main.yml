@@ -2,9 +2,10 @@
 ---
 # Setup for tile.openstreetmap.de
 #
-# To finish the setup you need to
+# To finish the setup you need to run
 #
-#  - run sudo /usr/local/sbin/import-osm2pgsql
+# - sudo /usr/local/sbin/import-osm2pgsql
+#   (and check check if you want to render deeper than specified at the end of the script)
 #
 
 # apache, system accounts, set up db
