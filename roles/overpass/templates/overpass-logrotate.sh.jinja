@@ -3,12 +3,12 @@
 date_and_move()
 {
   BASENAME="$1"
-  sudo -u {{ overpass__user }} mv "$BASENAME.log" "$BASENAME.$DATE.log"
-  sudo -u {{ overpass__user }} touch "$BASENAME.log"
-  sudo -u {{ overpass__user }} chown {{ overpass__user }} "$BASENAME.log"
-  sudo -u {{ overpass__user }} chmod 666 "$BASENAME.log"
-  sudo -u {{ overpass__user }} gzip "$BASENAME.$DATE.log"
-  sudo -u {{ overpass__user }} mv "$BASENAME.$DATE.log.gz" /var/log/overpass/
+  mv "$BASENAME.log" "$BASENAME.$DATE.log"
+  touch "$BASENAME.log"
+  chown {{ overpass__user }} "$BASENAME.log"
+  chmod 666 "$BASENAME.log"
+  gzip "$BASENAME.$DATE.log"
+  mv "$BASENAME.$DATE.log.gz" /var/log/overpass/
 }
 
 DATE=$(date '+%F_%H_%M_%S')
