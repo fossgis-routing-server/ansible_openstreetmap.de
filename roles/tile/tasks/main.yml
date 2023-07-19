@@ -97,6 +97,7 @@
     repo: https://github.com/giggls/openstreetmap-carto-de.git
     dest: "{{ tile__basedir }}/openstreetmap-carto-de"
     version: "{{ tile__style_version }}"
+  register: tile_mapnik_git
   become: yes
   become_user: "{{ tile__user }}"
 
@@ -120,6 +121,7 @@
     chdir: "{{ tile__basedir }}/openstreetmap-carto-de"
   become: yes
   become_user: "{{ tile__user }}"
+  when: tile_mapnik_git.changed
 
 - name: Lua dependencies for localization functions for OpenStreetMap
   shell:
@@ -488,3 +490,12 @@
       OnCalendar: "Sat *-*-* 00:00:00"
       RandomizedDelaySec: 43200
       Persistent: "true"
+
+# reload style if necessary
+- name: Restart tirex-backend-manager if style has changed
+  ansible.builtin.systemd:
+    state: restarted
+    enabled: true
+    name: tirex-backend-manager
+  when: tile_mapnik_git.changed
+
