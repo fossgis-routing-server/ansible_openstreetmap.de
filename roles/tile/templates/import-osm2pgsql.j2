@@ -58,10 +58,7 @@ sudo -u _tirex osm2pgsql-replication init  -d {{ dbname }} --server https://plan
 sudo -u _tirex osm2pgsql-replication status -d {{ dbname }} | sudo tee -a /var/log/osm2pgsql-import.log
 
 # make sure auxiliary data is loaded
-cd {{ style }}
-sudo mkdir -p data
-sudo chown _tirex data
-sudo -u _tirex scripts/get-external-data.py -d {{ dbname }}
+sudo -u _tirex ./update-external-data
 
 # enable minutely updates
 sudo systemctl enable updatedb
@@ -71,6 +68,10 @@ sudo systemctl restart tirex-backend-manager
 sudo systemctl restart tirex-master
 
 # queue up prerendering of low zooms
+{% if tile__small %}
+tirex-batch --prio=99 map=osmde z=1-2 lon=-180,180 lat=-90,90
+{% else %}
 tirex-batch --prio=99 map=osmde z=1-12 lon=-180,180 lat=-90,90
 tirex-batch --prio=99 map=osmde z=13-17 lon=5,15 lat=47,55
 tirex-batch --prio=99 map=osmhrb z=8-17 lon=13.42,15.39 lat=50.75,52.27
+{% endif %}

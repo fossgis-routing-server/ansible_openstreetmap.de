@@ -62,6 +62,15 @@
   apt:
     name: [git, dpkg-dev, debhelper, libmapnik-dev, python3-sklearn, python3-mapnik]
 
+- name: unpdate external data script
+  template:
+      dest: "/usr/local/sbin/import-osm2pgsql"
+      src: "update-external-data.j2"
+      mode: 0755
+  vars:
+    dbname: osm
+    style: "{{ tile__basedir }}/openstreetmap-carto-de"
+
 - name: import script
   template:
       dest: "/usr/local/sbin/import-osm2pgsql"
@@ -486,5 +495,23 @@
         Group: "{{ tile__user }}"
     timer:
       OnCalendar: "Sat *-*-* 00:00:00"
+      RandomizedDelaySec: 43200
+      Persistent: "true"
+
+# update external data (https://github.com/gravitystorm/openstreetmap-carto/blob/master/scripts/get-external-data.py)
+- name: update external data for rerendering periodically (systemd timer)
+  systemd_service:
+    name: update external data
+    enabled: true
+    service:
+      Unit:
+        Description: Queue up rerendering of low zoom tiles with tirex-batch
+      Service:
+        Type: oneshot
+        ExecStart: /usr/local/sbin/import-osm2pgsql/update-external-data
+        User: "{{ tile__user }}"
+        Group: "{{ tile__user }}"
+    timer:
+      OnCalendar: "Sun *-*-* 00:00:01"
       RandomizedDelaySec: 43200
       Persistent: "true"
