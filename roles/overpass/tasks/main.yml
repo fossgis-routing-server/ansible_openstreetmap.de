@@ -36,6 +36,7 @@
   loop:
     - overpass-import-db.sh
     - overpass-clone-db.sh
+    - overpass-logrotate.sh
 
 - name: Copy site content from ansible
   copy:
@@ -218,6 +219,14 @@
         RestartSec: 4h
       Install:
         WantedBy: multi-user.target
+
+- name: Daily cronjob to run the logrotation.
+  ansible.builtin.cron:
+    name: "logrotate overpass"
+    user: overpass
+    minute: "0"
+    hour: "0"
+    job: "/usr/local/bin/overpass-logrotate.sh" 
 
 - name: Daily cronjob to run the clone process. On bessel only.
   when: "{{ overpass__is_clone_origin }}"

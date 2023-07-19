@@ -34,3 +34,6 @@ dns-update:
 
 certs:
 	ansible-playbook -l acme -i hosts.ini -t certificates site.yml
+
+tile:
+	ansible-playbook -l tile -i hosts.ini site.yml

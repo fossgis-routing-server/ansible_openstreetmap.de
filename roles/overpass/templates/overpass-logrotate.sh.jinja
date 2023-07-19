@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+
+date_and_move()
+{
+  BASENAME="$1"
+  mv "$BASENAME.log" "$BASENAME.$DATE.log"
+  touch "$BASENAME.log"
+  chown {{ overpass__user }} "$BASENAME.log"
+  chmod 666 "$BASENAME.log"
+  gzip "$BASENAME.$DATE.log"
+  mv "$BASENAME.$DATE.log.gz" /var/log/overpass/
+}
+
+DATE=$(date '+%F_%H_%M_%S')
+pushd {{ overpass__basedir }}/db/
+
+date_and_move transactions
+
+popd
+
