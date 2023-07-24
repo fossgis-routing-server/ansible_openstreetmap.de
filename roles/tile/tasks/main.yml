@@ -64,7 +64,7 @@
 
 - name: unpdate external data script
   template:
-      dest: "/usr/local/sbin/import-osm2pgsql"
+      dest: "/usr/local/sbin/update-external-data"
       src: "update-external-data.j2"
       mode: 0755
   vars:
@@ -501,7 +501,7 @@
 # update external data (https://github.com/gravitystorm/openstreetmap-carto/blob/master/scripts/get-external-data.py)
 - name: update external data for rerendering periodically (systemd timer)
   systemd_service:
-    name: update external data
+    name: update_external_data
     enabled: true
     service:
       Unit:

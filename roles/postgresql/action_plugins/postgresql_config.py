@@ -15,7 +15,12 @@ class ActionModule(ActionBase):
         result = super(ActionModule, self).run(tmp, task_vars)
 
         jinjaenv = jinja2.Environment()
-        pgvertemplate = jinjaenv.from_string(task_vars.get('postgresql__version'))
+
+        try:
+            pgvertemplate = jinjaenv.from_string(task_vars.get('postgresql__version'))
+        except:
+            raise AnsibleActionFail("Please check var 'postgresql__version'. It should be something like '|- {{ { '11': 13, '12': 15 }[ansible_distribution_major_version }}'.")
+        
         pgver = pgvertemplate.render(
                 ansible_distribution_major_version =
                         task_vars.get('ansible_distribution_major_version'))

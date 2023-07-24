@@ -8,5 +8,3 @@ cd {{ style }}
 sudo mkdir -p data
 sudo chown _tirex data
 sudo -u _tirex scripts/get-external-data.py -d {{ dbname }}
-
-sudo systemctl restart tirex-backend-manager
