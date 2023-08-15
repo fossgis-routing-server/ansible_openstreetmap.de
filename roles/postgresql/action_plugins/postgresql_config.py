@@ -15,10 +15,15 @@ class ActionModule(ActionBase):
         result = super(ActionModule, self).run(tmp, task_vars)
 
         jinjaenv = jinja2.Environment()
-        pgvertemplate = jinjaenv.from_string(task_vars.get('postgresql__version'))
-        pgver = pgvertemplate.render(
-                ansible_distribution_major_version =
-                        task_vars.get('ansible_distribution_major_version'))
+
+        try:
+            value = int(task_vars.get('postgresql__version'))
+            pgver = task_vars.get('postgresql__version')
+        except ValueError:
+            pgvertemplate = jinjaenv.from_string(task_vars.get('postgresql__version'))
+            pgver = pgvertemplate.render(
+                    ansible_distribution_major_version =
+                            task_vars.get('ansible_distribution_major_version'))
 
         name = self._task.args.get('name')
         config = self._task.args.get('config')
