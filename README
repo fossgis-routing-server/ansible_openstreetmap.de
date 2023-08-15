@@ -1,6 +1,6 @@
 This is the Ansible repository for the FOSSGIS Server Admin Working group.
 It contains provisioning playbooks for machines that are administrated by
-the group. 
+the group.
 
 Set up Ansible
 ==============

@@ -1,4 +1,4 @@
-# -*- mode: ruby -*- 
+# -*- mode: ruby -*-
 # vi: set ft=ruby :
 
 Vagrant.configure("2") do |config|
@@ -32,5 +32,5 @@ Vagrant.configure("2") do |config|
     sub.vm.provision :ansible do |s|
       s.playbook = "bootstrap.yml"
     end
-  end  
+  end
 end
