@@ -7,8 +7,6 @@ Vagrant.configure("2") do |config|
     config.env.enable
   end
   memory = ENV["VAGRANT_MEMORY"] || 2048
-  box_name = ENV["VAGRANT_NAME"] || "bullseye"
-  box_os = ENV["VAGRANT_OS"] || "debian/bullseye64"
 
   # Apache webserver
   config.vm.network "forwarded_port", guest: 80, host: 8089
@@ -22,10 +20,17 @@ Vagrant.configure("2") do |config|
     lv.nested = true
   end
 
-  config.vm.define box_name, primary: true do |sub|
-      sub.vm.box = box_os
+  config.vm.define "bullseye", primary: true do |sub|
+      sub.vm.box = "debian/bullseye64"
       sub.vm.provision :ansible do |s|
         s.playbook = "bootstrap.yml"
       end
   end
+
+  config.vm.define "bookworm" do |sub|
+    sub.vm.box = "debian/bookworm64"
+    sub.vm.provision :ansible do |s|
+      s.playbook = "bootstrap.yml"
+    end
+  end  
 end

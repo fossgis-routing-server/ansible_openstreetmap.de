@@ -1,0 +1,7 @@
+vagrant ansible_host=192.168.121.185 ansible_port=22 ansible_ssh_private_key_file=/home/astrid/git/ansible_openstreetmap.de/.vagrant/machines/bookworm/libvirt/private_key
+
+[acme]
+dummy
+
+[your test group]
+vagrant
