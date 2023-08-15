@@ -1,6 +1,6 @@
 This is the Ansible repository for the FOSSGIS Server Admin Working group.
 It contains provisioning playbooks for machines that are administrated by
-the group.
+the group. 
 
 Set up Ansible
 ==============
@@ -74,6 +74,15 @@ Spin up the test machine:
 
 This spins up a Debian Bullseye machine and sets up accounts, so that Ansible
 can access the machine via the root account.
+
+> You can use the environment variables 
+> - `VAGRANT_MEMORY` (default: 2048)
+> 
+> For Example: `VAGRANT_MEMORY=8192 vagrant up`
+>
+> If you like to use an `.env` file, you can add the plugin `vagrant-env` via `vagrant plugin install vagrant-env`. Whenever you run a Vagrant command it’ll load `.env` into `ENV`. When creating the `.env` file, you can use the `env_example` file as a guide.
+>
+> In any case: if no environment variable is created, the default value is used.
 
 Next you need an inventory:
 

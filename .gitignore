@@ -1,4 +1,5 @@
 vagrant.ini
+.env
 .vagrant
 __pycache__
 host_vars/vagrant.yml
