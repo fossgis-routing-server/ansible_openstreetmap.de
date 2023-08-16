@@ -507,7 +507,7 @@
     enabled: true
     service:
       Unit:
-        Description: Queue up rerendering of low zoom tiles with tirex-batch
+        Description: Update external data (Shapefiles)
       Service:
         Type: oneshot
         ExecStart: /usr/local/sbin/import-osm2pgsql/update-external-data
