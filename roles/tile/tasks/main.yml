@@ -62,7 +62,7 @@
   apt:
     name: [git, dpkg-dev, debhelper, libmapnik-dev, python3-sklearn, python3-mapnik]
 
-- name: unpdate external data script
+- name: update external data script
   template:
       dest: "/usr/local/sbin/update-external-data"
       src: "update-external-data.j2"
