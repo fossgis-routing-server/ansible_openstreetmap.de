@@ -13,8 +13,8 @@
 #
 # If no inventory file is given, use 'vagrant.ini'.
 
-CONFIG=${1:-vagrant.ini}
-VAGRANTCFG=`vagrant ssh-config`
+CONFIG=${2:-vagrant.ini}
+VAGRANTCFG=`vagrant ssh-config $1`
 SSH_IP=`echo "$VAGRANTCFG" | grep HostName | sed 's:.*HostName *::'`
 SSH_Port=`echo "$VAGRANTCFG" | grep Port | sed 's:.*Port *::'`
 SSH_IdentityFile=`echo "$VAGRANTCFG" | grep IdentityFile | sed 's:.*IdentityFile *::'`

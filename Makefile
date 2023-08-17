@@ -1,5 +1,9 @@
-vagrant:
-	./init_vagrant_inventory.sh
+vagrant: 
+	./init_vagrant_inventory.sh bullseye
+	ansible-playbook -l vagrant -i vagrant.ini -u vagrant site.yml
+
+vagrant-bookworm:
+	./init_vagrant_inventory.sh bookworm
 	ansible-playbook -l vagrant -i vagrant.ini -u vagrant site.yml
 
 miller:
