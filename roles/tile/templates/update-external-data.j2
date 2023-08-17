@@ -7,6 +7,7 @@
 cd {{ style }}
 sudo mkdir -p data
 sudo chown _tirex data
-sudo -u _tirex scripts/get-external-data.py -d {{ dbname }}
 
-sudo systemctl restart tirex-backend-manager
+echo "The system is about to run get-external-data.py."
+sudo -u _tirex scripts/get-external-data.py -d {{ dbname }}
+echo "The system has just run get-external-data.py."
