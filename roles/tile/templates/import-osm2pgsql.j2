@@ -58,10 +58,9 @@ sudo -u _tirex osm2pgsql-replication init  -d {{ dbname }} --server https://plan
 sudo -u _tirex osm2pgsql-replication status -d {{ dbname }} | sudo tee -a /var/log/osm2pgsql-import.log
 
 # make sure auxiliary data is loaded
-cd {{ style }}
-sudo mkdir -p data
-sudo chown _tirex data
-sudo -u _tirex scripts/get-external-data.py -d {{ dbname }}
+echo "This script is about to run update-external-data."
+sh /usr/local/sbin/update-external-data
+echo "This script has just run update-external-data."
 
 # enable minutely updates
 sudo systemctl enable updatedb
