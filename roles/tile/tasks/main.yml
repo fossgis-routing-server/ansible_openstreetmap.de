@@ -117,7 +117,7 @@
             #localization functions:
             libunac1-dev, luarocks, lua5.3, libpcre3-dev, liblua5.3-dev,
             python3-icu, python3-shapely, python3-pip, python3-sdnotify,
-            python3-requests, fakeroot, build-essential, ]
+            python3-requests, fakeroot, build-essential, python3-virtualenv,]
 
 - name: node carto for style transformation
   shell:
@@ -140,6 +140,17 @@
   pip:
     name: [pykakasi, tltk, pinyin_jyutping_sentence]
     extra_args: -U --break-system-packages
+
+- name: Set up virtualenv
+  pip:
+    name:
+      - pykakasi==2.2.1 #https://pypi.org/project/pykakasi/
+      - tltk==1.6.8 #https://pypi.org/project/tltk/
+      - pinyin_jyutping_sentence==1.3 #https://pypi.org/project/pinyin-jyutping-sentence/
+    virtualenv: "{{ tile__basedir }}/venv"
+    virtualenv_site_packages: yes
+    virtualenv_python: python3
+  become_user: "{{ tile__user }}"
 
 - name: Localization functions for OpenStreetMap
   git:
