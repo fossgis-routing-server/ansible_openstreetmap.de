@@ -136,11 +136,6 @@
   shell:
     cmd: "luarocks install lrexlib-pcre"
 
-- name: Python dependencies for localization functions for OpenStreetMap
-  pip:
-    name: [pykakasi, tltk, pinyin_jyutping_sentence]
-    extra_args: -U --break-system-packages
-
 - name: Set up virtualenv
   pip:
     name:
