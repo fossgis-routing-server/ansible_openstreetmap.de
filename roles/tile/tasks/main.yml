@@ -517,7 +517,7 @@
         Description: Update external data data for rerendering periodically
       Service:
         Type: oneshot
-        ExecStart: /usr/local/sbin/import-osm2pgsql/update-external-data
+        ExecStart: /usr/local/sbin/update-external-data
         User: "{{ tile__user }}"
         Group: "{{ tile__user }}"
     timer:
