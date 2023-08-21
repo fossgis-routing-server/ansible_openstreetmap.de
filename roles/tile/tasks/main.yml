@@ -60,7 +60,7 @@
 
 - name: install required packages with apt
   apt:
-    name: [git, dpkg-dev, debhelper, libmapnik-dev, python3-sklearn, python3-mapnik]
+    name: [git, dpkg-dev, debhelper, libmapnik-dev, python3-mapnik]
 
 - name: unpdate external data script
   template:
@@ -139,6 +139,7 @@
 - name: Set up virtualenv
   pip:
     name:
+      - scikit-learn==1.3.0 #https://pypi.org/project/scikit-learn/
       - pykakasi==2.2.1 #https://pypi.org/project/pykakasi/
       - tltk==1.6.8 #https://pypi.org/project/tltk/
       - pinyin_jyutping_sentence==1.3 #https://pypi.org/project/pinyin-jyutping-sentence/
