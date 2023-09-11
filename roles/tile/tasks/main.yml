@@ -64,7 +64,7 @@
 
 - name: unpdate external data script
   template:
-      dest: "/usr/local/sbin/update-external-data"
+      dest: "/srv/tile/bin"
       src: "update-external-data.j2"
       mode: 0755
   vars:
@@ -517,7 +517,7 @@
         Description: Update external data data for rerendering periodically
       Service:
         Type: oneshot
-        ExecStart: /usr/local/sbin/update-external-data
+        ExecStart: /srv/tile/bin
         User: "{{ tile__user }}"
         Group: "{{ tile__user }}"
     timer:
