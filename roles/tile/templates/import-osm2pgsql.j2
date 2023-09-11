@@ -59,7 +59,7 @@ sudo -u _tirex osm2pgsql-replication status -d {{ dbname }} | sudo tee -a /var/l
 
 # make sure auxiliary data is loaded
 echo "This script is about to run update-external-data."
-sh /srv/tile/bin/update-external-data
+/srv/tile/bin/update-external-data
 echo "This script has just run update-external-data."
 
 # enable minutely updates
