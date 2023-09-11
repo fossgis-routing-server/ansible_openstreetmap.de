@@ -62,15 +62,6 @@
   apt:
     name: [git, dpkg-dev, debhelper, libmapnik-dev, python3-mapnik]
 
-- name: unpdate external data script
-  template:
-      dest: "/srv/tile/bin"
-      src: "update-external-data.j2"
-      mode: 0755
-  vars:
-    dbname: osm
-    style: "{{ tile__basedir }}/openstreetmap-carto-de"
-
 - name: import script
   template:
       dest: "/usr/local/sbin/import-osm2pgsql"
@@ -89,6 +80,15 @@
     - "{{ tile__flatnode }}"
     - "{{ tile__planet }}"
     - "{{ tile__basedir }}/bin/expire-tiles-single.py"
+
+- name: update external data script
+  template:
+      dest: "{{ tile__basedir }}/bin/update-external-data"
+      src: "update-external-data.j2"
+      mode: 0755
+  vars:
+    dbname: osm
+    style: "{{ tile__basedir }}/openstreetmap-carto-de"
 
 - name: render database updates from minutely
   template:
@@ -136,9 +136,18 @@
   shell:
     cmd: "luarocks install lrexlib-pcre"
 
+# Patch for https://github.com/giggls/osml10n/issues/27
+# Remove this and the entry in the task 'Set up virtualenv' once the issue has been fixed in the repo.
+- name: install inbbox script
+  copy:
+    dest: "{{ tile__basedir }}/bin/sklearn-0.0.post9.tar.gz"
+    src: "sklearn-0.0.post9.tar.gz"
+    mode: 0755
+
 - name: Set up virtualenv
   pip:
     name:
+      - "file:///{{ tile__basedir }}/bin/sklearn-0.0.post9.tar.gz"
       - scikit-learn==1.3.0 #https://pypi.org/project/scikit-learn/
       - pykakasi==2.2.1 #https://pypi.org/project/pykakasi/
       - tltk==1.6.8 #https://pypi.org/project/tltk/
@@ -517,7 +526,7 @@
         Description: Update external data data for rerendering periodically
       Service:
         Type: oneshot
-        ExecStart: /srv/tile/bin
+        ExecStart: "{{ tile__basedir }}/bin/update-external-data"
         User: "{{ tile__user }}"
         Group: "{{ tile__user }}"
     timer:
