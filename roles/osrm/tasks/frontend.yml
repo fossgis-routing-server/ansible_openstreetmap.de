@@ -115,7 +115,7 @@
   git:
     repo: https://github.com/fossgis-routing-server/osrm-frontend.git
     dest: '{{ osrm__basedir }}/osrm-frontend'
-    version: 'bef727ee0af3172a86f38fe6aca580a078347ace'
+    version: 'aab6ac31ecf552699802d5e3f74c7e2750965e7e'
     force: yes
   register: osrm_frontend_build
   become: yes
