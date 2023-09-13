@@ -221,6 +221,22 @@
     deb: "{{ item }}"
   with_items: "{{ tile_osml10n_deb.files | map(attribute='path') }}"
   become: yes
+  register: tile_osml10n_install
+
+- name: Make osml10n service use the virtual env
+  shell:
+    cmd: "cp /lib/systemd/system/osml10n.service /etc/systemd/system/osml10n.service;
+          sed -i 's:ExecStart=:ExecStart={{ tile__basedir }}/venv/bin/python :' /etc/systemd/system/osml10n.service"
+  when: tile_osml10n_install.changed
+
+- name: Systemd daemon reload and start osml10n service
+  ansible.builtin.systemd:
+    daemon_reload: true
+    state: started
+    enabled: true
+    name: renderd
+  when: tile_osml10n_install.changed
+
 
 - name: Add osmde map style
   set_fact:
