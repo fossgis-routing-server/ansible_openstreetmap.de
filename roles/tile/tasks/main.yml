@@ -234,7 +234,7 @@
     daemon_reload: true
     state: started
     enabled: true
-    name: renderd
+    name: osml10n
   when: tile_osml10n_install.changed
 
 
