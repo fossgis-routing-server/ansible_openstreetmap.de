@@ -60,7 +60,7 @@
 
 - name: install required packages with apt
   apt:
-    name: [git, dpkg-dev, debhelper, libmapnik-dev, python3-sklearn, python3-mapnik]
+    name: [git, dpkg-dev, debhelper, libmapnik-dev, python3-mapnik]
 
 - name: import script
   template:
@@ -80,6 +80,15 @@
     - "{{ tile__flatnode }}"
     - "{{ tile__planet }}"
     - "{{ tile__basedir }}/bin/expire-tiles-single.py"
+
+- name: update external data script
+  template:
+      dest: "{{ tile__basedir }}/bin/update-external-data"
+      src: "update-external-data.j2"
+      mode: 0755
+  vars:
+    dbname: osm
+    style: "{{ tile__basedir }}/openstreetmap-carto-de"
 
 - name: render database updates from minutely
   template:
@@ -108,7 +117,7 @@
             #localization functions:
             libunac1-dev, luarocks, lua5.3, libpcre3-dev, liblua5.3-dev,
             python3-icu, python3-shapely, python3-pip, python3-sdnotify,
-            python3-requests, fakeroot, build-essential, ]
+            python3-requests, fakeroot, build-essential, python3-virtualenv,]
 
 - name: node carto for style transformation
   shell:
@@ -127,10 +136,26 @@
   shell:
     cmd: "luarocks install lrexlib-pcre"
 
-- name: Python dependencies for localization functions for OpenStreetMap
+# Patch for https://github.com/giggls/osml10n/issues/27
+# Remove this and the entry in the task 'Set up virtualenv' once the issue has been fixed in the repo.
+- name: install inbbox script
+  copy:
+    dest: "{{ tile__basedir }}/bin/sklearn-0.0.post9.tar.gz"
+    src: "sklearn-0.0.post9.tar.gz"
+    mode: 0755
+
+- name: Set up virtualenv
   pip:
-    name: [pykakasi, tltk, pinyin_jyutping_sentence]
-    extra_args: -U --break-system-packages
+    name:
+      - "file:///{{ tile__basedir }}/bin/sklearn-0.0.post9.tar.gz"
+      - scikit-learn==1.3.0 #https://pypi.org/project/scikit-learn/
+      - pykakasi==2.2.1 #https://pypi.org/project/pykakasi/
+      - tltk==1.6.8 #https://pypi.org/project/tltk/
+      - pinyin_jyutping_sentence==1.3 #https://pypi.org/project/pinyin-jyutping-sentence/
+    virtualenv: "{{ tile__basedir }}/venv"
+    virtualenv_site_packages: yes
+    virtualenv_python: python3
+  become_user: "{{ tile__user }}"
 
 - name: Localization functions for OpenStreetMap
   git:
@@ -196,6 +221,22 @@
     deb: "{{ item }}"
   with_items: "{{ tile_osml10n_deb.files | map(attribute='path') }}"
   become: yes
+  register: tile_osml10n_install
+
+- name: Make osml10n service use the virtual env
+  shell:
+    cmd: "cp /lib/systemd/system/osml10n.service /etc/systemd/system/osml10n.service;
+          sed -i 's:ExecStart=:ExecStart={{ tile__basedir }}/venv/bin/python :' /etc/systemd/system/osml10n.service"
+  when: tile_osml10n_install.changed
+
+- name: Systemd daemon reload and start osml10n service
+  ansible.builtin.systemd:
+    daemon_reload: true
+    state: started
+    enabled: true
+    name: osml10n
+  when: tile_osml10n_install.changed
+
 
 - name: Add osmde map style
   set_fact:
@@ -488,6 +529,24 @@
         Group: "{{ tile__user }}"
     timer:
       OnCalendar: "Sat *-*-* 00:00:00"
+      RandomizedDelaySec: 43200
+      Persistent: "true"
+
+# update external data (https://github.com/gravitystorm/openstreetmap-carto/blob/master/scripts/get-external-data.py)
+- name: update external data for rerendering periodically (systemd timer)
+  systemd_service:
+    name: update_external_data
+    enabled: true
+    service:
+      Unit:
+        Description: Update external data data for rerendering periodically
+      Service:
+        Type: oneshot
+        ExecStart: "{{ tile__basedir }}/bin/update-external-data"
+        User: "{{ tile__user }}"
+        Group: "{{ tile__user }}"
+    timer:
+      OnCalendar: "Sun *-*-* 00:00:01"
       RandomizedDelaySec: 43200
       Persistent: "true"
 
