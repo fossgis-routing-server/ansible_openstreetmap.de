@@ -19,3 +19,4 @@ date_and_move database
 
 popd
 
+find /var/log/overpass -atime +14 -name '*.log.gz' -exec rm '{}' ';'
