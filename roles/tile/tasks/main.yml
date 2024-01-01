@@ -115,6 +115,7 @@
     name: [ nodejs, npm, fonts-noto, fonts-noto-ui-core, fonts-noto-cjk-extra,
             fonts-dejavu, fonts-hanazono, python3-yaml, gdal-bin,
             #localization functions:
+            libpcre3-dev, #todo delete in the next version of osml10n see https://github.com/giggls/osml10n/commit/a4c38cd9231db1803ad65449063bc2c1243fa664
             libunac1-dev, luarocks, lua5.3, liblua5.3-dev,
             fakeroot, build-essential, python3-virtualenv]
 
