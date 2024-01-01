@@ -115,7 +115,7 @@
     name: [ nodejs, npm, fonts-noto, fonts-noto-ui-core, fonts-noto-cjk-extra,
             fonts-dejavu, fonts-hanazono, python3-yaml, gdal-bin,
             #localization functions:
-            libunac1-dev, luarocks, lua5.3, libpcre3-dev, liblua5.3-dev,
+            libunac1-dev, luarocks, lua5.3, liblua5.3-dev,
             python3-icu, python3-shapely, python3-pip, python3-sdnotify,
             python3-requests, fakeroot, build-essential, python3-virtualenv,]
 
@@ -131,10 +131,6 @@
   become: yes
   become_user: "{{ tile__user }}"
   when: tile_mapnik_git.changed
-
-- name: Lua dependencies for localization functions for OpenStreetMap
-  shell:
-    cmd: "luarocks install lrexlib-pcre"
 
 # Patch for https://github.com/giggls/osml10n/issues/27
 # Remove this and the entry in the task 'Set up virtualenv' once the issue has been fixed in the repo.
