@@ -106,6 +106,7 @@
     repo: https://github.com/giggls/openstreetmap-carto-de.git
     dest: "{{ tile__basedir }}/openstreetmap-carto-de"
     version: "{{ tile__style_version }}"
+    force: yes
   register: tile_mapnik_git
   become: yes
   become_user: "{{ tile__user }}"
@@ -117,7 +118,7 @@
             #localization functions:
             libpcre3-dev, #todo delete in the next version of osml10n see https://github.com/giggls/osml10n/commit/a4c38cd9231db1803ad65449063bc2c1243fa664
             libunac1-dev, luarocks, lua5.3, liblua5.3-dev,
-            fakeroot, build-essential, python3-virtualenv]
+            fakeroot, build-essential, python3.11-venv]
 
 - name: node carto for style transformation
   shell:
@@ -131,14 +132,6 @@
   become: yes
   become_user: "{{ tile__user }}"
   when: tile_mapnik_git.changed
-
-- name: Set up virtualenv
-  pip:
-    name: virtualenv
-    virtualenv: "{{ tile__basedir }}/venv"
-    virtualenv_site_packages: yes
-    virtualenv_python: python3
-  become_user: "{{ tile__user }}"
 
 - name: Localization functions for OpenStreetMap
   git:
