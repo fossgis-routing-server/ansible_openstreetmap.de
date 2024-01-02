@@ -201,14 +201,15 @@
   become: yes
   register: tile_osml10n_install
 
-- name: Make osml10n service
+- name: Make osml10n service use the virtual env
   shell:
     cmd: "make install-daemon"
     chdir: "{{ tile__basedir }}/sources/osml10n"
   become: yes
 
-- name: Make sure osml10n is running
+- name: Systemd daemon reload and start osml10n service
   ansible.builtin.systemd:
+    daemon_reload: true
     state: started
     enabled: true
     name: osml10n
