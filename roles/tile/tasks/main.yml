@@ -207,6 +207,12 @@
     chdir: "{{ tile__basedir }}/sources/osml10n"
   become: yes
 
+- name: Make sure osml10n is running
+  ansible.builtin.systemd:
+    state: started
+    enabled: true
+    name: osml10n
+
 - name: Add osmde map style
   set_fact:
     tile__styles: "{{ tile__styles|default([]) + osmde }}"
