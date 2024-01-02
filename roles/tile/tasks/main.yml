@@ -106,6 +106,7 @@
     repo: https://github.com/giggls/openstreetmap-carto-de.git
     dest: "{{ tile__basedir }}/openstreetmap-carto-de"
     version: "{{ tile__style_version }}"
+    depth: 1
     force: yes
   register: tile_mapnik_git
   become: yes
