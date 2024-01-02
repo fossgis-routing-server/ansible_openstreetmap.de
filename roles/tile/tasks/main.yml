@@ -119,7 +119,7 @@
             #localization functions:
             libpcre3-dev, #todo delete in the next version of osml10n see https://github.com/giggls/osml10n/commit/a4c38cd9231db1803ad65449063bc2c1243fa664
             libunac1-dev, luarocks, lua5.3, liblua5.3-dev,
-            fakeroot, build-essential, python3.11-venv, python-is-python3, libpython3-dev]
+            fakeroot, build-essential, python3-venv, python-is-python3, libpython3-dev]
 
 - name: node carto for style transformation
   shell:
