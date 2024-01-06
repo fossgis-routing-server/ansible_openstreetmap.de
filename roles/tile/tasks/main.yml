@@ -110,6 +110,7 @@
   become: yes
   become_user: "{{ tile__user }}"
 
+#todo delete in the next version of osml10n see https://github.com/giggls/osml10n/commit/a4c38cd9231db1803ad65449063bc2c1243fa664
 - name: Dependencies for style and localization functions for OpenStreetMap
   apt:
     name: [ nodejs, npm, fonts-noto, fonts-noto-ui-core, fonts-noto-cjk-extra,
@@ -131,31 +132,6 @@
   become: yes
   become_user: "{{ tile__user }}"
   when: tile_mapnik_git.changed
-
-- name: Lua dependencies for localization functions for OpenStreetMap
-  shell:
-    cmd: "luarocks install lrexlib-pcre"
-
-# Patch for https://github.com/giggls/osml10n/issues/27
-# Remove this and the entry in the task 'Set up virtualenv' once the issue has been fixed in the repo.
-- name: install inbbox script
-  copy:
-    dest: "{{ tile__basedir }}/bin/sklearn-0.0.post9.tar.gz"
-    src: "sklearn-0.0.post9.tar.gz"
-    mode: 0755
-
-- name: Set up virtualenv
-  pip:
-    name:
-      - "file:///{{ tile__basedir }}/bin/sklearn-0.0.post9.tar.gz"
-      - scikit-learn==1.3.0 #https://pypi.org/project/scikit-learn/
-      - pykakasi==2.2.1 #https://pypi.org/project/pykakasi/
-      - tltk==1.6.8 #https://pypi.org/project/tltk/
-      - pinyin_jyutping_sentence==1.3 #https://pypi.org/project/pinyin-jyutping-sentence/
-    virtualenv: "{{ tile__basedir }}/venv"
-    virtualenv_site_packages: yes
-    virtualenv_python: python3
-  become_user: "{{ tile__user }}"
 
 - name: Localization functions for OpenStreetMap
   git:
@@ -223,10 +199,21 @@
   become: yes
   register: tile_osml10n_install
 
-- name: Make osml10n service use the virtual env
+- name: Set up virtualenv
+  pip:
+    name:
+      - pykakasi
+      - tltk
+      - pinyin_jyutping_sentence
+      - "{{ tile__basedir }}/sources/osml10n/"
+    virtualenv: "/usr/local/osml10n"
+    virtualenv_site_packages: yes
+    virtualenv_python: python3
+  become: yes
+
+- name: Copy osml10n service
   shell:
-    cmd: "cp /lib/systemd/system/osml10n.service /etc/systemd/system/osml10n.service;
-          sed -i 's:ExecStart=:ExecStart={{ tile__basedir }}/venv/bin/python :' /etc/systemd/system/osml10n.service"
+    cmd: "cp {{ tile__basedir }}/sources/osml10n/transcription-daemon/geo-transcript-srv.service /etc/systemd/system/osml10n.service"
   when: tile_osml10n_install.changed
 
 - name: Systemd daemon reload and start osml10n service
