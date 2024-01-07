@@ -118,7 +118,7 @@
             #localization functions:
             libunac1-dev, luarocks, lua5.3, libpcre3-dev, liblua5.3-dev,
             python3-icu, python3-shapely, python3-pip, python3-sdnotify,
-            python3-requests, fakeroot, build-essential, python3-virtualenv,]
+            python3-requests, fakeroot, build-essential, python3-virtualenv]
 
 - name: node carto for style transformation
   shell:
@@ -206,7 +206,7 @@
       - tltk
       - pinyin_jyutping_sentence
       - "{{ tile__basedir }}/sources/osml10n/"
-    virtualenv: "/usr/local/osml10n"
+    virtualenv: "{{ tile__basedir }}/venv"
     virtualenv_site_packages: yes
     virtualenv_python: python3
   become: yes
@@ -214,7 +214,12 @@
 - name: Copy osml10n service
   shell:
     cmd: "cp {{ tile__basedir }}/sources/osml10n/transcription-daemon/geo-transcript-srv.service /etc/systemd/system/osml10n.service"
-  when: tile_osml10n_install.changed
+  when: tile_osml10n_install.changed or tile__small
+
+- name: Adjust osml10n service to our virtualenv
+  shell:
+    cmd: "sed -i 's:/usr/local/osml10n/bin/:{{ tile__basedir }}/venv/bin/:' /etc/systemd/system/osml10n.service;"
+  when: tile_osml10n_install.changed or tile__small
 
 - name: Systemd daemon reload and start osml10n service
   ansible.builtin.systemd:
@@ -222,7 +227,7 @@
     state: started
     enabled: true
     name: osml10n
-  when: tile_osml10n_install.changed
+  when: tile_osml10n_install.changed or tile__small 
 
 
 - name: Add osmde map style
