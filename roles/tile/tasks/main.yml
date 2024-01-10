@@ -202,14 +202,11 @@
 - name: Set up virtualenv
   pip:
     name:
-      - pykakasi
-      - tltk
-      - pinyin_jyutping_sentence
       - "{{ tile__basedir }}/sources/osml10n/"
     virtualenv: "{{ tile__basedir }}/venv"
     virtualenv_site_packages: yes
     virtualenv_python: python3
-  become: yes
+  become_user: "{{ tile__user }}"
 
 - name: Copy osml10n service
   shell:
