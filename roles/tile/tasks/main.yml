@@ -5,7 +5,7 @@
 # To finish the setup you need to run
 #
 # - sudo /usr/local/sbin/import-osm2pgsql
-#   (and check check if you want to render deeper than specified at the end of the script)
+#   (and check if you want to render deeper than specified at the end of the script)
 #
 
 # apache, system accounts, set up db
