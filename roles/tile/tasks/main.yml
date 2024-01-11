@@ -211,7 +211,8 @@
 
 - name: Copy osml10n service
   shell:
-    cmd: "sed -e 's:%PYTARGET%:{{ tile__basedir }}/venv:g' {{ tile__basedir }}/sources/osml10n/transcription-daemon/geo-transcript-srv.service.template > /etc/systemd/system/osml10n.service"
+    cmd: "make systemd-service PYTARGET=/srv/tile/venv"
+    chdir: "{{ tile__basedir }}/sources/osml10n/"
   when: tile_osml10n_install.changed or tile__small
 
 - name: Systemd daemon reload and start osml10n service
