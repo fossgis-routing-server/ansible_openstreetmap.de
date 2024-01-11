@@ -2,7 +2,7 @@ tile__basedir: /srv/tile
 tile__user: tile
 
 tile__style_version: v5.8.0-de1
-tile__osml10n_version: v1.1.0
+tile__osml10n_version: v1.1.1
 
 # tile__small = true will make it load only a small extract
 # tile__small = false will load the whole planet
