@@ -68,7 +68,7 @@
       src: "import-osm2pgsql.j2"
       mode: 0755
   vars:
-    dbname: osm
+    dbname: "{{ tile__dbname }}"
     style: "{{ tile__basedir }}/openstreetmap-carto-de"
     lua: "{{ tile__basedir }}/sources/osml10n/openstreetmap-carto-hstore-only-l10n.lua"
 
@@ -81,21 +81,12 @@
     - "{{ tile__planet }}"
     - "{{ tile__basedir }}/bin/expire-tiles-single.py"
 
-- name: update external data script
-  template:
-      dest: "{{ tile__basedir }}/bin/update-external-data"
-      src: "update-external-data.j2"
-      mode: 0755
-  vars:
-    dbname: osm
-    style: "{{ tile__basedir }}/openstreetmap-carto-de"
-
 - name: render database updates from minutely
   template:
       dest: "/etc/systemd/system/updatedb.service"
       src: "updatedb.j2"
   vars:
-    dbname: osm
+    dbname: "{{ tile__dbname }}"
     lua: "{{ tile__basedir }}/sources/osml10n/openstreetmap-carto-hstore-only-l10n.lua"
     difffile: /tmp/latest_changes.osc
     expiretiles: "{{ tile__basedir }}/bin/expire-tiles.sh"
@@ -528,9 +519,9 @@
         Description: Update external data data for rerendering periodically
       Service:
         Type: oneshot
-        ExecStart: "{{ tile__basedir }}/bin/update-external-data"
-        User: "{{ tile__user }}"
-        Group: "{{ tile__user }}"
+        ExecStart: {{ tile__basedir }}/openstreetmap-carto-de/scripts/get-external-data.py -d "{{ tile__dbname }}"
+        User: _tirex
+        Group: _tirex
     timer:
       OnCalendar: "Sun *-*-* 00:00:01"
       RandomizedDelaySec: 43200
