@@ -519,7 +519,7 @@
         Description: Update external data data for rerendering periodically
       Service:
         Type: oneshot
-        ExecStart: {{ tile__basedir }}/openstreetmap-carto-de/scripts/get-external-data.py -d "{{ tile__dbname }}"
+        ExecStart: "{{ tile__basedir }}/openstreetmap-carto-de/scripts/get-external-data.py -d {{ tile__dbname }}"
         User: _tirex
         Group: _tirex
     timer:
