@@ -202,7 +202,7 @@
 
 - name: Copy osml10n service
   shell:
-    cmd: "make systemd-service PYTARGET=/srv/tile/venv"
+    cmd: "make systemd-service PYTARGET={{ tile__basedir }}/venv"
     chdir: "{{ tile__basedir }}/sources/osml10n/"
   when: tile_osml10n_install.changed or tile__small
 
