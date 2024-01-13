@@ -24,6 +24,16 @@
     Options FollowSymLinks MultiViews
     AllowOverride None
     Require all granted
+
+    <IfModule mod_headers.c>
+      Header set X-XSS-Protection "1; mode=block"
+      Header set X-Frame-Options "SAMEORIGIN"
+      Header set X-Content-Type-Options "nosniff"
+      Header always set Strict-Transport-Security "max-age=63072000; includeSubDomains"
+      Header set Referrer-Policy "same-origin"
+      Header always set Permissions-Policy "geolocation=(self), picture-in-picture=(), microphone=(), camera=(), usb=()"
+      Header set Content-Security-Policy "default-src 'self'; script-src 'self'; img-src 'self' https://*.openstreetmap.org/ data:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; frame-src 'self'; worker-src 'self'; connect-src 'self'"
+    </IfModule>
   </Directory>
 
   RewriteEngine on
