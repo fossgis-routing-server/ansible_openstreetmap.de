@@ -5,7 +5,7 @@
 # To finish the setup you need to run
 #
 # - sudo /usr/local/sbin/import-osm2pgsql
-#   (and check check if you want to render deeper than specified at the end of the script)
+#   (and check if you want to render deeper than specified at the end of the script)
 #
 
 # apache, system accounts, set up db
@@ -68,7 +68,7 @@
       src: "import-osm2pgsql.j2"
       mode: 0755
   vars:
-    dbname: osm
+    dbname: "{{ tile__dbname }}"
     style: "{{ tile__basedir }}/openstreetmap-carto-de"
     lua: "{{ tile__basedir }}/sources/osml10n/openstreetmap-carto-hstore-only-l10n.lua"
 
@@ -81,21 +81,12 @@
     - "{{ tile__planet }}"
     - "{{ tile__basedir }}/bin/expire-tiles-single.py"
 
-- name: update external data script
-  template:
-      dest: "{{ tile__basedir }}/bin/update-external-data"
-      src: "update-external-data.j2"
-      mode: 0755
-  vars:
-    dbname: osm
-    style: "{{ tile__basedir }}/openstreetmap-carto-de"
-
 - name: render database updates from minutely
   template:
       dest: "/etc/systemd/system/updatedb.service"
       src: "updatedb.j2"
   vars:
-    dbname: osm
+    dbname: "{{ tile__dbname }}"
     lua: "{{ tile__basedir }}/sources/osml10n/openstreetmap-carto-hstore-only-l10n.lua"
     difffile: /tmp/latest_changes.osc
     expiretiles: "{{ tile__basedir }}/bin/expire-tiles.sh"
@@ -106,6 +97,7 @@
     repo: https://github.com/giggls/openstreetmap-carto-de.git
     dest: "{{ tile__basedir }}/openstreetmap-carto-de"
     version: "{{ tile__style_version }}"
+    depth: 1
   register: tile_mapnik_git
   become: yes
   become_user: "{{ tile__user }}"
@@ -115,9 +107,9 @@
     name: [ nodejs, npm, fonts-noto, fonts-noto-ui-core, fonts-noto-cjk-extra,
             fonts-dejavu, fonts-hanazono, python3-yaml, gdal-bin,
             #localization functions:
-            libunac1-dev, luarocks, lua5.3, libpcre3-dev, liblua5.3-dev,
-            python3-icu, python3-shapely, python3-pip, python3-sdnotify,
-            python3-requests, fakeroot, build-essential, python3-virtualenv,]
+            libunac1-dev, luarocks, lua5.3, libpython3-dev, liblua5.3-dev,
+            python3-icu, python3-pip, python3-requests, fakeroot, build-essential,
+            python3-virtualenv, libicu-dev ]
 
 - name: node carto for style transformation
   shell:
@@ -131,31 +123,6 @@
   become: yes
   become_user: "{{ tile__user }}"
   when: tile_mapnik_git.changed
-
-- name: Lua dependencies for localization functions for OpenStreetMap
-  shell:
-    cmd: "luarocks install lrexlib-pcre"
-
-# Patch for https://github.com/giggls/osml10n/issues/27
-# Remove this and the entry in the task 'Set up virtualenv' once the issue has been fixed in the repo.
-- name: install inbbox script
-  copy:
-    dest: "{{ tile__basedir }}/bin/sklearn-0.0.post9.tar.gz"
-    src: "sklearn-0.0.post9.tar.gz"
-    mode: 0755
-
-- name: Set up virtualenv
-  pip:
-    name:
-      - "file:///{{ tile__basedir }}/bin/sklearn-0.0.post9.tar.gz"
-      - scikit-learn==1.3.0 #https://pypi.org/project/scikit-learn/
-      - pykakasi==2.2.1 #https://pypi.org/project/pykakasi/
-      - tltk==1.6.8 #https://pypi.org/project/tltk/
-      - pinyin_jyutping_sentence==1.3 #https://pypi.org/project/pinyin-jyutping-sentence/
-    virtualenv: "{{ tile__basedir }}/venv"
-    virtualenv_site_packages: yes
-    virtualenv_python: python3
-  become_user: "{{ tile__user }}"
 
 - name: Localization functions for OpenStreetMap
   git:
@@ -223,10 +190,19 @@
   become: yes
   register: tile_osml10n_install
 
-- name: Make osml10n service use the virtual env
+- name: Set up virtualenv
+  pip:
+    name:
+      - "{{ tile__basedir }}/sources/osml10n/"
+    virtualenv: "{{ tile__basedir }}/venv"
+    virtualenv_site_packages: yes
+    virtualenv_python: python3
+  become_user: "{{ tile__user }}"
+
+- name: Copy osml10n service
   shell:
-    cmd: "cp /lib/systemd/system/osml10n.service /etc/systemd/system/osml10n.service;
-          sed -i 's:ExecStart=:ExecStart={{ tile__basedir }}/venv/bin/python :' /etc/systemd/system/osml10n.service"
+    cmd: "make systemd-service PYTARGET={{ tile__basedir }}/venv"
+    chdir: "{{ tile__basedir }}/sources/osml10n/"
   when: tile_osml10n_install.changed
 
 - name: Systemd daemon reload and start osml10n service
@@ -542,9 +518,9 @@
         Description: Update external data data for rerendering periodically
       Service:
         Type: oneshot
-        ExecStart: "{{ tile__basedir }}/bin/update-external-data"
-        User: "{{ tile__user }}"
-        Group: "{{ tile__user }}"
+        ExecStart: "{{ tile__basedir }}/openstreetmap-carto-de/scripts/get-external-data.py -d {{ tile__dbname }}"
+        User: _tirex
+        Group: _tirex
     timer:
       OnCalendar: "Sun *-*-* 00:00:01"
       RandomizedDelaySec: 43200
