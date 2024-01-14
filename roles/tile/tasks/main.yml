@@ -108,9 +108,8 @@
             fonts-dejavu, fonts-hanazono, python3-yaml, gdal-bin,
             #localization functions:
             libunac1-dev, luarocks, lua5.3, libpython3-dev, liblua5.3-dev,
-            python3-icu, python3-shapely, python3-pip, python3-sdnotify,
-            python3-requests, fakeroot, build-essential, python3-virtualenv,
-            libicu-dev ]
+            python3-icu, python3-pip, python3-requests, fakeroot, build-essential,
+            python3-virtualenv, libicu-dev ]
 
 - name: node carto for style transformation
   shell:
