@@ -519,6 +519,7 @@
       Service:
         Type: oneshot
         ExecStart: "{{ tile__basedir }}/openstreetmap-carto-de/scripts/get-external-data.py -d {{ tile__dbname }}"
+        WorkingDirectory: "{{ tile__basedir }}/openstreetmap-carto-de"
         User: _tirex
         Group: _tirex
     timer:
