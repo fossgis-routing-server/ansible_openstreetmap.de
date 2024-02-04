@@ -140,3 +140,18 @@
     site: weeklyosm.eu
     src: 'weeklyosm.eu.conf'
   notify: reload apache2
+
+- name: "set lower 'Out of memory adjust' score for database"
+  copy:
+    dest: '/etc/systemd/system/mariadb.service.d/override.conf'
+    content: |
+        [Service]
+        OOMScoreAdjust=-600
+
+- name: "ensure apache is always restarted if it dies"
+  copy:
+    dest: '/etc/systemd/system/apache2.service.d/override.conf'
+    content: |
+        [Service]
+        Restart=always
+        RestartSec=30s
