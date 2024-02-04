@@ -2,16 +2,16 @@
 ---
 wordpress_import_dumps: false
 wordpress:
-  version: '6.0'
-  tarball_sha1: '7a5a6d0591771e730b05c49d0c3fc134624d0491'
+  version: '6.4.3'
+  tarball_sha1: 'ee3bc3a73ab3cfa535c46f111eb641b3467fa44e'
   hostname: 'weeklyosm.eu'
   hostname_aliases:
     - 'www.weeklyosm.eu'
-    - 'soldner.openstreetmap.de'
+    - 'aitov.openstreetmap.de'
   hostnames:
     - 'weeklyosm.eu'
     - 'www.weeklyosm.eu'
-    - 'soldner.openstreetmap.de'
+    - 'aitov.openstreetmap.de'
 mariadb:
   socket_path: '/var/run/mysqld/mysqld.sock'
 
