@@ -63,6 +63,11 @@ cd {{ style }}
 sudo mkdir -p data
 sudo chown _tirex data
 sudo -u _tirex scripts/get-external-data.py -d {{ dbname }}
+
+# make sure fonts are complete
+cd {{ style }}
+sudo mkdir -p fonts
+sudo chown _tirex fonts
 sudo -u _tirex scripts/get-fonts.sh
 
 # enable minutely updates
