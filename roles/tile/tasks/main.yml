@@ -271,9 +271,11 @@
     src: "tirex.conf"
 
 - name: Trex mapnik backend config
-  copy:
+  template:
     dest: "/etc/tirex/renderer/mapnik.conf"
-    src: "mapnik.conf"
+    src: mapnik_conf.j2
+  vars:
+    fontdir: "{{ tile__basedir }}/openstreetmap-carto-de/fonts"
 
 - name: Tirex mapnik style config
   template:
