@@ -12,6 +12,7 @@ sudo systemctl stop updatedb
 
 {% if tile__small %}
 OSM_SOURCE=http://download.geofabrik.de/europe/monaco-latest.osm.pbf
+#OSM_SOURCE=https://download.geofabrik.de/asia/south-korea-latest.osm.pbf
 {% else %}
 OSM_SOURCE=https://ftp5.gwdg.de/pub/misc/openstreetmap/planet.openstreetmap.org/pbf/planet-latest.osm.pbf
 {% endif %}
@@ -62,6 +63,12 @@ cd {{ style }}
 sudo mkdir -p data
 sudo chown _tirex data
 sudo -u _tirex scripts/get-external-data.py -d {{ dbname }}
+
+# make sure fonts are complete
+cd {{ style }}
+sudo mkdir -p fonts
+sudo chown _tirex fonts
+sudo -u _tirex scripts/get-fonts.sh
 
 # enable minutely updates
 sudo systemctl enable updatedb
