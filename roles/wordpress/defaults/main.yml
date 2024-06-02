@@ -8,3 +8,5 @@ wordpress_theme_directory: "{{ wordpress_directory }}/wp-content/themes"
 
 wordpress_plugins: []
 wordpress_themes: []
+
+wordpress__phpversion: "7.4"
