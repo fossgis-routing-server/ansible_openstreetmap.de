@@ -10,8 +10,11 @@ wordpress_plugins: []
 wordpress_themes: []
 
 # Using fpm this should be set to "fpm" to find the correct php.ini file
-wordpress__phpmode: "apache2"
+wordpress__phpmode: "fpm"
+wordpress__phpfpm: true
 wordpress__phpversion: "7.4"
+wordpress__apache2phpfpmconf: "php{{ wordpress__phpversion }}-fpm"
+wordpress__fpmservice: "php{{ wordpress__phpversion }}-fpm"
 wordpress__phpopcache: true
 wordpress__phpopcachepath: "/var/lib/php/opcache"
 wordpress__phpbase: "/etc/php/{{ wordpress__phpversion }}"

@@ -2,3 +2,8 @@
   systemd:
     name: apache2
     state: restarted
+
+- name: phpfpm restart
+  systemd:
+    name: "{{ wordpress__fpmservice }}"
+    state: restarted

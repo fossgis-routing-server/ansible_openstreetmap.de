@@ -4,6 +4,35 @@
   apt:
     name: [mariadb-server, php, php-mysql, php-curl, php-gd, php-imagick, php-mbstring, php-xml, php-xmlrpc, php-soap, php-intl, php-zip, php-opcache, python3-pymysql, tar, gzip, unzip]
 
+- name: Install php-fpm
+  apt:
+    name:
+      - php-fpm
+  when: wordpress__phpfpm
+
+- name: Enable apache2 modules for phpfpm
+  apache2_module:
+    name: "{{ item }}"
+  with_items:
+    - proxy_fcgi
+    - sentenvif
+  notify: apache2 restart
+  when: wordpress__phpfpm
+
+- name: Disable apache2 modules for phpfpm
+  apache2_module:
+    name: "php{{ wordpress__phpversion }}"
+    state: absent
+  notify: apache2 restart
+  when: wordpress__phpfpm
+
+- name: Enable config for phpfpm
+  shell: "a2enconf {{ wordpress__apache2phpfpmconf }}"
+  args:
+    creates: "/etc/apache2/conf-enabled/{{ wordpress__apache2phpfpmconf }}.conf"
+  notify: apache2 restart
+  when: wordpress__phpfpm
+
 - name: Create opcache directory
   file:
     path: "{{ wordpress__phpopcachepath }}"
@@ -29,6 +58,7 @@
   when: wordpress__phpopcache
   notify:
     - apache2 restart
+    - phpfpm restart
 
 - name: "Create database for Wordpress"
   mysql_db:
