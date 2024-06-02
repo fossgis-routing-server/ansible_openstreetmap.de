@@ -4,6 +4,15 @@
   apt:
     name: [mariadb-server, php, php-mysql, php-curl, php-gd, php-imagick, php-mbstring, php-xml, php-xmlrpc, php-soap, php-intl, php-zip, php-opcache, python3-pymysql, tar, gzip, unzip]
 
+- name: Create opcache directory
+  file:
+    path: "{{ wordpress__phpopcachepath }}"
+    owner: www-data
+    group: www-data
+    mode: 0755
+    state: directory
+  when: wordpress__phpopcache
+
 - name: Enable opcache in php
   ini_file:
     section: "{{ item.section }}"
@@ -15,6 +24,7 @@
     - { section: "opcache", option: "opcache.interned_strings_buffer", value: "64" }
     - { section: "opcache", option: "opcache.memory_consumption", value: "256" }
     - { section: "opcache", option: "opcache.revalidate_freq", value: "60" }
+    - { section: "opcache", option: "opcache.file_cache", value: "{{ wordpress__phpopcachepath }}" }
   when: wordpress__phpopcache
   notify:
     - apache2 restart

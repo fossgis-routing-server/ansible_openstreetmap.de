@@ -13,5 +13,6 @@ wordpress_themes: []
 wordpress__phpmode: "apache2"
 wordpress__phpversion: "7.4"
 wordpress__phpopcache: true
+wordpress__phpopcachepath: "/var/lib/php/opcache"
 wordpress__phpbase: "/etc/php/{{ wordpress__phpversion }}"
 wordpress__phpini: "{{ wordpress__phpbase }}/{{ wordpress__phpmode }}/php.ini"
