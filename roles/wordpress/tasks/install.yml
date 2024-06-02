@@ -25,6 +25,7 @@
     - { section: "opcache", option: "opcache.memory_consumption", value: "256" }
     - { section: "opcache", option: "opcache.revalidate_freq", value: "60" }
     - { section: "opcache", option: "opcache.file_cache", value: "{{ wordpress__phpopcachepath }}" }
+    - { section: "opcache", option: "opcache.revalidate_freq", value: "60" }
   when: wordpress__phpopcache
   notify:
     - apache2 restart
