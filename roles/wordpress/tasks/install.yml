@@ -68,6 +68,8 @@
     dest: "{{ wordpress__phpfpmpoolconf }}"
   with_items:
     - { section: "www", option: "pm.max_children", value: "{{ wordpress__phpfpmmaxchildren }}" }
+    - { section: "www", option: "slowlog", value: "syslog" }
+    - { section: "www", option: "request_slowlog_timeout", value: "20" }
   when: wordpress__phpfpm
   notify:
     - phpfpm reload
