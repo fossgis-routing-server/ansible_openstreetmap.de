@@ -60,6 +60,18 @@
     - apache2 restart
     - phpfpm restart
 
+- name: Configure php-fpm
+  ini_file:
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    dest: "{{ wordpress__phpfpmpoolconf }}"
+  with_items:
+    - { section: "www", option: "pm.max_children", value: "{{ wordpress__phpfpmmaxchildren }}" }
+  when: wordpress__phpfpm
+  notify:
+    - phpfpm reload
+
 - name: "Create database for Wordpress"
   mysql_db:
     name: wpblog

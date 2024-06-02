@@ -7,3 +7,8 @@
   systemd:
     name: "{{ wordpress__fpmservice }}"
     state: restarted
+
+- name: phpfpm reload
+  systemd:
+    name: "{{ wordpress__fpmservice }}"
+    state: reloaded

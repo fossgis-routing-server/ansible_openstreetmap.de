@@ -12,6 +12,8 @@ wordpress_themes: []
 # Using fpm this should be set to "fpm" to find the correct php.ini file
 wordpress__phpmode: "fpm"
 wordpress__phpfpm: true
+wordpress__phpfpmmaxchildren: 25
+wordpress__phpfpmpoolconf: "{{ wordpress__phpbase }}/fpm/pool.d/www.conf"
 wordpress__phpversion: "7.4"
 wordpress__apache2phpfpmconf: "php{{ wordpress__phpversion }}-fpm"
 wordpress__fpmservice: "php{{ wordpress__phpversion }}-fpm"
