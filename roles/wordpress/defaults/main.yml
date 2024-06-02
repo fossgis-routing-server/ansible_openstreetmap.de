@@ -13,6 +13,7 @@ wordpress_themes: []
 wordpress__phpmode: "fpm"
 wordpress__phpfpm: true
 wordpress__phpfpmmaxchildren: 25
+wordpress__phpfpmconf: "{{ wordpress__phpbase }}/fpm/php-fpm.conf"
 wordpress__phpfpmpoolconf: "{{ wordpress__phpbase }}/fpm/pool.d/www.conf"
 wordpress__phpversion: "7.4"
 wordpress__apache2phpfpmconf: "php{{ wordpress__phpversion }}-fpm"

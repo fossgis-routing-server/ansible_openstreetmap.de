@@ -60,7 +60,7 @@
     - apache2 restart
     - phpfpm restart
 
-- name: Configure php-fpm
+- name: Configure php-fpm pool
   ini_file:
     section: "{{ item.section }}"
     option: "{{ item.option }}"
@@ -73,6 +73,19 @@
   when: wordpress__phpfpm
   notify:
     - phpfpm reload
+
+- name: Configure php-fpm
+  ini_file:
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    dest: "{{ wordpress__phpfpmconf }}"
+  with_items:
+    - { section: "global", option: "error_log", value: "syslog" }
+  when: wordpress__phpfpm
+  notify:
+    - phpfpm reload
+
 
 - name: Disable mpm_event, enable mpm_prefork and ignore warnings about missing mpm module
   apache_module:
