@@ -4,18 +4,18 @@
   apt:
     name: [mariadb-server, php, php-mysql, php-curl, php-gd, php-imagick, php-mbstring, php-xml, php-xmlrpc, php-soap, php-intl, php-zip, php-opcache, python3-pymysql, tar, gzip, unzip]
 
-# FIXME wordpress should probably use php-fpm and then the path needs to be fixed here
 - name: Enable opcache in php
   ini_file:
     section: "{{ item.section }}"
     option: "{{ item.option }}"
     value: "{{ item.value }}"
-    dest: "/etc/php/{{ wordpress__phpversion }}/apache2/php.ini"
+    dest: "{{ wordpress__phpini }}"
   with_items:
     - { section: "opcache", option: "opcache.enable", value: "1" }
     - { section: "opcache", option: "opcache.interned_strings_buffer", value: "64" }
     - { section: "opcache", option: "opcache.memory_consumption", value: "256" }
     - { section: "opcache", option: "opcache.revalidate_freq", value: "60" }
+  when: wordpress__phpopcache
   notify:
     - apache2 restart
 
