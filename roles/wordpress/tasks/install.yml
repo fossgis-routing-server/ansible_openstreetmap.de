@@ -72,6 +72,23 @@
   notify:
     - phpfpm reload
 
+- name: Disable mpm-prefork for apache2
+  apache2_module:
+    name:
+      - mpm_prefork
+    state: absent
+  notify:
+    - apache2 restart
+  when: wordpress__phpfpm
+
+- name: Enable mpm-event for apache2
+  apache2_module:
+    name:
+      - mpm_event
+  notify:
+    - apache2 restart
+  when: wordpress__phpfpm
+
 - name: "Create database for Wordpress"
   mysql_db:
     name: wpblog
