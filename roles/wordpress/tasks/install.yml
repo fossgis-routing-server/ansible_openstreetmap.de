@@ -11,16 +11,16 @@
   when: wordpress__phpfpm
 
 - name: Enable apache2 modules for phpfpm
-  apache2_module:
+  apache_module:
     name: "{{ item }}"
   with_items:
     - proxy_fcgi
-    - sentenvif
+    - setenvif
   notify: apache2 restart
   when: wordpress__phpfpm
 
 - name: Disable apache2 modules for phpfpm
-  apache2_module:
+  apache_module:
     name: "php{{ wordpress__phpversion }}"
     state: absent
   notify: apache2 restart
@@ -72,21 +72,17 @@
   notify:
     - phpfpm reload
 
-- name: Disable mpm-prefork for apache2
-  apache2_module:
-    name:
-      - mpm_prefork
+- name: Disable mpm_event, enable mpm_prefork and ignore warnings about missing mpm module
+  apache_module:
+    name: "{{ item.module }}"
+    state: "{{ item.state }}"
+    warn_mpm_absent: false
+    ignore_configcheck: true
+  loop:
+  - module: mpm_event
     state: absent
-  notify:
-    - apache2 restart
-  when: wordpress__phpfpm
-
-- name: Enable mpm-event for apache2
-  apache2_module:
-    name:
-      - mpm_event
-  notify:
-    - apache2 restart
+  - module: mpm_prefork
+    state: present
   when: wordpress__phpfpm
 
 - name: "Create database for Wordpress"
@@ -189,6 +185,13 @@
     group: 'www-data'
     mode: '0644'
 
+- name: "Create directory /var/www/wordpress"
+  file:
+    state: directory
+    path: '/var/www/wordpress'
+    owner: 'www-data'
+    group: 'www-data'
+
 - name: "Add Wordpress configuration redirect/include placeholder"
   template:
     dest: /var/www/wordpress/wp-config.php
@@ -225,6 +228,16 @@
     site: weeklyosm.eu
     src: 'weeklyosm.eu.conf'
   notify: reload apache2
+
+- name: "Create directories in /etc/systemd/system/ for overrides"
+  file:
+    state: directory
+    path: '/etc/systemd/system/{{ item }}.service.d'
+    owner: root
+    group: root
+  loop:
+    - mariadb
+    - apache2
 
 - name: "set lower 'Out of memory adjust' score for database"
   copy:
