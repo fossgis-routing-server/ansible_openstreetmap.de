@@ -1,0 +1,14 @@
+- name: apache2 restart
+  systemd:
+    name: apache2
+    state: restarted
+
+- name: phpfpm restart
+  systemd:
+    name: "{{ wordpress__fpmservice }}"
+    state: restarted
+
+- name: phpfpm reload
+  systemd:
+    name: "{{ wordpress__fpmservice }}"
+    state: reloaded

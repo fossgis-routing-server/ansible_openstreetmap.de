@@ -2,7 +2,103 @@
 ---
 - name: "Install MariaDB, and python3-pymysql as required by Ansible"
   apt:
-    name: [mariadb-server, php, php-mysql, php-curl, php-gd, php-imagick, php-mbstring, php-xml, php-xmlrpc, php-soap, php-intl, php-zip, python3-pymysql, tar, gzip, unzip]
+    name: [mariadb-server, php, php-mysql, php-curl, php-gd, php-imagick, php-mbstring, php-xml, php-xmlrpc, php-soap, php-intl, php-zip, php-opcache, python3-pymysql, tar, gzip, unzip]
+
+- name: Install php-fpm
+  apt:
+    name:
+      - php-fpm
+  when: wordpress__phpfpm
+
+- name: Enable apache2 modules for phpfpm
+  apache_module:
+    name: "{{ item }}"
+  with_items:
+    - proxy_fcgi
+    - setenvif
+  notify: apache2 restart
+  when: wordpress__phpfpm
+
+- name: Disable apache2 modules for phpfpm
+  apache_module:
+    name: "php{{ wordpress__phpversion }}"
+    state: absent
+  notify: apache2 restart
+  when: wordpress__phpfpm
+
+- name: Enable config for phpfpm
+  shell: "a2enconf {{ wordpress__apache2phpfpmconf }}"
+  args:
+    creates: "/etc/apache2/conf-enabled/{{ wordpress__apache2phpfpmconf }}.conf"
+  notify: apache2 restart
+  when: wordpress__phpfpm
+
+- name: Create opcache directory
+  file:
+    path: "{{ wordpress__phpopcachepath }}"
+    owner: www-data
+    group: www-data
+    mode: 0755
+    state: directory
+  when: wordpress__phpopcache
+
+- name: Enable opcache in php
+  ini_file:
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    dest: "{{ wordpress__phpini }}"
+  with_items:
+    - { section: "opcache", option: "opcache.enable", value: "1" }
+    - { section: "opcache", option: "opcache.interned_strings_buffer", value: "64" }
+    - { section: "opcache", option: "opcache.memory_consumption", value: "256" }
+    - { section: "opcache", option: "opcache.revalidate_freq", value: "60" }
+    - { section: "opcache", option: "opcache.file_cache", value: "{{ wordpress__phpopcachepath }}" }
+    - { section: "opcache", option: "opcache.revalidate_freq", value: "60" }
+  when: wordpress__phpopcache
+  notify:
+    - apache2 restart
+    - phpfpm restart
+
+- name: Configure php-fpm pool
+  ini_file:
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    dest: "{{ wordpress__phpfpmpoolconf }}"
+  with_items:
+    - { section: "www", option: "pm.max_children", value: "{{ wordpress__phpfpmmaxchildren }}" }
+    - { section: "www", option: "slowlog", value: "syslog" }
+    - { section: "www", option: "request_slowlog_timeout", value: "20" }
+  when: wordpress__phpfpm
+  notify:
+    - phpfpm reload
+
+- name: Configure php-fpm
+  ini_file:
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    dest: "{{ wordpress__phpfpmconf }}"
+  with_items:
+    - { section: "global", option: "error_log", value: "syslog" }
+  when: wordpress__phpfpm
+  notify:
+    - phpfpm reload
+
+
+- name: Disable mpm_event, enable mpm_prefork and ignore warnings about missing mpm module
+  apache_module:
+    name: "{{ item.module }}"
+    state: "{{ item.state }}"
+    warn_mpm_absent: false
+    ignore_configcheck: true
+  loop:
+  - module: mpm_event
+    state: absent
+  - module: mpm_prefork
+    state: present
+  when: wordpress__phpfpm
 
 - name: "Create database for Wordpress"
   mysql_db:
@@ -104,6 +200,13 @@
     group: 'www-data'
     mode: '0644'
 
+- name: "Create directory /var/www/wordpress"
+  file:
+    state: directory
+    path: '/var/www/wordpress'
+    owner: 'www-data'
+    group: 'www-data'
+
 - name: "Add Wordpress configuration redirect/include placeholder"
   template:
     dest: /var/www/wordpress/wp-config.php
@@ -140,6 +243,16 @@
     site: weeklyosm.eu
     src: 'weeklyosm.eu.conf'
   notify: reload apache2
+
+- name: "Create directories in /etc/systemd/system/ for overrides"
+  file:
+    state: directory
+    path: '/etc/systemd/system/{{ item }}.service.d'
+    owner: root
+    group: root
+  loop:
+    - mariadb
+    - apache2
 
 - name: "set lower 'Out of memory adjust' score for database"
   copy:

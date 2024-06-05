@@ -16,3 +16,6 @@
 - name: Misc modifications
   include_tasks: misc.yml
   tags: wordpress
+
+- name: Flush handlers
+  meta: flush_handlers
