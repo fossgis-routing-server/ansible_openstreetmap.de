@@ -87,16 +87,16 @@
     - phpfpm reload
 
 
-- name: Disable mpm_event, enable mpm_prefork and ignore warnings about missing mpm module
+- name: Disable mpm_prefork, enable mpm_event and ignore warnings about missing mpm module
   apache_module:
     name: "{{ item.module }}"
     state: "{{ item.state }}"
     warn_mpm_absent: false
     ignore_configcheck: true
   loop:
-  - module: mpm_event
-    state: absent
   - module: mpm_prefork
+    state: absent
+  - module: mpm_event
     state: present
   when: wordpress__phpfpm
 
