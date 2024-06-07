@@ -1,4 +1,4 @@
-{% call server(overpass__acme_certificates[1].domains, http='yes', https='overpass_munin') -%}
+{% call server([acme_munin_domain], http='yes', https='munin') -%}
 
 DocumentRoot /var/cache/munin/www
 
@@ -45,4 +45,3 @@ ScriptAlias /munin-cgi/munin-cgi-html /usr/lib/munin/cgi/munin-cgi-html
         </IfModule>
 </Location>
 {% endcall %}
-

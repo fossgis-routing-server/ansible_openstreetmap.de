@@ -25,3 +25,10 @@ tile__acme_certificates:
       - b.tile.openstreetmap.de
       - c.tile.openstreetmap.de
       - d.tile.openstreetmap.de
+    on_update:
+      - systemctl reload apache2
+  - name: munin
+    domains:
+      - "{{ munin__hostname | regex_replace(':.*', '') }}"
+    on_update:
+      - systemctl reload apache2

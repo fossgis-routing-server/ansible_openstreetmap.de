@@ -2,3 +2,4 @@
 dependencies:
   - role: postgresql
   - role: apache
+  - role: munin
