@@ -203,7 +203,6 @@
   shell:
     cmd: "make systemd-service PYTARGET={{ tile__basedir }}/venv"
     chdir: "{{ tile__basedir }}/sources/osml10n/"
-  when: tile_osml10n_install.changed
 
 - name: Systemd daemon reload and start osml10n service
   ansible.builtin.systemd:
@@ -211,8 +210,6 @@
     state: started
     enabled: true
     name: osml10n
-  when: tile_osml10n_install.changed
-
 
 - name: Add osmde map style
   set_fact:
