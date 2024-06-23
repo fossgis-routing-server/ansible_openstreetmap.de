@@ -268,7 +268,7 @@
     dest: "/etc/tirex/tirex.conf"
     src: "tirex.conf"
 
-- name: Trex mapnik backend config
+- name: Tirex mapnik backend config
   template:
     dest: "/etc/tirex/renderer/mapnik.conf"
     src: mapnik_conf.j2
