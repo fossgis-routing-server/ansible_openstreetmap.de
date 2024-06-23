@@ -193,6 +193,7 @@
   pip:
     name:
       - "{{ tile__basedir }}/sources/osml10n/"
+      - scipy==1.12  #we can delete after merge of https://github.com/giggls/osml10n/pull/38
     virtualenv: "{{ tile__basedir }}/venv"
     virtualenv_site_packages: yes
     virtualenv_python: python3
@@ -202,7 +203,6 @@
   shell:
     cmd: "make systemd-service PYTARGET={{ tile__basedir }}/venv"
     chdir: "{{ tile__basedir }}/sources/osml10n/"
-  when: tile_osml10n_install.changed
 
 - name: Systemd daemon reload and start osml10n service
   ansible.builtin.systemd:
@@ -210,8 +210,6 @@
     state: started
     enabled: true
     name: osml10n
-  when: tile_osml10n_install.changed
-
 
 - name: Add osmde map style
   set_fact:
@@ -270,7 +268,7 @@
     dest: "/etc/tirex/tirex.conf"
     src: "tirex.conf"
 
-- name: Trex mapnik backend config
+- name: Tirex mapnik backend config
   template:
     dest: "/etc/tirex/renderer/mapnik.conf"
     src: mapnik_conf.j2
