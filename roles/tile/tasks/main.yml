@@ -374,6 +374,36 @@
     enabled: true
     name: tileproxy-grayscale
 
+# munin
+- name: Find Munin plugins related to the tile server and renderd
+  find:
+    paths:
+      - "/usr/share/munin/plugins/"
+    patterns: ["renderd*"]
+  register: munin_renderd_plugins
+  when: "munin__in_use is defined"
+
+- name: Find Munin plugins related to the tile server and mod_tile
+  find:
+    paths:
+      - "/usr/share/munin/plugins/"
+    patterns: ["mod_tile*"]
+  register: munin_mod_tile_plugins
+  when: "munin__in_use is defined"
+
+- name: Install Munin plugins related to the tile server and renderd
+  munin_plugin:
+    name: "{{ item | basename }}"
+  loop: "{{ munin_renderd_plugins.files | map(attribute='path') }}"
+  notify: restart munin-node
+  when: "munin__in_use is defined"
+
+- name: Install Munin plugins related to the tile server and mod_tile
+  munin_plugin:
+    name: "{{ item | basename }}"
+  loop: "{{ munin_mod_tile_plugins.files | map(attribute='path') }}"
+  notify: restart munin-node
+  when: "munin__in_use is defined"
 
 # static website
 - name: Create directory for site
