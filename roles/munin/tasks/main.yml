@@ -1,3 +1,7 @@
+- name: Mark munin in use
+  set_fact:
+    munin__in_use: yes
+
 - name: Install munin
   apt:
     name:
@@ -14,6 +18,18 @@
   when: "webserver__in_use == 'nginx'"
   notify: restart munin-node
 
+# Apache
+- name: Install packages.debian.org/de/sid/libapache2-mod-fcgid
+  apt:
+    name:
+      - libapache2-mod-fcgid
+  when: "webserver__in_use == 'apache2'"
+
+- name: apache enable fcgid module
+  apache_module:
+    name: fcgid
+  when: "webserver__in_use == 'apache2'"
+
 - name: Install apache plugins
   munin_plugin:
     name: "{{ item }}"
@@ -23,3 +39,13 @@
     - apache_volume
   when: "webserver__in_use == 'apache2'"
   notify: restart munin-node
+
+# Set up the default munin site
+- name: Set up the default munin site
+  apache_site:
+    site: 'munin'
+    src: 'munin.apache-default.jinja'
+  vars:
+    acme_munin_domain: "{{ munin__hostname }}"
+  notify: reload apache2
+  when: "webserver__in_use == 'apache2'"

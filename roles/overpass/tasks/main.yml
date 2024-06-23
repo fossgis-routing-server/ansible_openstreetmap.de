@@ -61,12 +61,6 @@
     src: overpass_mpm_event.apache.jinja
     dest: /etc/apache2/mods-available/mpm_event.conf
 
-- name: Enable apache-munin site
-  apache_site:
-    site: overpass-munin
-    src: overpass_munin.apache.jinja
-  notify: reload apache2
-
 - name: Enable apache site
   apache_site:
     site: 000-overpass

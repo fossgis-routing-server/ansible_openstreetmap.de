@@ -25,8 +25,8 @@ overpass__acme_certificates:
       - lz4.overpass-api.de
     on_update:
       - systemctl reload apache2
-  - name: overpass_munin
+  - name: munin
     domains:
-      - "munin.{{ ansible_host }}"
+      - "{{ munin__hostname | regex_replace(':.*', '') }}"
     on_update:
       - systemctl reload apache2
