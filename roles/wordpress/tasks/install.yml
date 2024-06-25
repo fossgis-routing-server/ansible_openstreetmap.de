@@ -97,8 +97,32 @@
   - module: mpm_prefork
     state: absent
   - module: mpm_event
+    state: absent
+  - module: mpm_worker
     state: present
+  notify:
+    - apache2 restart
   when: wordpress__phpfpm
+
+- name: Configure mpm_worker
+  ansible.builtin.lineinfile:
+    path: /etc/apache2/mods-available/mpm_worker.conf
+    owner: "root"
+    group: "root"
+    mode: "0644"
+    regex: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+  notify:
+    - apache2 restart
+  loop:
+    - regexp: '^\s*StartServers'
+      line: '     StartServers {{ wordpress__mpmworker_startservers }}'
+    - regexp: '^\s*MaxRequestWorkers'
+      line: '     MaxRequestWorkers {{ wordpress__mpmworker_maxworkers }}'
+    - regexp: '^\s*MaxConnectionsPerChild'
+      line: '     MaxConnectionsPerChild  {{ wordpress__mpmworker_maxconnectionsperchild }}'
+  tags:
+    - zzexperiment
 
 - name: "Create database for Wordpress"
   mysql_db:

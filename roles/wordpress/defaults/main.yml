@@ -22,3 +22,7 @@ wordpress__phpopcache: true
 wordpress__phpopcachepath: "/var/lib/php/opcache"
 wordpress__phpbase: "/etc/php/{{ wordpress__phpversion }}"
 wordpress__phpini: "{{ wordpress__phpbase }}/{{ wordpress__phpmode }}/php.ini"
+
+wordpress__mpmworker_maxworkers: 250
+wordpress__mpmworker_startservers: 4
+wordpress__mpmworker_maxconnectionsperchild: 4000
