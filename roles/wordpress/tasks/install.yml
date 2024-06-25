@@ -4,6 +4,13 @@
   apt:
     name: [mariadb-server, php, php-mysql, php-curl, php-gd, php-imagick, php-mbstring, php-xml, php-xmlrpc, php-soap, php-intl, php-zip, php-opcache, python3-pymysql, tar, gzip, unzip]
 
+- name: Enable http2 in apache2
+  apache_module:
+    name: "{{ item }}"
+  with_items:
+    - http2
+  notify: apache2 restart
+
 - name: Install php-fpm
   apt:
     name:
