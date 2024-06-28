@@ -14,6 +14,7 @@ $TTL    3600
 {% endfor %}
 
 @                       IN  A           138.201.247.34
+@                       IN  AAAA        2a01:4f8:c17:ead7::1
 @                       IN  MX          10 mail2.fossgis.de.
 @                       IN  TXT         "v=spf1 mx a ip4:139.17.3.227 ip4:139.17.3.229 ip6:2a01:238:4000::4ea:44ad:b203:c2ab ip6:2a01:238:4000::21:6879:9ac1:9e7e ip6:2a01:238:4000:0:3ca:c780:8a7d:7be2 ~all"
 _acme-challenge         IN  NS          everest.openstreetmap.de.
@@ -126,4 +127,7 @@ videos                  IN  CNAME       everest.openstreetmap.de.
 weeklyosm               IN  A           88.99.173.103
 wms                     IN  CNAME       everest.openstreetmap.de.
 www                     IN  A           138.201.247.34
+                        IN  AAAA        2a01:4f8:c17:ead7::1
 xn--hausbru-bxa         IN  CNAME       everest.openstreetmap.de.
+staging                 IN  A           138.201.247.34
+                        IN  AAAA        2a01:4f8:c17:ead7::1
