@@ -421,7 +421,7 @@
     force: yes
   become: yes
   become_user: "{{ tile__user }}"
-
+        
 - name: install required packages with apt
   apt:
     name: [rsync]
@@ -432,6 +432,14 @@
     dest: "{{ tile__basedir }}/site/"
     recursive: true
   delegate_to: "{{ inventory_hostname }}"
+
+- name: Ensure the importdate.txt file exists with correct permissions (used in static website and expire script)
+  file:
+    path: "{{ tile__basedir }}/site/textimport/importdate.txt"
+    state: touch
+    owner: _tirex
+    group: _tirex
+    mode: 0644
 
 # Run the script that sets the variables of the website 
 # (carto version, l10n version, hostname) correctly
