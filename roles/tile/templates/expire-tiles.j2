@@ -7,6 +7,22 @@ python3 {{ expiretilessingle }} \
 {% endfor %}
     {{ difffile }}
 
-# Schreibe aktuelle Daten in die Datei /srv/tile/site/importdate.txt zur Anzeige im Footer der Website
-sudo -u _tirex psql -d osm -t -c "SELECT url, TO_CHAR(importdate,'dd.mm.yyyy hh:mm') FROM planet_osm_replication_status" > /srv/tile/site/importdate.txt
-sudo -u _tirex psql -d osm -t -c "SELECT name, TO_CHAR(TO_DATE(last_modified, 'Dy, DD Mon YYYY HH24:MI:SS "GMT"'), 'dd.mm.yyyy') FROM external_data" >> /srv/tile/site/importdate.txt
+DIR="/srv/tile/site/textimport"
+FILE=""$DIR"/importdate.txt"
+
+if [ ! -f "$FILE" ]; then
+    touch "$FILE"
+    if [ $? -ne 0 ]; then
+        echo "Fehler: Datei $FILE konnte nicht erstellt werden"
+        exit 1
+    fi
+fi
+
+if [ ! -w "$FILE" ]; then
+    echo "Fehler: Keine Schreibberechtigung für die Datei $FILE"
+    exit 1
+fi
+
+psql -d osm -t -c "SELECT url, TO_CHAR(importdate, 'DD.MM.YYYY HH24:MI:SS TZ') FROM planet_osm_replication_status" > "$FILE"
+psql -d osm -t -c "SELECT name, TO_CHAR(TO_DATE(last_modified, 'Dy, DD Mon YYYY HH24:MI:SS \"GMT\"'), 'DD.MM.YYYY') FROM external_data" >> "$FILE"
+date "+Letzter Aufruf von 'Expire': %d.%m.%y %H:%M:%S (UTC)" >> "$FILE"
