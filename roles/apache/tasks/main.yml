@@ -16,6 +16,24 @@
     site: 000-default
     state: absent
 
+- name: localhost site for server-status
+  template:
+    dest: "/etc/apache2/sites-available/localhost.conf"
+    owner: 'www-data'
+    group: 'www-data'
+    mode: '0644'
+    src: "apache_localhost_server-status.conf.jinja"
+  notify: reload apache2
+
+- name: enable localhost site
+  file:
+    src: "/etc/apache2/sites-available/localhost.conf"
+    dest: "/etc/apache2/sites-enabled/localhost.conf"
+    state: 'link'
+    owner: 'www-data'
+    group: 'www-data'
+  notify: reload apache2
+
 - name: Enable Apache modules needed for HTTPS
   shell:
     cmd: 'a2enmod ssl rewrite'

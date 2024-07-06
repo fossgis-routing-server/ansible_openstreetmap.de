@@ -375,12 +375,12 @@
     name: tileproxy-grayscale
 
 # munin
-- name: Find Munin plugins related to the tile server and renderd
+- name: Find Munin plugins related to tirex
   find:
     paths:
-      - "/usr/share/munin/plugins/"
-    patterns: ["renderd*"]
-  register: munin_renderd_plugins
+      - "{{ tile__basedir }}/sources/tirex/munin/"
+    patterns: ["tirex*"]
+  register: munin_tirex_plugins
   when: "munin__in_use is defined"
 
 - name: Find Munin plugins related to the tile server and mod_tile
@@ -391,10 +391,11 @@
   register: munin_mod_tile_plugins
   when: "munin__in_use is defined"
 
-- name: Install Munin plugins related to the tile server and renderd
+- name: Install Munin plugins related to tirex
   munin_plugin:
     name: "{{ item | basename }}"
-  loop: "{{ munin_renderd_plugins.files | map(attribute='path') }}"
+    src: "{{ item }}"
+  loop: "{{ munin_tirex_plugins.files | map(attribute='path') }}"
   notify: restart munin-node
   when: "munin__in_use is defined"
 
