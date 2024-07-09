@@ -24,7 +24,7 @@ map $http_accept_language $lang {
         }
 
         if ($relang !~ 'en') {
-            rewrite ^ https://$server_name/?hl=$relang redirect;
+            rewrite ^ https://$host/?hl=$relang redirect;
         }
     }
 
