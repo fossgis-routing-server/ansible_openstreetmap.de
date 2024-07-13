@@ -375,6 +375,13 @@
     name: tileproxy-grayscale
 
 # munin
+- name: clone tirex git to get munin plugins
+  git:
+    repo: https://github.com/openstreetmap/tirex.git
+    dest: "{{ tile__basedir }}/sources/tirex"
+  become: yes
+  become_user: "{{ tile__user }}"
+
 - name: Find Munin plugins related to tirex
   find:
     paths:
