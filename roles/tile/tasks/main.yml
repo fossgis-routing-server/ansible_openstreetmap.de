@@ -91,6 +91,20 @@
     difffile: /tmp/latest_changes.osc
     expiretiles: "{{ tile__basedir }}/bin/expire-tiles.sh"
 
+- name: Set up log rotation for updatedb.service file /var/log/osm2pgsql-updates.log
+  common_action_plugin_logrotate:
+    name: osm2pgsql-updates-log
+    content:
+      - dest: "/var/log/osm2pgsql-updates.log"
+        settings:
+          - daily
+          - rotate 7
+          - compress
+          - delaycompress
+          - missingok
+          - notifempty
+          - create 0640 root root
+
 # style
 - name: german style
   git:
