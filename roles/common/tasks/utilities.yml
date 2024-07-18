@@ -3,3 +3,21 @@
 - name: Install sudo
   apt:
     name: [htop, screen, time, vim]
+
+# Logging
+- name: Ensure journald.conf settings
+  ini_file:
+    path: /etc/systemd/journald.conf
+    section: Journal
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+  with_items:
+    - { option: 'SystemMaxUse', value: '1G' }
+    - { option: 'SystemKeepFree', value: '500M' }
+    - { option: 'SystemMaxFileSize', value: '50M' }
+    - { option: 'SystemMaxFiles', value: '20' }
+
+- name: Restart systemd-journald to apply changes
+  systemd:
+    name: systemd-journald
+    state: restarted
