@@ -28,40 +28,11 @@ Die Servicedateien für Tirex befinden sich unter `/lib/systemd/system`.
 - **Backend:** `/lib/systemd/system/tirex-backend-manager.service`
 - **Master:** `/lib/systemd/system/tirex-master.service`
 
-1. **Status überprüfen**
-   ```sh
-   sudo systemctl status tirex-master
-   sudo systemctl status tirex-backend-manager
-   ```
-   Diese Befehle zeigen den aktuellen Status der Tirex-Dienste an.
-
-2. **Dienste starten**
-   ```sh
-   sudo systemctl start tirex-master
-   sudo systemctl start tirex-backend-manager
-   ```
-   Diese Befehle starten die Tirex-Dienste.
-
-3. **Dienste stoppen**
-   ```sh
-   sudo systemctl stop tirex-master
-   sudo systemctl stop tirex-backend-manager
-   ```
-   Diese Befehle stoppen die Tirex-Dienste.
-
-4. **Dienste neu starten**
-   ```sh
-   sudo systemctl restart tirex-master
-   sudo systemctl restart tirex-backend-manager
-   ```
-   Diese Befehle starten die Tirex-Dienste neu, was nützlich ist, wenn Konfigurationsänderungen vorgenommen wurden.
-
-5. **Konfiguration neu laden**
-   ```sh
-   sudo systemctl reload tirex-master
-   sudo systemctl reload tirex-backend-manager
-   ```
-   Diese Befehle laden die Konfigurationsdateien neu, ohne die Dienste vollständig neu zu starten.
+```sh
+sudo systemctl status tirex-master
+sudo systemctl status tirex-backend-manager
+```
+start, stop, restart oder reload.
 
 #### Logging
 
