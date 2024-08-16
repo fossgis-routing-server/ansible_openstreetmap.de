@@ -605,6 +605,13 @@
       RandomizedDelaySec: 43200
       Persistent: "true"
 
+# Hack for https://github.com/gravitystorm/openstreetmap-carto/issues/4956
+- name: Replace because of Noto_Emoji.zip
+  shell:
+    cmd: "sed -i 's|fonts.google.com/download?family=Noto%20Emoji|archive.org/download/noto-emoji/Noto_Emoji.zip|g' {{ tile__basedir }}/openstreetmap-carto-de/scripts//get-fonts.sh"
+  become: yes
+  become_user: "{{ tile__user }}"
+
 # reload style if necessary
 - name: Restart tirex-backend-manager if style has changed
   ansible.builtin.systemd:
