@@ -30,7 +30,7 @@
 
 - name: Set up postgresql database
   postgresql_db:
-    name: osm
+    name: "{{ tile__dbname }}"
     owner: _tirex
   become_user: postgres
 
@@ -44,10 +44,10 @@
       random_page_cost: "1.1"
       jit: "off"
 
-- name: Set up postgis, hstore on database osm
+- name: Set up postgis, hstore on database {{ tile__dbname }} (= osm)
   postgresql_ext:
     name: "{{ item }}"
-    db: osm
+    db: "{{ tile__dbname }}"
   become_user: postgres
   loop:
     - postgis
