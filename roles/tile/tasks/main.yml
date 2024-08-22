@@ -207,7 +207,6 @@
   pip:
     name:
       - "{{ tile__basedir }}/sources/osml10n/"
-      - scipy==1.12  #we can delete after merge of https://github.com/giggls/osml10n/pull/38
     virtualenv: "{{ tile__basedir }}/venv"
     virtualenv_site_packages: yes
     virtualenv_python: python3
