@@ -150,8 +150,8 @@
   copy:
     src: "about.md"
     dest: "{{ osrm__basedir }}/about/about.md"
-  become: yes
-  become_user: '{{ osrm__user }}'
+    owner: '{{ osrm__user }}'
+    group: '{{ osrm__user }}'
 
 - name: "create about page"
   shell:
@@ -224,3 +224,13 @@
   copy:
     content: '3 0 * * * www-data sed -e ''s/^.*+0200] "[^"]\+" [0-9][0-9][0-9] [0-9]\+ //'' -e ''s%"\(https\?://\)\?\(www.\)\?\([^-][^/"]*\)[^"]*" "[^"]\+"$%Referrer \3%'' -e ''s/"-" "\([^"]*\)"$/Agent \1/'' /var/log/nginx/router.log.1 | sort | uniq -c | sort -r -n | head -50 | sed -e ''s/^ *[0-9]\+ //'' > top_consumers'
     dest: "/etc/cron.d/daily_top_user_agents"
+
+# fail2ban
+
+- name: Install fail2ban scripts for banned users
+  fail2ban_jail:
+    name: osrm-nginx-bans
+    filter: "nginx-limit-req"
+    logpath: "/var/log/nginx/error.log"
+    ports: [80, 443]
+    maxretry: 10
