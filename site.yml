@@ -103,3 +103,8 @@
   tags: tile
   roles:
     - role: tile
+- hosts: umap
+  become: yes
+  tags: umap
+  roles:
+    - role: umap

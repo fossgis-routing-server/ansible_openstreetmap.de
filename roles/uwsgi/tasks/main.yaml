@@ -9,4 +9,4 @@
   lineinfile:
     path: /etc/uwsgi-emperor/emperor.ini
     regexp: "master-fifo = "
-    line: master-fifo = /run/uwsgi/master.fifo
+    line: master-fifo = /var/run/uwsgi/master.fifo

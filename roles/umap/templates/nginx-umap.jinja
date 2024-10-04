@@ -1,0 +1,18 @@
+{% call server(umap__acme_certificates[0].domains, http='forward', https='umapde') %}
+
+    {{ custom_log('umapde') }}
+    location /static {
+        autoindex off;
+        alias {{ umap__basedir }}/var/static/;
+    }
+
+    location /uploads {
+        autoindex off;
+        alias {{ umap__basedir }}/var/data/;
+    }
+
+    {{ "umapvassal" | uwsgi_location_nginx('/') }}
+
+
+
+{% endcall %}

@@ -1,0 +1,110 @@
+- name: Create umap system account
+  system_account:
+    name: "{{ umap__user }}"
+    home: "{{ umap__basedir }}"
+
+- name: Populate base directories
+  file:
+    dest: "{{ umap__basedir }}/{{ item }}"
+    owner: "{{ umap__user }}"
+    group: "{{ umap__user }}"
+    state: directory
+  loop:
+    - etc
+    - var/static
+    - var/data
+    - custom/templates
+    - custom/static
+
+- name: Populate etc directories
+  file:
+    dest: "/etc/{{ item }}"
+    owner: "root"
+    group: "root"
+    state: directory
+  loop:
+    - umap
+
+- name: Install prerequisites
+  apt:
+    name:
+      - build-essential
+      - autoconf
+      - python3-dev
+      - python3-virtualenv
+      - wget
+      - git
+      - libxml2-dev
+      - libxslt1-dev
+      - zlib1g-dev
+      - libpq-dev
+
+# Custom list of requirements. We want to use some system packages
+# and don't need development packages.
+- name: Set up virtualenv
+  pip:
+    name:
+      - umap-project
+    virtualenv: "{{ umap__basedir }}/venv"
+    virtualenv_site_packages: yes
+    virtualenv_python: python3
+  become_user: "{{ umap__user }}"
+
+- name: Set up postgresl user
+  postgresql_user:
+    name: "{{ umap__user }}"
+    password: "{{ umap__user }}"
+  become_user: postgres
+
+- name: Setup config file
+  template:
+    src: umap.conf.jinja
+    dest: "/etc/umap/umap.conf"
+    owner: "{{ umap__user }}"
+    group: "{{ umap__user }}"
+    mode: "0644"
+
+- name: Delete content & directory
+  ansible.builtin.file:
+    state: absent
+    path: "{{ umap__basedir }}/var/static"
+
+- name: Activate the virtual env and run collectstatic script
+  shell: "{{ umap__basedir }}/venv/bin/umap collectstatic"
+  become_user: "{{ umap__user }}"
+
+- name: Activate the virtual env and run compress script
+  shell: "/srv/umap/venv/bin/umap compress"
+  become_user: "{{ umap__user }}"
+
+- name: Setup uwsgi
+  uwsgi_vassal:
+    plugin: python3,logfile
+    uid: www-data
+    gid: www-data
+    name: umapvassal
+    chdir: "{{ umap__basedir }}"
+    module: umap.wsgi
+    home: "{{ umap__basedir }}/venv"
+    processes: 4
+    #stats: "{{ umap__basedir }}/stats.sock"
+    #chmod-socket: 776
+    vacuum: true
+  notify: reload uwsgi
+
+- name: Setup db-helper script
+  template:
+    src: "{{ item }}.jinja"
+    dest: "/usr/local/bin/{{ item }}"
+    owner: "{{ umap__user }}"
+    group: "{{ umap__user }}"
+    mode: "0755"
+  loop:
+    - import_umapdb.sh
+    - backup_umapdb.sh
+
+- name: Setup nginx config
+  nginx_site:
+    site: 'umap.openstreetmap.de'
+    src: 'nginx-umap.jinja'
+  notify: restart nginx
