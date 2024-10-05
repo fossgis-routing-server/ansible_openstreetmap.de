@@ -1,0 +1,16 @@
+    vars.sslcert["SSLCert weeklyosm.eu"] = {
+        vars.http_certificate = "20,10"
+        vars.http_vhost = "weeklyosm.eu"
+        groups = [ "certificates" ]
+    }
+
+    vars.http["HTTPS weeklyosm.eu"] = {
+        vars.http_vhost = "weeklyosm.eu"
+        vars.http_expect = "HTTP/1.1 200 OK"
+        vars.http_ssl = true
+        vars.http_uri = "/"
+    }
+
+    vars.service["service mysql"] = {
+        vars.systemd_service = "mysql"
+    }
