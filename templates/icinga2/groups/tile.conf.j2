@@ -1,3 +1,9 @@
+    vars.sslcert["SSLCert tile.openstreetmap.de"] = {
+        vars.http_certificate = "20,10"
+        vars.http_vhost = "tile.openstreetmap.de"
+        groups = [ "certificates" ]
+    }
+
     vars.service["service postgresql"] = {
         vars.systemd_service = "postgresql"
     }

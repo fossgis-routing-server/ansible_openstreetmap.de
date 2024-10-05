@@ -1,3 +1,28 @@
+{% for cert in ('routing.openstreetmap.de', 'map.project-osrm.org') %}
+    vars.sslcert["{{ cert }}"] = {
+        vars.http_certificate = "20,10"
+        vars.http_vhost = "{{ cert }}"
+        groups = [ "certificates" ]
+    }
+
+{% endfor %}
+
+vars.http["HTTPS map.project-osrm.org"] = {
+                vars.http_vhost = "map.project-osrm.org"
+                vars.http_expect = "HTTP/1.1 200 OK"
+                vars.http_ssl = true
+                vars.http_uri = "/"
+    }
+
+vars.http["HTTPS router.project-osrm.org"] = {
+                vars.http_vhost = "router.project-osrm.org"
+                vars.http_expect = "HTTP/1.1 200 OK"
+                vars.http_ssl = true
+                vars.http_uri = "/nearest/v1/driving/13.388860,52.517037"
+    }
+
+
+
 {% for profile in osrm__profiles %}
 {% for region, url in [('euasi', '8.292757099999998,46.8372961;8.291786649999999,46.837192200000004'),
                        ('am', '-106.355105,31.766563;-106.35485,31.76411'),
