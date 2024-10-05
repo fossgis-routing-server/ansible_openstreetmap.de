@@ -1,0 +1,13 @@
+{% for profile in osrm__profiles %}
+{% for region, url in [('euasi', '8.292757099999998,46.8372961;8.291786649999999,46.837192200000004'),
+                       ('am', '-106.355105,31.766563;-106.35485,31.76411'),
+                       ('afroc', '36.863535,-1.29213;36.86261044166824,-1.2919224444793669')] %}
+    vars.http["HTTPS Profile '{{profile}}' area '{{ region }}' "] = {
+                vars.http_vhost = "{{ ansible_host }}"
+                vars.http_expect = "HTTP/1.1 200 OK"
+                vars.http_ssl = true
+                vars.http_uri = "/routed-{{ profile }}/route/v1/driving/{{url}}"
+    }
+
+{% endfor %}
+{% endfor %}

@@ -1,0 +1,6 @@
+icingamaster: "monitoring.fossgis.de"
+icinga2_nodename: "{{ ansible_host }}"
+
+icinga2agentconf__configfiles:    # noqa line-too-long
+  - src: "icinga2/base.conf.j2"
+    dest: "host-{{ icinga2agentconf__nodename }}.conf"

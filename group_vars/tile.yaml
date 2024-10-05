@@ -32,3 +32,7 @@ tile__acme_certificates:
       - "{{ munin__hostname | regex_replace(':.*', '') }}"
     on_update:
       - systemctl reload apache2
+
+icinga2customcheck__addon:
+ - check_osmdataimport_timestamp
+ - check_connections

@@ -1,0 +1,16 @@
+    vars.totalprocs = {
+        procs_warning = ":700"
+        procs_critical = ":1200"
+    }
+
+{% for mntpt in ('/', '/database', '/database/flatnode', '/var/lib/postgresql') %}
+    vars.disks["disk {{ mntpt }}"] = {
+        disk_partitions = "{{ mntpt }}"
+        disk_exact_match = true
+    }
+
+{% endfor %}
+
+    vars.service["service apache2"] = {
+        vars.systemd_service = "apache2"
+    }

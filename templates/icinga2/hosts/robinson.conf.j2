@@ -1,0 +1,21 @@
+    vars.totalprocs = {
+        procs_warning = ":200"
+        procs_critical = ":500"
+    }
+
+    vars.disks["disk /"] = {
+        disk_partitions = "/"
+        disk_exact_match = true
+    }
+
+    vars.disks["disk /mnt/static-content"] = {
+        disk_partitions = "/mnt/static-content"
+        disk_exact_match = true
+        disk_cfree = "1%"
+        disk_wfree = "3%"
+    }
+
+    vars.service["service nginx"] = {
+        vars.systemd_service = "nginx"
+    }
+

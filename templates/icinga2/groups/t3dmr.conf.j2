@@ -1,0 +1,12 @@
+    vars.sslcert["SSLCert 3dmr.eu"] = {
+        vars.http_certificate = "20,10"
+        vars.http_vhost = "3dmr.eu"
+        groups = [ "certificates" ]
+    }
+
+    vars.http["HTTPS 3dmr.eu"] = {
+        vars.http_vhost = "3dmr.eu"
+        vars.http_expect = "HTTP/1.1 200 OK"
+        vars.http_ssl = true
+        vars.http_uri = "/"
+    }

@@ -1,0 +1,53 @@
+object Host "{{ icinga2_nodename}}" {
+    import "agent-host-openstreetmap"
+    {% if 'address' in ansible_default_ipv4 %}
+    address = "{{ ansible_default_ipv4.address }}"
+    {% endif %}
+    {% if 'address' in ansible_default_ipv6 %}
+    address6 = "{{ ansible_default_ipv6.address }}"
+    {% endif %}
+
+    vars.cpucores = {{ ansible_processor_vcpus }}
+
+    {% if 'address' in ansible_default_ipv4 %}
+    vars.ping4["ping4 (from monitoring)"] = {
+        zone = "master"
+    }
+    {% endif %}
+
+    {% if 'address' in ansible_default_ipv6 %}
+    vars.ping6["ping6 (from monitoring)"] = {
+        zone = "master"
+    }
+    {% endif %}
+
+    vars.service["service ssh"] = {
+        vars.systemd_service = "ssh"
+    }
+
+    vars.service["service unattended-upgrades"] = {
+        vars.systemd_service = "unattended-upgrades"
+    }
+
+    {% for group in group_names %}
+
+    # Services for group {{ group }}
+    {% set conf_file = "icinga2/groups/%s.conf.j2" % group %}
+    {% include conf_file ignore missing %}
+
+    {% endfor %}
+
+    {% set conf_file = "icinga2/hosts/%s.conf.j2" % inventory_hostname %}
+    {% include conf_file ignore missing %}
+
+}
+
+{% for group in group_names %}
+
+{% set conf_file = "icinga2/groups/%s-services.conf.j2" % group %}
+{% include conf_file ignore missing %}
+
+{% endfor %}
+
+{% set conf_file = "icinga2/hosts/%s-services.conf.j2" % inventory_hostname %}
+{% include conf_file ignore missing %}

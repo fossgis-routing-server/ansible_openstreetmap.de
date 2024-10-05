@@ -1,0 +1,14 @@
+{% for url in ('blog.openstreetmap.de', 'audio.podcast.openstreetmap.de', 'podcast.openstreetmap.de') %}
+    vars.sslcert["SSLCert {{ url }}"] = {
+        vars.http_certificate = "20,10"
+        vars.http_vhost = "{{ url }}"
+        groups = [ "certificates" ]
+    }
+
+    vars.http["HTTPS {{ url }}"] = {
+        vars.http_vhost = "{{ url }}"
+        vars.http_expect = "HTTP/1.1 200 OK"
+        vars.http_ssl = true
+        vars.http_uri = "/"
+    }
+{% endfor %}
