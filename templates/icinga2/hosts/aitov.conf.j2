@@ -1,0 +1,14 @@
+    vars.totalprocs = {
+        procs_warning = ":200"
+        procs_critical = ":500"
+    }
+
+    vars.disks["disk /"] = {
+        disk_partitions = "/"
+        disk_exact_match = true
+    }
+
+    vars.service["service apache2"] = {
+        vars.systemd_service = "apache2"
+    }
+
