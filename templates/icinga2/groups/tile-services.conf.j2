@@ -1,0 +1,22 @@
+object Service "Osm2pgsql Age" {
+    import "generic-service"
+
+    check_command = "osmdataimport_timestamp"
+    host_name = "{{ icinga2_nodename }}"
+
+    vars.file = "{{ tile__basedir }}/site/textimport/importdate.txt"
+    vars.age_critical = "0:14400"
+    vars.age_warning = "0:7200"
+}
+
+object Service "Syn_sent Connections" {
+    import "generic-service"
+
+    check_command = "connections"
+    host_name = "{{ icinga2_nodename }}"
+
+    vars.connections_state = "syn-sent"
+    vars.connections_protocol = "tcp"
+    vars.connections_warning = "10000"
+    vars.connections_critical = "15000"
+}

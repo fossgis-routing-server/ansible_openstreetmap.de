@@ -41,3 +41,7 @@ certs:
 
 tile:
 	ansible-playbook -l tile -i hosts.ini site.yml
+
+monitor:
+	ansible-galaxy install -r requirements.yml -f
+	ansible-playbook -l icinga2agent -i hosts.ini monitoring.yml

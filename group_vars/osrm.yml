@@ -179,3 +179,6 @@ osrm__acme_certificates:
       - router.project-osrm.org
     on_update:
       - systemctl reload nginx
+
+icinga2customcheck__addon:
+ - check_connections

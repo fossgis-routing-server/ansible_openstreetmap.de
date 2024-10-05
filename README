@@ -25,6 +25,12 @@ are too old. Delete your virtual environment and recreate it without
 You always need to run `source _venv/bin/activate` before using ansible when
 installing with pip this way.
 
+Monitoring requires some external roles. These can be downloaded with:
+
+    ansible-galaxy install -r requirements.yml -f
+
+This command is automatically run with 'make monitor'.
+
 Deploying a new Host
 ====================
 

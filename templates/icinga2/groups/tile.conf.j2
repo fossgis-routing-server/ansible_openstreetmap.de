@@ -1,0 +1,18 @@
+    vars.service["service postgresql"] = {
+        vars.systemd_service = "postgresql"
+    }
+
+    vars.http["HTTPS {{ ansible_host }}"] = {
+                vars.http_vhost = "{{ ansible_host }}"
+                vars.http_expect = "HTTP/1.1 200 OK"
+                vars.http_ssl = true
+                vars.http_uri = "/"
+    }
+
+    vars.http[" HTTPS tiles"] = {
+        vars.http_vhost = "{{ ansible_host }}"
+        vars.http_expect = "HTTP/1.1 200 OK"
+        vars.http_ssl = true
+        vars.http_uri = "/13/4408/2741.png"
+    }
+

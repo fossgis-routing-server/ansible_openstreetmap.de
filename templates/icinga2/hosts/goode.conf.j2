@@ -1,0 +1,17 @@
+    vars.totalprocs = {
+        procs_warning = ":1200"
+        procs_critical = ":2000"
+    }
+
+{% for mntpt in ('/', '/srv', '/srv/osrm') %}
+    vars.disks["disk {{ mntpt }}"] = {
+        disk_partitions = "{{ mntpt }}"
+        disk_exact_match = true
+    }
+
+{% endfor %}
+
+    vars.service["service nginx"] = {
+        vars.systemd_service = "nginx"
+    }
+

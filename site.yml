@@ -53,7 +53,7 @@
         dir: private/vars
       ignore_errors: yes
 
-- hosts: all
+- hosts: servers
   become: yes
   tags: common
   roles:

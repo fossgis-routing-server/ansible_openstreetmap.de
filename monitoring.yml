@@ -1,0 +1,33 @@
+# Special script for setting up OSM server monitoring at the monitoring machine.
+
+- name: Icinga2 agent setup
+  hosts: icinga2agent
+  become: true
+  roles:
+    - role: fossgis.icinga2_install
+      tags:
+        - monitoring
+    - role: fossgis.icinga2_agent_config
+      icinga2agentconf__master: "{{ icingamaster }}"
+      tags:
+        - monitoring
+        - monitoringconfig
+    - role: fossgis.icinga2_nodesetup
+      icinga2nodesetup__master: "{{ icingamaster }}"
+      tags:
+        - monitoring
+    - role: fossgis.icinga2_usercert
+      icinga2usercert__master: "{{ icingamaster }}"
+      tags:
+        - monitoring
+        - usercert
+
+- name: Icinga2 custom checks
+  hosts: icinga2agent
+  become: true
+  gather_facts: false
+  roles:
+    - role: fossgis.icinga2_install_customchecks
+      tags:
+        - monitoring
+
