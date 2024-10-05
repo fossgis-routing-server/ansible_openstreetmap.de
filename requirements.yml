@@ -1,0 +1,27 @@
+---
+roles:
+  - name: fossgis.icinga2_install
+    src: https://gitlab.fossgis.de/ansible/roles/fossgis.icinga2_install
+    version: main
+    scm: git
+
+  - name: fossgis.icinga2_nodesetup
+    src: https://gitlab.fossgis.de/ansible/roles/fossgis.icinga2_nodesetup
+    version: main
+    scm: git
+
+  - name: fossgis.icinga2_install_customchecks
+    src: https://gitlab.fossgis.de/ansible/roles/fossgis.icinga2_install_customchecks
+    version: main
+    scm: git
+
+  - name: fossgis.icinga2_agent_config
+    src: https://gitlab.fossgis.de/ansible/roles/fossgis.icinga2_agent_config
+    version: main
+    scm: git
+
+  - name: fossgis.icinga2_usercert
+    src: https://gitlab.fossgis.de/ansible/roles/fossgis.icinga2_usercert
+    version: main
+    scm: git
+
