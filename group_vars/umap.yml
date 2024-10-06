@@ -1,0 +1,24 @@
+umap__user: umap
+umap__basedir: /srv/umap
+umap__dbname: umapdb
+umap__dbuser: umapuser
+umap__host: db
+umap__port: 5432
+umap__db_dumpfile: /tmp/umap_db.backup.sql
+umap__admin_email_address: "umap@openstreetmap.de"
+umap__server_url: "umap.openstreetmap.de"
+
+umap__acme_certificates:
+  - name: umapde
+    domains:
+      - umap.openstreetmap.de
+
+ansible_python_interpreter: /usr/bin/python3
+
+acme_email: umap@openstreetmap.de
+acme_domain: umap.openstreetmap.de
+acme_provider: example # Comment this line to completely disable acme
+
+# traefik_api_url=dashboard.example.com
+# traefik_api_user=demo
+# traefik_api_password=my-secret-password

@@ -1,8 +1,2 @@
 ---
 dependencies:
-  - role: postgresql
-  - role: nginx
-  - role: uwsgi
-
-environment:
-  UMAP_SETTINGS: "/srv/umap/etc/umap.conf"

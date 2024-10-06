@@ -1,0 +1,59 @@
+networks:
+  reverseproxy_web:
+    driver: "bridge"
+#    external: true
+
+services:
+  traefik:
+    image: traefik:v2.11
+    container_name: traefik
+    command:
+      # General stuff
+      - "--log.level=DEBUG"
+      - "--api.dashboard=true"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      # # logging
+      # - "--accesslog=true"
+      # - "--accesslog.filepath=/var/log/traefik/access.log"
+      # - "--log.filepath=/var/log/traefik/traefik.log"
+      # Connection with docker
+      - "--providers.docker=true"
+      - "--providers.docker.watch=true"
+      - "--providers.docker.useBindPortIP=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.endpoint=unix:///var/run/docker.sock"
+      # Certificates
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.email=${ADMIN_EMAIL}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=cert/acme.json"
+      - "--certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web"
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./data/cert:/cert/
+      - /logs:/var/log/traefik
+    # Note: when used in docker-compose.yml all dollar signs in the hash need to be doubled for escaping.
+    # To create user:password pair, it's possible to use this command:
+    # echo $(htpasswd -nB user) | sed -e s/\\$/\\$\\$/g
+    labels:
+      - "traefik.enable=true"
+      # # Dashboard
+      # - "traefik.http.routers.traefik.rule=(Host(`$SERVER_URL`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`)))"
+      # - "traefik.http.routers.traefik.service=api@internal"
+      # - "traefik.http.routers.traefik.tls.certresolver=letsencrypt"
+      # - "traefik.http.routers.traefik.entrypoints=websecure"
+      # - "traefik.http.routers.traefik.middlewares=dashboardauth"
+      # - "traefik.http.routers.traefik.priority=10000"
+      # - "traefik.http.middlewares.dashboardauth.basicauth.users=admin:$$2y$$05$$ofO9vy4b3IzqZO5nXV5lu.3S3uemTftaKexEYgH4jZLdn/fnmihMS"
+      # HTTPS Redirect
+      - "traefik.http.routers.http-catchall.rule=hostregexp(`{host:.+}`)"
+      - "traefik.http.routers.http-catchall.entrypoints=web"
+      - "traefik.http.routers.http-catchall.middlewares=redirect-to-https@docker"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - reverseproxy_web
+

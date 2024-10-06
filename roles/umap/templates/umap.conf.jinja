@@ -4,7 +4,7 @@ from umap.settings.base import *   # pylint: disable=W0614,W0401
 
 SECRET_KEY = '{{ umap__django_secret_key }}'
 INTERNAL_IPS = ('127.0.0.1', )
-ALLOWED_HOSTS = ['*', ]
+ALLOWED_HOSTS = ['*', 'umap.openstreetmap.de', 'localhost', '127.0.0.1']
 
 DEBUG = False
 
@@ -17,10 +17,10 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
         'NAME': '{{ umap__dbname }}',
-        'HOST': 'localhost',
-        'PORT': '5432',
-        'USER': '{{ umap__user }}',
-        'PASSWORD': '{{ umap__user }}'
+        'HOST': '{{ umap__host }}',
+        'PORT': '{{ umap__port }}',
+        'USER': '{{ umap__dbuser }}',
+        'PASSWORD': '{{ umap__dbuser_password }}'
     }
 }
 
@@ -29,30 +29,43 @@ COMPRESS_OFFLINE = True
 
 LANGUAGE_CODE = 'de'
 
+UMAP_IMPORTERS = {
+    "overpass": {"url": "https://overpass-api.de/api/interpreter"}
+}
+
+UMAP_HOST_INFOS = {
+    "name": "FOSSGIS e.V.",
+    "url": "https://www.fossgis.de",
+    "contact": "info@fossgis.de"
+}
+
 # Set to False if login into django account should not be possible. You can
 # administer accounts in the admin interface.
 ENABLE_ACCOUNT_LOGIN = False
 
 AUTHENTICATION_BACKENDS = (
-#    'social_core.backends.github.GithubOAuth2',
-#    'social_core.backends.bitbucket.BitbucketOAuth',
-#    'social_core.backends.twitter.TwitterOAuth',
-    'social_core.backends.openstreetmap.OpenStreetMapOAuth',
-    'django.contrib.auth.backends.ModelBackend',
+#    "social_core.backends.github.GithubOAuth2",
+#    "social_core.backends.bitbucket.BitbucketOAuth",
+#    "social_core.backends.twitter.TwitterOAuth",
+    "social_core.backends.openstreetmap_oauth2.OpenStreetMapOAuth2",
+    "django.contrib.auth.backends.ModelBackend",
 )
-#SOCIAL_AUTH_GITHUB_KEY = 'xxx'
-#SOCIAL_AUTH_GITHUB_SECRET = 'xxx'
-#SOCIAL_AUTH_BITBUCKET_KEY = 'xxx'
-#SOCIAL_AUTH_BITBUCKET_SECRET = 'xxx'
-# We need email to associate with other Oauth providers
-#SOCIAL_AUTH_GITHUB_SCOPE = ["user:email", ]
+#SOCIAL_AUTH_GITHUB_KEY = "xxx"
+#SOCIAL_AUTH_GITHUB_SECRET = "xxx"
+#SOCIAL_AUTH_BITBUCKET_KEY = "xxx"
+#SOCIAL_AUTH_BITBUCKET_SECRET = "xxx"
+#We need email to associate with other Oauth providers
+#SOCIAL_AUTH_GITHUB_SCOPE = [
+#    "user:email",
+#]
 #SOCIAL_AUTH_TWITTER_KEY = "xxx"
 #SOCIAL_AUTH_TWITTER_SECRET = "xxx"
-SOCIAL_AUTH_OPENSTREETMAP_KEY = '{{ umap__social_auth_openstreetmap_key }}'
-SOCIAL_AUTH_OPENSTREETMAP_SECRET = '{{ umap__social_auth_openstreetmap_secret }}'
+SOCIAL_AUTH_OPENSTREETMAP_OAUTH2_KEY = '{{ umap__social_auth_openstreetmap_oauth2_key }}'
+SOCIAL_AUTH_OPENSTREETMAP_OAUTH2_SECRET = '{{ umap__social_auth_openstreetmap_oauth2_secret }}'
 MIDDLEWARE += (
     'social_django.middleware.SocialAuthExceptionMiddleware',
 )
+SOCIAL_AUTH_REDIRECT_IS_HTTPS = True
 SOCIAL_AUTH_RAISE_EXCEPTIONS = False
 SOCIAL_AUTH_BACKEND_ERROR_URL = "/"
 
@@ -72,6 +85,8 @@ UMAP_EXCLUDE_DEFAULT_MAPS = True
 
 # How many maps should be showcased on the main page resp. on the user page
 UMAP_MAPS_PER_PAGE = 1
+# How many maps should be looked for when performing a (sub)search
+UMAP_MAPS_PER_SEARCH = 15
 # How many maps should be showcased on the user page, if owner
 UMAP_MAPS_PER_PAGE_OWNER = 10
 
@@ -98,11 +113,11 @@ UMAP_READONLY = False
 
 
 # For static deployment
-STATIC_ROOT = '{{ umap__basedir }}/var/static'
+STATIC_ROOT = '{{ umap__basedir }}/static'
 STATIC_URL = '/static/'
 
 # For users' statics (geojson mainly)
-MEDIA_ROOT = '{{ umap__basedir }}/var/data'
+MEDIA_ROOT = '{{ umap__basedir }}/data'
 
 # Default map location for new maps
 LEAFLET_LONGITUDE = 2
@@ -113,5 +128,5 @@ LEAFLET_ZOOM = 6
 UMAP_KEEP_VERSIONS = 10
 
 UMAP_CUSTOM_TEMPLATES = '{{ umap__basedir }}/custom/templates'
-#UMAP_CUSTOM_STATICS = '{{ umap__basedir }}/var/static'
+#UMAP_CUSTOM_STATICS = '{{ umap__basedir }}/custom/static'
 SITE_ID=2
