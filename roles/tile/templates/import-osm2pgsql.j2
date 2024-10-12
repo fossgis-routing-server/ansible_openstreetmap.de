@@ -77,6 +77,19 @@ sudo systemctl start updatedb
 sudo systemctl restart tirex-backend-manager
 sudo systemctl restart tirex-master
 
+timeout=30
+elapsed=0
+
+while (! systemctl is-active --quiet tirex-master || [ ! -e /var/run/tirex/master.sock ]) && [ $elapsed -lt $timeout ]; do
+  sleep 1
+  elapsed=$((elapsed + 1))
+done
+
+if [ $elapsed -ge $timeout ]; then
+  echo "tirex-master is not active"
+  exit 1
+fi
+
 # queue up prerendering of low zooms
 {% if tile__small %}
 tirex-batch --prio=99 map=osmde z=1-2 lon=-180,180 lat=-90,90
