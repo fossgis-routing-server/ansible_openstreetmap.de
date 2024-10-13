@@ -27,6 +27,7 @@ if [[ -f $CONFIG ]]; then
 else
    # create a new inventory file for vagrant
    cat > $CONFIG <<EOF
+[servers]
 vagrant ansible_host=$SSH_IP ansible_port=$SSH_Port ansible_ssh_private_key_file=$SSH_IdentityFile
 
 [acme]
