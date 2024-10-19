@@ -20,8 +20,5 @@
   with_items:
     - { option: 'SystemKeepFree', value: '500M' }
     - { option: 'MaxRetentionSec', value: '1month' }
-
-- name: Restart systemd-journald to apply changes
-  systemd:
-    name: systemd-journald
-    state: restarted
+  notify:
+    - restart journald
