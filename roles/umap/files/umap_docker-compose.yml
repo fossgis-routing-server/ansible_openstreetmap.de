@@ -14,7 +14,7 @@ services:
     env_file: ./database.env
     volumes:
       - umap_db:/var/lib/postgresql/data
-      - ./init_umap_db.sh:/docker-entrypoint-initdb.d/01-init_umap_db.sh
+      - ./umap_init_db.sh:/docker-entrypoint-initdb.d/01-init_umap_db.sh
       #- ./backup/umap_db.backup.sql:/tmp/umap_db.backup.sql:ro
     networks:
       - reverseproxy_web
@@ -25,14 +25,6 @@ services:
         condition: service_healthy
     image: umap/umap:2.6.3
     container_name: umap_app
-    env_file: "umap.env"
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.app.rule=Host(`$SERVER_URL`)"
-      - "traefik.http.routers.app.entrypoints=websecure"
-      - "traefik.http.routers.app.tls=true"
-      - "traefik.http.routers.app.tls.certresolver=letsencrypt"
-      - "traefik.http.services.web.loadbalancer.server.port=8000"
     ports:
       - "8000:8000"
     volumes:

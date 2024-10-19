@@ -10,13 +10,9 @@
     group: "{{ umap__user }}"
     state: directory
   loop:
-    - deploy
-    - deploy/umap
-    - deploy/umap/iconpacks
-    - deploy/umap/backup
-    - deploy/reverseproxy
-    - deploy/reverseproxy/data
-    - deploy/reverseproxy/logs
+    - umap
+    - umap/iconpacks
+    - backup
 
 - name: Install prerequisites
   apt:
@@ -29,7 +25,7 @@
 - name: Setup config file
   template:
     src: umap.conf.jinja
-    dest: "{{ umap__basedir }}/deploy/umap/umap.conf"
+    dest: "{{ umap__basedir }}/umap.conf"
     owner: "{{ umap__user }}"
     group: "{{ umap__user }}"
     mode: "0644"
@@ -37,27 +33,27 @@
 - name: Copy scripts
   copy:
     src: "umap_{{ item }}"
-    dest: "{{ umap__basedir }}/deploy/umap/{{ item }}"
+    dest: "{{ umap__basedir }}/{{ item }}"
     owner: "{{ umap__user }}"
     group: "{{ umap__user }}"
   loop:
     - init_db.sh
     - docker-compose.yml
 
-- name: Setup db env file
+- name: Setup umap db env file
   template:
     src: "{{ item }}.jinja"
-    dest: "{{ umap__basedir }}/deploy/umap/{{ item }}"
+    dest: "{{ umap__basedir }}/{{ item }}"
     owner: "{{ umap__user }}"
     group: "{{ umap__user }}"
     mode: "0644"
   loop:
     - database.env
 
-- name: Setup docker env file
+- name: Setup umap docker env file
   template:
     src: "{{ item }}.jinja"
-    dest: "{{ umap__basedir }}/deploy/umap/.env"
+    dest: "{{ umap__basedir }}/.env"
     owner: "{{ umap__user }}"
     group: "{{ umap__user }}"
     mode: "0644"
@@ -97,21 +93,7 @@
     groups: docker
     append: yes
 
-- name: Copy scripts
-  copy:
-    src: "traefik_docker-compose.yml"
-    dest: "{{ umap__basedir }}/deploy/reverseproxy/docker-compose.yml"
-    owner: "{{ umap__user }}"
-    group: "{{ umap__user }}"
-  loop:
-    - traefik_docker-compose.yml
-
-- name: Setup docker env file
-  template:
-    src: "{{ item }}.jinja"
-    dest: "{{ umap__basedir }}/deploy/reverseproxy/.env"
-    owner: "{{ umap__user }}"
-    group: "{{ umap__user }}"
-    mode: "0644"
-  loop:
-    - traefik.env
+- name: "default nginx site"
+  nginx_site:
+    site: 'umapde'
+    src:  'nginx-umap.jinja'
