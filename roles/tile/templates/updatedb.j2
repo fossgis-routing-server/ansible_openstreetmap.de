@@ -21,7 +21,7 @@ RestartSec=6h
 {% else %}
 RestartSec=50
 {% endif %}
-StandardOutput=append:/var/log/osm2pgsql-updates.log
+StandardOutput=journal
 
 [Install]
 WantedBy=multi-user.target
