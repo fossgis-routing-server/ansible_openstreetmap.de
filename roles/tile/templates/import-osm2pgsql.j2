@@ -68,7 +68,11 @@ sudo -u _tirex scripts/get-external-data.py -d {{ dbname }}
 cd {{ style }}
 sudo mkdir -p fonts
 sudo chown _tirex fonts
-sudo -u _tirex scripts/get-fonts.sh
+# currently, font download is broken. Package of current fonts on robinson
+# sudo -u _tirex scripts/get-fonts.sh
+cd fonts
+sudo -u _tirex wget https://robinson.openstreetmap.de/carto-fonts/carto-fonts.zip
+sudo -u _tirex unzip -o carto-fonts.zip
 
 # enable minutely updates
 sudo systemctl enable updatedb
