@@ -34,7 +34,7 @@ dev-overpass:
 	ansible-playbook -l dev.overpass-api.de -i hosts.ini site.yml
 
 dns-update:
-	ansible-playbook -l dns -i hosts.ini -t dns site.yml
+	ansible-playbook -l dns -i hosts.ini dns.yml
 
 certs:
 	ansible-playbook -l acme -i hosts.ini -t certificates site.yml
