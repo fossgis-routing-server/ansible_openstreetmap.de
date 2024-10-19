@@ -4,18 +4,22 @@
   apt:
     name: [htop, screen, time, vim]
 
+- name: Create dir for log file
+  file:
+    path: "/etc/systemd/journald.conf.d"
+    state: directory
+
+
 # Logging
 - name: Ensure journald.conf settings
   ini_file:
-    path: /etc/systemd/journald.conf
+    path: /etc/systemd/journald.conf.d/00-default.conf
     section: Journal
     option: "{{ item.option }}"
     value: "{{ item.value }}"
   with_items:
-    - { option: 'SystemMaxUse', value: '1G' }
     - { option: 'SystemKeepFree', value: '500M' }
-    - { option: 'SystemMaxFileSize', value: '50M' }
-    - { option: 'SystemMaxFiles', value: '20' }
+    - { option: 'MaxRetentionSec', value: '1month' }
 
 - name: Restart systemd-journald to apply changes
   systemd:

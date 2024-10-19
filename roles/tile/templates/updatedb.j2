@@ -7,13 +7,13 @@ Type=simple
 User=_tirex
 Group=_tirex
 ExecStartPre=truncate -s 0 {{ difffile }}
-ExecStart=/bin/sh -c 'osm2pgsql-replication update -d {{ dbname }} --max-diff-size 10 \
+ExecStart=osm2pgsql-replication update -d {{ dbname }} --max-diff-size 10 \
   --diff-file {{ difffile }} --post-processing {{ expiretiles }} -- \
   -G --slim -C 0 -O flex \
   --number-processes {{ ansible_facts['processor_cores'] }} -S {{ lua }} \
 {% if not tile__small %}
   --flat-nodes {{ tile__flatnode }} \
-{% endif %} 2>&1 | logger -t osm2pgsql-replication'
+{% endif %}
 
 Restart=always
 {% if tile__small %}
@@ -21,6 +21,7 @@ RestartSec=6h
 {% else %}
 RestartSec=50
 {% endif %}
+StandardOutput=journal
 
 [Install]
 WantedBy=multi-user.target
