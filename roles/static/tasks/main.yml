@@ -74,3 +74,13 @@
     server_name: "audio.podcast.openstreetmap.de"
     default_server: ""
   notify: restart nginx
+
+- name: "nginx site for robinson.openstreetmap.de"
+  nginx_site:
+    site: 'robinson.openstreetmap.de'
+    src:  'nginx-default.jinja'
+  vars:
+    folder_name: "robinson.openstreetmap.de"
+    server_name: "robinson.openstreetmap.de"
+  notify: restart nginx
+

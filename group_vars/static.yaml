@@ -1,3 +1,10 @@
+robinson__acme_certificates:
+  - name: robinson.openstreetmap.de
+    domains:
+      - robinson.openstreetmap.de
+    on_update:
+      - systemctl reload nginx
+
 osmblog__acme_certificates:
   - name: blog.openstreetmap.de
     domains:
