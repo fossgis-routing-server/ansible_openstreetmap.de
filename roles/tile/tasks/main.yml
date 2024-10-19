@@ -439,7 +439,6 @@
   git:
     repo: https://gitlab.fossgis.de/osm-server/tileserver-web.git
     dest: "{{ tile__basedir }}/tileserver-web"
-    force: yes
   become: yes
   become_user: "{{ tile__user }}"
         
@@ -585,31 +584,25 @@
       RandomizedDelaySec: 43200
       Persistent: "true"
 
+# currently, font download is broken. Package of current fonts on robinson
 # update fonts (https://github.com/gravitystorm/openstreetmap-carto/blob/master/scripts/get-fonts.sh)
-- name: update fonts for mapnik (systemd timer)
-  systemd_service:
-    name: update_fonts
-    enabled: true
-    service:
-      Unit:
-        Description: Update fonts for mapnik periodically
-      Service:
-        Type: oneshot
-        ExecStart: "{{ tile__basedir }}/openstreetmap-carto-de/scripts/get-fonts.sh"
-        WorkingDirectory: "{{ tile__basedir }}/openstreetmap-carto-de"
-        User: _tirex
-        Group: _tirex
-    timer:
-      OnCalendar: "Sat *-*-* 02:00:01"
-      RandomizedDelaySec: 43200
-      Persistent: "true"
-
-# Hack for https://github.com/gravitystorm/openstreetmap-carto/issues/4956
-- name: Replace because of Noto_Emoji.zip
-  shell:
-    cmd: "sed -i 's|fonts.google.com/download?family=Noto%20Emoji|archive.org/download/noto-emoji/Noto_Emoji.zip|g' {{ tile__basedir }}/openstreetmap-carto-de/scripts//get-fonts.sh"
-  become: yes
-  become_user: "{{ tile__user }}"
+#- name: update fonts for mapnik (systemd timer)
+#  systemd_service:
+#    name: update_fonts
+#    enabled: true
+#    service:
+#      Unit:
+#        Description: Update fonts for mapnik periodically
+#      Service:
+#        Type: oneshot
+#        ExecStart: "{{ tile__basedir }}/openstreetmap-carto-de/scripts/get-fonts.sh"
+#        WorkingDirectory: "{{ tile__basedir }}/openstreetmap-carto-de"
+#        User: _tirex
+#        Group: _tirex
+#    timer:
+#      OnCalendar: "Sat *-*-* 02:00:01"
+#      RandomizedDelaySec: 43200
+#      Persistent: "true"
 
 # reload style if necessary
 - name: Restart tirex-backend-manager if style has changed
