@@ -24,20 +24,9 @@ DATABASES = {
     }
 }
 
-COMPRESS_ENABLED = True
-COMPRESS_OFFLINE = True
-
 LANGUAGE_CODE = 'de'
 
-UMAP_IMPORTERS = {
-    "overpass": {"url": "https://overpass-api.de/api/interpreter"}
-}
 
-UMAP_HOST_INFOS = {
-    "name": "FOSSGIS e.V.",
-    "url": "https://www.fossgis.de",
-    "contact": "info@fossgis.de"
-}
 
 # Set to False if login into django account should not be possible. You can
 # administer accounts in the admin interface.
@@ -101,7 +90,11 @@ SITE_URL = "https://umap.openstreetmap.de"
 # }
 
 # POSTGIS_VERSION = (2, 1, 0)
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+#EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+DEFAULT_FROM_EMAIL = "noreply@openstreetmap.de"
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = "mail2.fossgis.de"
+EMAIL_PORT = 25
 
 # You need to unable accent extension before using UMAP_USE_UNACCENT
 # python manage.py dbshell
@@ -111,12 +104,11 @@ UMAP_USE_UNACCENT = False
 # Put the site in readonly mode (useful for migration or any maintenance)
 UMAP_READONLY = False
 
-
-# For static deployment
+#For static deployment
 STATIC_ROOT = '{{ umap__basedir }}/static'
 STATIC_URL = '/static/'
 
-# For users' statics (geojson mainly)
+#For users' statics (geojson mainly)
 MEDIA_ROOT = '{{ umap__basedir }}/data'
 
 # Default map location for new maps
@@ -130,3 +122,19 @@ UMAP_KEEP_VERSIONS = 10
 UMAP_CUSTOM_TEMPLATES = '{{ umap__basedir }}/custom/templates'
 #UMAP_CUSTOM_STATICS = '{{ umap__basedir }}/custom/static'
 SITE_ID=2
+
+COMPRESS_ENABLED = True
+COMPRESS_OFFLINE = True
+
+UMAP_IMPORTERS = {
+    "overpass": {"url": "https://overpass-api.de/api/interpreter"}
+}
+
+# "latest" or "highlighted" or "none"
+UMAP_HOME_FEED = "none"
+
+UMAP_HOST_INFOS = {
+    "name": "{{ umap__host_info_name }}",
+    "url": "{{ umap__host_info_url }}",
+    "contact": "{{ umap__host_info_contact }}"
+}

@@ -2,13 +2,12 @@ uMap Server
 
 Das Setup besteht aus
 
-- Traefik: als Webserverersatz, Letsencrypt-Zertifikate werden automatisch erzeugt und aktualisiert
-- Docker: Container für PostgreSQL, uMap, traefik 
+- nginx: Webserver
+- Docker: Container für PostgreSQL, uMap 
 - uMap: uMap-Application
 
 Starten der Container
-cd /srv/umap/deploy/umap
+cd /srv/umap
 docker compose up -d
 
-cd /srv/umap/deploy/reverseproxy
-docker compose up -d 
+
