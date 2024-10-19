@@ -1,0 +1,8 @@
+# Special script for updating DNS servers.
+
+- name: DNS setup
+  hosts: dns
+  tags: dns
+  become: yes
+  roles:
+    - role: dns
