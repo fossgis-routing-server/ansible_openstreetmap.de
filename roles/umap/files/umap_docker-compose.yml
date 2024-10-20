@@ -7,14 +7,15 @@ services:
 
   db:
     healthcheck:
-        test: ["CMD-SHELL", "pg_isready -U postgres"]
+        test: ["CMD-SHELL", "pg_isready -d umapdb -U umapuser"]
         interval: 2s
     image: postgis/postgis:16-3.4-alpine
     container_name: umap_db
     env_file: ./database.env
     volumes:
       - umap_db:/var/lib/postgresql/data
-      - ./umap_init_db.sh:/docker-entrypoint-initdb.d/01-init_umap_db.sh
+      - ./init_db.sh:/docker-entrypoint-initdb.d/01-init_umap_db.sh
+      - ./backupstorage:/tmp/backupstorage
       #- ./backup/umap_db.backup.sql:/tmp/umap_db.backup.sql:ro
     networks:
       - reverseproxy_web
@@ -26,10 +27,10 @@ services:
     image: umap/umap:2.6.3
     container_name: umap_app
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     volumes:
-      - ./backup/var/data:/srv/umap/data
-      - ./backup/custom:/srv/umap/custom
+      - ./userdata/var/data:/srv/umap/data
+      - ./userdata/custom:/srv/umap/custom
       - ./umap.conf:/etc/umap/umap.conf
       - ./iconpacks/osmic:/tmp/iconimport
     restart: always
