@@ -41,7 +41,7 @@
   notify: restart munin-node
 
 # Set up the default munin site
-- name: Set up the default munin site
+- name: Set up the default munin site in apache2
   apache_site:
     site: 'munin'
     src: 'munin.apache-default.jinja'
@@ -49,3 +49,12 @@
     acme_munin_domain: "{{ munin__hostname }}"
   notify: reload apache2
   when: "webserver__in_use == 'apache2'"
+
+- name: Set up the default munin site in nginx
+  nginx_site:
+    site: 'munin'
+    src: 'munin.nginx-default.jinja'
+  vars:
+    acme_munin_domain: "{{ munin__hostname }}"
+  notify: reload nginx
+  when: "webserver__in_use == 'nginx'"

@@ -12,7 +12,7 @@
   loop:
     - umap
     - umap/iconpacks
-    - backup
+    - userdata
 
 - name: Install prerequisites
   apt:
@@ -87,13 +87,34 @@
     state: latest
     update_cache: true
 
-- name: Add vagrant user to "docker" group
+- name: Install docker compose plugin
+  apt:
+    name: docker-compose-plugin
+    state: latest
+    update_cache: true
+
+- name: Add "{{ umap__user }}" user to "docker" group
   user:
-    name: vagrant
+    name: "{{ umap__user }}"
     groups: docker
     append: yes
 
-- name: "default nginx site"
+- name: Ensure Docker service is started
+  systemd:
+    name: docker
+    state: started
+    enabled: yes
+
+- name: Run Docker Compose up as user "{{ umap__user }}"
+  become: true
+  become_user: "{{ umap__user }}"
+  command: docker compose -f "{{ umap__basedir }}"/docker-compose.yml up -d
+  args:
+    chdir: "{{ umap__basedir }}"
+  environment:
+    COMPOSE_HTTP_TIMEOUT: 200
+
+- name: "umap nginx site and munin"
   nginx_site:
     site: 'umapde'
     src:  'nginx-umap.jinja'

@@ -6,7 +6,7 @@ umap__host: db
 umap__port: 5432
 umap__db_dumpfile: /tmp/umap_db.backup.sql
 umap__admin_email_address: "umap@openstreetmap.de"
-umap__server_url: "umap.openstreetmap.de"
+umap__server_url: "boggs.openstreetmap.de"
 
 umap__host_info_name: "FOSSGIS e.V."
 umap__host_info_url: "https://www.fossgis.de"
@@ -16,6 +16,12 @@ umap__acme_certificates:
   - name: umapde
     domains:
       - umap.openstreetmap.de
+      - boggs.openstreetmap.de
+  - name: munin
+    domains:
+      #- "{{ munin__hostname | regex_replace(':.*', '') }}"
+      - munin.umap.openstreetmap.de
+      - munin.boggs.openstreetmap.de
     on_update:
       - systemctl reload nginx
 
