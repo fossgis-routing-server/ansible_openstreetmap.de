@@ -51,6 +51,8 @@ sudo -u _tirex psql -d {{ dbname }} -f {{ style }}/indexes-hstore.sql
 
 sudo -u _tirex {{ style }}/views_osmde/apply-views.sh {{ dbname }}
 
+sudo -u _tirex psql -d {{ dbname }} -f {{ style }}/functions.sql
+
 {% if tile__small %}
 sudo -u _tirex osm2pgsql-replication init  -d {{ dbname }} --osm-file {{ tile__planet }}
 {% else %}
