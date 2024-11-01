@@ -56,7 +56,7 @@
 # osm2pgsql
 - name: install osm2pgsql with apt
   apt:
-    name: [osm2pgsql, pyosmium]
+    name: [osm2pgsql/bookworm-backports, pyosmium]
 
 - name: install required packages with apt
   apt:
