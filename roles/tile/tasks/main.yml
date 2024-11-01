@@ -54,14 +54,30 @@
     - hstore
 
 # osm2pgsql
-- name: install osm2pgsql with apt
+- name: Ensure backports repository is enabled
+  apt_repository:
+    repo: "deb http://deb.debian.org/debian bookworm-backports main"
+    state: present
+
+- name: Update apt cache
   apt:
-    name: [osm2pgsql, pyosmium]
+    update_cache: yes
+
+- name: Install osm2pgsql from backports
+  apt:
+    name: osm2pgsql
+    default_release: bookworm-backports
+    state: latest
+
+- name: Install pyosmium with apt
+  apt:
+    name: [pyosmium]
 
 - name: install required packages with apt
   apt:
     name: [git, dpkg-dev, debhelper, libmapnik-dev, python3-mapnik]
 
+# Import
 - name: import script
   template:
       dest: "/usr/local/sbin/import-osm2pgsql"
@@ -87,23 +103,8 @@
       src: "updatedb.j2"
   vars:
     dbname: "{{ tile__dbname }}"
-    lua: "{{ tile__basedir }}/sources/osml10n/openstreetmap-carto-hstore-only-l10n.lua"
     difffile: /tmp/latest_changes.osc
     expiretiles: "{{ tile__basedir }}/bin/expire-tiles.sh"
-
-- name: Set up log rotation for updatedb.service file /var/log/osm2pgsql-updates.log
-  common_action_plugin_logrotate:
-    name: osm2pgsql-updates-log
-    content:
-      - dest: "/var/log/osm2pgsql-updates.log"
-        settings:
-          - daily
-          - rotate 7
-          - compress
-          - delaycompress
-          - missingok
-          - notifempty
-          - create 0640 root root
 
 # style
 - name: german style
@@ -584,6 +585,7 @@
       RandomizedDelaySec: 43200
       Persistent: "true"
 
+# START font-hack
 # currently, font download is broken. Package of current fonts on robinson
 # update fonts (https://github.com/gravitystorm/openstreetmap-carto/blob/master/scripts/get-fonts.sh)
 #- name: update fonts for mapnik (systemd timer)
@@ -603,6 +605,19 @@
 #      OnCalendar: "Sat *-*-* 02:00:01"
 #      RandomizedDelaySec: 43200
 #      Persistent: "true"
+- name: Deaktivieren und stoppen des update_fonts Dienstes
+  ansible.builtin.systemd:
+    state: stopped
+    enabled: false
+    name: update_fonts
+  ignore_errors: yes
+- name: Deaktivieren und stoppen des update_fonts Timers
+  ansible.builtin.systemd:
+    state: stopped
+    enabled: false
+    name: update_fonts.timer
+  ignore_errors: yes
+# END font-hack
 
 # reload style if necessary
 - name: Restart tirex-backend-manager if style has changed
@@ -611,4 +626,3 @@
     enabled: true
     name: tirex-backend-manager
   when: tile_mapnik_git.changed
-
