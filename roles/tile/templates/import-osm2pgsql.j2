@@ -4,6 +4,9 @@
 #
 # Creates the render DB from the current planet.
 
+# Redirect all outputs to the journal and output to the console at the same time
+exec > >(tee >(logger -t osm2pgsql-import)) 2>&1
+
 set -e
 
 # stop render database updates if they are running
@@ -38,7 +41,7 @@ sudo -u _tirex osm2pgsql --create -d {{ dbname }} --slim --cache 0 --output flex
 {% if not tile__small %}
   --flat-nodes {{ tile__flatnode }} \
 {% endif %}
-  {{ tile__planet }} 2>&1 | sudo tee /var/log/osm2pgsql-import.log
+  {{ tile__planet }}
 
 # create planet-import-complete file with current timestamp
 # https://github.com/openstreetmap/tirex/blob/94e6392d0e1f30d4534d4699e16a1b4914980881/lib/Tirex/Source/ModTile.pm#L134
@@ -51,7 +54,7 @@ sudo -u _tirex {{ style }}/views_osmde/apply-views.sh {{ dbname }}
 sudo -u _tirex psql -d {{ dbname }} -f {{ style }}/functions.sql
 
 sudo -u _tirex osm2pgsql-replication init  -d {{ dbname }} --server https://planet.openstreetmap.org/replication/minute
-sudo -u _tirex osm2pgsql-replication status -d {{ dbname }} | sudo tee -a /var/log/osm2pgsql-import.log
+sudo -u _tirex osm2pgsql-replication status -d {{ dbname }}
 
 # make sure auxiliary data is loaded
 cd {{ style }}
