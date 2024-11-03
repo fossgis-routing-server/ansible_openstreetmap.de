@@ -54,9 +54,24 @@
     - hstore
 
 # osm2pgsql
+- name: Add bookworm-backports repository
+  apt_repository:
+    repo: 'deb http://deb.debian.org/debian bookworm-backports main'
+    state: present
+
+- name: Update APT cache
+  apt:
+    update_cache: yes
+
+- name: Install osm2pgsql from backports
+  apt:
+    name: osm2pgsql
+    state: present
+    default_release: bookworm-backports
+
 - name: install osm2pgsql with apt
   apt:
-    name: [osm2pgsql/bookworm-backports, pyosmium]
+    name: [pyosmium]
 
 - name: install required packages with apt
   apt:
