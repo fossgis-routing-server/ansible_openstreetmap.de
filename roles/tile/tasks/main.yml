@@ -87,7 +87,6 @@
       src: "updatedb.j2"
   vars:
     dbname: "{{ tile__dbname }}"
-    lua: "{{ tile__basedir }}/sources/osml10n/openstreetmap-carto-hstore-only-l10n.lua"
     difffile: /tmp/latest_changes.osc
     expiretiles: "{{ tile__basedir }}/bin/expire-tiles.sh"
 
