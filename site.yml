@@ -98,3 +98,8 @@
   tags: tile
   roles:
     - role: tile
+- hosts: coastline
+  become: yes
+  tags: coastline
+  roles:
+    - role: coastline
