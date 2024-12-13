@@ -169,8 +169,8 @@
     proto: tcp
     from_ip: '{{ item.src }}'
   with_items:
-    - {'comment': 'goode', 'src': '213.144.137.116' }
-    - {'comment': 'goode', 'src': '2001:1620:2776:1::/64' }
+    - {'comment': 'goode', 'src': '5.148.170.168' }
+    - {'comment': 'goode', 'src': '2a02:418:39aa:8::/64' }
 
 # logging: osrm-backend routing daemons print all requests, which is logged by
 # systemd AND forwarded to rsyslogd. Which gives multiple (syslog, daemon) huge
