@@ -39,7 +39,7 @@ set -e
 # create flatnode file with correct permissions
 sudo touch {{ tile__flatnode }} && sudo chown _tirex {{ tile__flatnode }}
 
-sudo -u _tirex osm2pgsql --create -d {{ dbname }} --slim --cache 0 --output flex \
+sudo -u _tirex osm2pgsql --create -d {{ dbname }} --slim --output flex \
   --number-processes {{ ansible_facts['processor_cores'] }} -S {{ lua }} \
 {% if not tile__small %}
   --flat-nodes {{ tile__flatnode }} \
