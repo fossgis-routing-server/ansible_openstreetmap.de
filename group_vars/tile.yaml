@@ -2,7 +2,7 @@ tile__basedir: /srv/tile
 tile__user: tile
 
 tile__style_version: v5.9.0-de2
-tile__osml10n_version: v1.2.1
+tile__osml10n_version: c6181a7534554d20d5cd7bff64f4fb039a894e99
 
 tile__dbname: osm
 
