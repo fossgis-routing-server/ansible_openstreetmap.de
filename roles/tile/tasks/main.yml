@@ -140,7 +140,7 @@
 
 - name: Localization functions for OpenStreetMap
   git:
-    repo: https://github.com/giggls/osml10n.git
+    repo: https://github.com/astridx/osml10n.git
     dest: "{{ tile__basedir }}/sources/osml10n"
     version: "{{ tile__osml10n_version }}"
   register: tile_osml10n_sources
