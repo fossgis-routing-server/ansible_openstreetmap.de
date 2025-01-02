@@ -23,6 +23,6 @@ if [ ! -w "$FILE" ]; then
     exit 1
 fi
 
-psql -d osm -t -c "SELECT url, TO_CHAR(importdate, 'DD.MM.YYYY HH24:MI:SS TZ') FROM planet_osm_replication_status" > "$FILE"
+psql -d osm -t -c "SELECT 'OSM data',TO_CHAR(value::timestamptz, 'DD.MM.YYYY HH24:MI:SS TZ') FROM osm2pgsql_properties WHERE property = 'current_timestamp';" > "$FILE"
 psql -d osm -t -c "SELECT name, TO_CHAR(TO_DATE(last_modified, 'Dy, DD Mon YYYY HH24:MI:SS \"GMT\"'), 'DD.MM.YYYY') FROM external_data" >> "$FILE"
 date "+Letzter Aufruf von 'Expire': %d.%m.%y %H:%M:%S (UTC)" >> "$FILE"
