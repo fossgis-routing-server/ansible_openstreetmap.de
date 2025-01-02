@@ -134,21 +134,21 @@ osrm__profilearea:
       area: europe asia
       port: 3332
       profile: "bike"
-      mem: "-s"
+      mem: "-m 1"
     bikeafoce:
       host: "goode"
       poly: "{{ osrm_polyafoce }}"
       area: africa oceania
       port: 3333
       profile: "bike"
-      mem: "-s"
+      mem: "-m 1"
     bikeam:
       host: "goode"
       poly: "{{ osrm_polyam }}"
       area: americas
       port: 3334
       profile: "bike"
-      mem: "-s"
+      mem: "-m 1"
     footeuasi:
       host: "goode"
       poly: "{{ osrm_polyeuasi }}"
