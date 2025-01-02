@@ -76,7 +76,7 @@
         User: osrm
         Group: osrm
         LimitNOFILE: 1000000
-        ExecStart: "{{ osrm__basedir }}/osrm-backend/build/osrm-routed --algorithm={{ osrm__algo }} -p {{ item.value.port }} -t 6 {{ osrm__basedir }}/data/{{ item.key }}.osrm"
+        ExecStart: "{{ osrm__basedir }}/osrm-backend/build/osrm-routed --algorithm={{ osrm__algo }} -p {{ item.value.port }} -t 6 {{item.value.mem}} {{ osrm__basedir }}/data/{{ item.key }}.osrm"
         Restart: always
         RestartSec: 700
   loop: "{{ osrm__profilearea|dict2items }}"

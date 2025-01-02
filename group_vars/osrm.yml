@@ -113,54 +113,63 @@ osrm__profilearea:
       area: europe asia
       port: 3330
       profile: "car"
+      mem: ""
     carafoce:
       host: "goode"
       poly: "{{ osrm_polyafoce }}"
       area: africa oceania
       port: 3338
       profile: "car"
+      mem: ""
     caram:
       host: "goode"
       poly: "{{ osrm_polyam }}"
       area: americas
       port: 3331
       profile: "car"
+      mem: ""
     bikeeuasi:
       host: "goode"
       poly: "{{ osrm_polyeuasi }}"
       area: europe asia
       port: 3332
       profile: "bike"
+      mem: "-m 1"
     bikeafoce:
       host: "goode"
       poly: "{{ osrm_polyafoce }}"
       area: africa oceania
       port: 3333
       profile: "bike"
+      mem: "-m 1"
     bikeam:
       host: "goode"
       poly: "{{ osrm_polyam }}"
       area: americas
       port: 3334
       profile: "bike"
+      mem: "-m 1"
     footeuasi:
       host: "goode"
       poly: "{{ osrm_polyeuasi }}"
       area: europe asia
       port: 3335
       profile: "foot"
+      mem: ""
     footafoce:
       host: "goode"
       poly: "{{ osrm_polyafoce }}"
       area: africa oceania
       port: 3336
       profile: "foot"
+      mem: ""
     footam:
       host: "goode"
       poly: "{{ osrm_polyam }}"
       area: americas
       port: 3337
       profile: "foot"
+      mem: ""
 
 osrm__profiles:
     car:  ["careuasi",  "carafoce",  "caram"]

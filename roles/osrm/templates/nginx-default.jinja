@@ -120,4 +120,7 @@ map $http_accept_language $lang {
     }
 {% endif %}
 
+    location /timestamps/ {
+        types { } default_type "text/html; charset=utf-8";
+    }
 {% endcall %}
