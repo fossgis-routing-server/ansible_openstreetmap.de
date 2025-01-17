@@ -86,7 +86,7 @@
   vars:
     dbname: "{{ tile__dbname }}"
     style: "{{ tile__basedir }}/openstreetmap-carto-de"
-    lua: "{{ tile__basedir }}/sources/osml10n/openstreetmap-carto-hstore-only-l10n.lua"
+    lua: "{{ tile__basedir }}/openstreetmap-carto-de/openstreetmap-carto-flex-l10n.lua"
 
 - name: Make sure destination dir for flatnode file, planet and bin dir exist
   file:
@@ -306,6 +306,14 @@
     group: _tirex
     mode: 0755
   loop: "{{ tile__styles }}"
+
+- name: Create log directory
+  file:
+    path: "/var/cache/tirex/logs"
+    state: directory
+    mode: 0755
+  ignore_errors: yes
+  become: yes
 
 - name: Make sure tirex-backend-manager is running
   ansible.builtin.systemd:
