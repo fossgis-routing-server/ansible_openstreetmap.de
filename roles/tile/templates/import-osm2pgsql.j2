@@ -55,7 +55,7 @@ sudo -u _tirex osm2pgsql --create -d {{ dbname }} --slim --output flex \
 # https://github.com/openstreetmap/tirex/blob/94e6392d0e1f30d4534d4699e16a1b4914980881/lib/Tirex/Source/ModTile.pm#L134
 sudo touch /var/cache/tirex/tiles/planet-import-complete
 
-sudo -u _tirex psql -d {{ dbname }} -f {{ style }}/indexes-hstore.sql
+sudo -u _tirex psql -d {{ dbname }} -f {{ style }}/indexes.sql
 
 sudo -u _tirex {{ style }}/views_osmde/apply-views.sh {{ dbname }}
 
