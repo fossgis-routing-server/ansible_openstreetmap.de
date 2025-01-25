@@ -404,12 +404,27 @@
   become: yes
   become_user: "{{ tile__user }}"
 
-- name: Find Munin plugins related to tirex
-  find:
-    paths:
-      - "{{ tile__basedir }}/sources/tirex/munin/"
-    patterns: ["tirex*"]
-  register: munin_tirex_plugins
+- name: Install Munin plugins related to tirex (not map related)
+  munin_plugin:
+    name: "{{ item }}"
+    src: "{{ tile__basedir }}/sources/tirex/munin/{{ item }}"
+  loop: 
+    - tirex-status-render-time
+    - tirex-status-requests-rendered
+    - tirex-status-active-requests
+    - tirex-status-queued-requests-age
+    - tirex-status-queued-requests
+  notify: restart munin-node
+  when: "munin__in_use is defined"
+
+- name: Install Munin plugins related to tirex (map related)
+  munin_plugin:
+    name: "tirex-tiledir-{{ item[0] }}-{{ item[1] }}"
+    src: "{{ tile__basedir }}/sources/tirex/munin/tirex-tiledir-{{ item[0] }}"
+  with_nested:
+    - [ "diskusage", "tilecount-absolute", "tilecount-relative" ]
+    - [ "osmde", "osmhrb" ]
+  notify: restart munin-node
   when: "munin__in_use is defined"
 
 - name: Find Munin plugins related to the tile server and mod_tile
@@ -420,20 +435,35 @@
   register: munin_mod_tile_plugins
   when: "munin__in_use is defined"
 
-- name: Install Munin plugins related to tirex
-  munin_plugin:
-    name: "{{ item | basename }}"
-    src: "{{ item }}"
-  loop: "{{ munin_tirex_plugins.files | map(attribute='path') }}"
-  notify: restart munin-node
-  when: "munin__in_use is defined"
-
 - name: Install Munin plugins related to the tile server and mod_tile
   munin_plugin:
     name: "{{ item | basename }}"
   loop: "{{ munin_mod_tile_plugins.files | map(attribute='path') }}"
   notify: restart munin-node
   when: "munin__in_use is defined"
+
+- name: Create directory for tirex statistics
+  file:
+    path: "/var/cache/tirex/stats/"
+    state: directory
+    owner: _tirex
+    mode: 0755
+
+- name: Periodically update tile statistics (systemd timer)
+  systemd_service:
+    name: tirex_tiledir_stats
+    enabled: true
+    service:
+      Unit:
+        Description: Update tile directory statistics for tirex munin plugins
+      Service:
+        Type: oneshot
+        ExecStart: /usr/share/doc/tirex/examples/tirex-create-stats-and-update-tiles.sh osmde osmhrb
+        User: "{{ tile__user }}"
+        Group: "{{ tile__user }}"
+    timer:
+      OnCalendar: "*-*-* *:0/2:00"
+      RandomizedDelaySec: 3600
 
 # static website
 - name: Create directory for site
