@@ -453,14 +453,15 @@
   systemd_service:
     name: tirex_tiledir_stats
     enabled: true
+    state: started
     service:
       Unit:
         Description: Update tile directory statistics for tirex munin plugins
       Service:
         Type: oneshot
         ExecStart: /usr/share/doc/tirex/examples/tirex-create-stats-and-update-tiles.sh osmde osmhrb
-        User: "{{ tile__user }}"
-        Group: "{{ tile__user }}"
+        User: _tirex
+        Group: _tirex
     timer:
       OnCalendar: "*-*-* *:0/2:00"
       RandomizedDelaySec: 3600
@@ -591,6 +592,7 @@
   systemd_service:
     name: lowzoom_rerender
     enabled: true
+    state: started
     service:
       Unit:
         Description: Queue up rerendering of low zoom tiles with tirex-batch
@@ -609,6 +611,7 @@
   systemd_service:
     name: update_external_data
     enabled: true
+    state: started
     service:
       Unit:
         Description: Update external data data for rerendering periodically
