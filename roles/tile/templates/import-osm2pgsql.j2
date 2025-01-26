@@ -57,8 +57,6 @@ sudo touch /var/cache/tirex/tiles/planet-import-complete
 
 sudo -u _tirex psql -d {{ dbname }} -f {{ style }}/indexes.sql
 
-sudo -u _tirex {{ style }}/views_osmde/apply-views.sh {{ dbname }}
-
 sudo -u _tirex psql -d {{ dbname }} -f {{ style }}/functions.sql
 
 sudo -u _tirex osm2pgsql-replication init  -d {{ dbname }} --server https://planet.openstreetmap.org/replication/minute
