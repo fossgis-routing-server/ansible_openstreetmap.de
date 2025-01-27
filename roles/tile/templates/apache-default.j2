@@ -32,7 +32,7 @@
       Header always set Strict-Transport-Security "max-age=63072000; includeSubDomains"
       Header set Referrer-Policy "same-origin"
       Header always set Permissions-Policy "geolocation=(self), picture-in-picture=(), microphone=(), camera=(), usb=()"
-      Header set Content-Security-Policy "default-src 'self'; script-src 'self'; connect-src 'self' nominatim.openstreetmap.org; img-src 'self' https://*.openstreetmap.org/ data:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; frame-src 'self'; worker-src 'self'; connect-src 'self'"
+      Header set Content-Security-Policy "default-src 'self' https://tile.openstreetmap.org/ https://bonne.openstreetmap.de/ https://ptolemy.openstreetmap.de/; script-src 'self' https://tile.openstreetmap.org/ https://bonne.openstreetmap.de/ https://ptolemy.openstreetmap.de/; connect-src 'self' bonne.openstreetmap.de ptolemy.openstreetmap.de nominatim.openstreetmap.org; img-src 'self' https://tile.openstreetmap.org/ https://bonne.openstreetmap.de/ https://ptolemy.openstreetmap.de/ data:; style-src 'self' 'unsafe-inline'; font-src 'self'; object-src 'none'; frame-src 'self'; worker-src 'self'; connect-src 'self'"
     </IfModule>
   </Directory>
 
@@ -51,5 +51,7 @@
   RewriteCond ${inbbox:$1} "FALSE"
   RewriteRule "^/osmhrb/(.*)$" "/tilesbw/osmde/$1" [R,L]
 
+  LogFormat "%h %l %u %t \"%r\" %>s %b" common
+  CustomLog /var/cache/tirex/logs/apache_logs common
   
 {% endcall %}
