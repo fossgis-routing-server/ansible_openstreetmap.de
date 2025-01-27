@@ -4,6 +4,9 @@
 #
 # Creates the render DB from the current planet.
 
+# Redirect all outputs to the journal and output to the console at the same time
+exec > >(tee >(logger -t osm2pgsql-import)) 2>&1
+
 set -e
 
 # stop render database updates if they are running
@@ -13,6 +16,11 @@ sudo systemctl stop updatedb
 {% if tile__small %}
 OSM_SOURCE=http://download.geofabrik.de/europe/monaco-latest.osm.pbf
 #OSM_SOURCE=https://download.geofabrik.de/asia/south-korea-latest.osm.pbf
+#OSM_SOURCE=https://download.geofabrik.de/europe/hungary-latest.osm.pbf
+#OSM_SOURCE=https://download.geofabrik.de/europe/iceland.html
+#OSM_SOURCE=https://download.geofabrik.de/europe/estonia-latest.osm.pbf
+#OSM_SOURCE=https://download.geofabrik.de/asia/israel-and-palestine-latest.osm.pbf
+#OSM_SOURCE=https://download.geofabrik.de/europe/germany/baden-wuerttemberg/karlsruhe-regbez-latest.osm.pbf
 {% else %}
 OSM_SOURCE=https://ftp5.gwdg.de/pub/misc/openstreetmap/planet.openstreetmap.org/pbf/planet-latest.osm.pbf
 {% endif %}
@@ -28,37 +36,31 @@ sudo chown {{ tile__user }} $(basename $OSM_SOURCE)
 sudo -u {{ tile__user }} wget -N $OSM_SOURCE
 sudo ln -f $(basename $OSM_SOURCE) $(basename $(realpath {{ tile__planet }}))
 
-{% if not tile__small %}
+set +e
 sudo -u tile pyosmium-up-to-date {{ tile__planet }} -s 10000
-
-{% endif %}
+echo "$(date '+%Y-%m-%d %H:%M:%S')  pyosmium-up-to-date exited with status $?"
+set -e
 
 # create flatnode file with correct permissions
 sudo touch {{ tile__flatnode }} && sudo chown _tirex {{ tile__flatnode }}
 
-sudo -u _tirex osm2pgsql -c -d {{ dbname }} --slim -C 0 -O flex \
+sudo -u _tirex osm2pgsql --create -d {{ dbname }} --slim --output flex \
   --number-processes {{ ansible_facts['processor_cores'] }} -S {{ lua }} \
 {% if not tile__small %}
   --flat-nodes {{ tile__flatnode }} \
 {% endif %}
-  {{ tile__planet }} 2>&1 | sudo tee /var/log/osm2pgsql-import.log
+  {{ tile__planet }}
 
 # create planet-import-complete file with current timestamp
 # https://github.com/openstreetmap/tirex/blob/94e6392d0e1f30d4534d4699e16a1b4914980881/lib/Tirex/Source/ModTile.pm#L134
 sudo touch /var/cache/tirex/tiles/planet-import-complete
 
-sudo -u _tirex psql -d {{ dbname }} -f {{ style }}/indexes-hstore.sql
-
-sudo -u _tirex {{ style }}/views_osmde/apply-views.sh {{ dbname }}
+sudo -u _tirex psql -d {{ dbname }} -f {{ style }}/indexes.sql
 
 sudo -u _tirex psql -d {{ dbname }} -f {{ style }}/functions.sql
 
-{% if tile__small %}
-sudo -u _tirex osm2pgsql-replication init  -d {{ dbname }} --osm-file {{ tile__planet }}
-{% else %}
 sudo -u _tirex osm2pgsql-replication init  -d {{ dbname }} --server https://planet.openstreetmap.org/replication/minute
-{% endif %}
-sudo -u _tirex osm2pgsql-replication status -d {{ dbname }} | sudo tee -a /var/log/osm2pgsql-import.log
+sudo -u _tirex osm2pgsql-replication status -d {{ dbname }}
 
 # make sure auxiliary data is loaded
 cd {{ style }}
