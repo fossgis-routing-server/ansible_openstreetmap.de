@@ -85,6 +85,7 @@
       mode: 0755
   vars:
     dbname: "{{ tile__dbname }}"
+    map_hrb: "{{ tile__basedir }}/sources/map-hrb"
     style: "{{ tile__basedir }}/openstreetmap-carto-de"
     lua: "{{ tile__basedir }}/openstreetmap-carto-de/openstreetmap-carto-flex-l10n.lua"
 
@@ -130,13 +131,30 @@
     cmd: "npm install --global carto"
     creates: "/usr/local/bin/carto"
 
-- name: generate mapnik xml
+- name: generate mapnik xml for de
   shell:
     cmd: "make; git checkout project.mml"
     chdir: "{{ tile__basedir }}/openstreetmap-carto-de"
   become: yes
   become_user: "{{ tile__user }}"
   when: tile_mapnik_git.changed
+
+- name: Map-hrb
+  git:
+    repo: https://github.com/giggls/map-hrb
+    dest: "{{ tile__basedir }}/sources/map-hrb"
+    version: "{{ tile__map_hrb_version }}"
+  register: tile_map_hrb_git
+  become: yes
+  become_user: "{{ tile__user }}"
+
+- name: generate mapnik xml for hrb
+  shell:
+    cmd: "./gen-osm-hrb.sh {{ tile__basedir }}/openstreetmap-carto-de/osm-de.xml"
+    chdir: "{{ tile__basedir }}/sources/map-hrb"
+  become: yes
+  become_user: "{{ tile__user }}"
+  when: tile_map_hrb_git.changed or tile_mapnik_git.changed
 
 - name: Localization functions for OpenStreetMap
   git:

@@ -15,6 +15,7 @@ sudo systemctl stop updatedb
 
 {% if tile__small %}
 OSM_SOURCE=http://download.geofabrik.de/europe/monaco-latest.osm.pbf
+#OSM_SOURCE=https://download.geofabrik.de/europe/germany/brandenburg-latest.osm.pbf
 #OSM_SOURCE=https://download.geofabrik.de/asia/south-korea-latest.osm.pbf
 #OSM_SOURCE=https://download.geofabrik.de/europe/hungary-latest.osm.pbf
 #OSM_SOURCE=https://download.geofabrik.de/europe/iceland.html
@@ -56,6 +57,11 @@ sudo -u _tirex osm2pgsql --create -d {{ dbname }} --slim --output flex \
 sudo touch /var/cache/tirex/tiles/planet-import-complete
 
 sudo -u _tirex psql -d {{ dbname }} -f {{ style }}/indexes.sql
+
+sudo -u _tirex psql -f {{ map_hrb }}/views_hrb/view-point.sql {{ dbname }}
+sudo -u _tirex psql -f {{ map_hrb }}/views_hrb/view-line.sql {{ dbname }}
+sudo -u _tirex psql -f {{ map_hrb }}/views_hrb/view-polygon.sql {{ dbname }}
+sudo -u _tirex psql -f {{ map_hrb }}/views_hrb/view-roads.sql {{ dbname }}
 
 sudo -u _tirex psql -d {{ dbname }} -f {{ style }}/functions.sql
 
