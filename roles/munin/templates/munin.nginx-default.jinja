@@ -1,4 +1,4 @@
-{% call server([acme_munin_domain], http='yes', https='munin') -%}
+{% call server(umap__acme_certificates[1].domains, http='yes', https='munin') -%}
 
 # Munin-Web-Dokumenten-Root fuer NGINX
 location / {

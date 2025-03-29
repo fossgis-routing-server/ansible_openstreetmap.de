@@ -22,7 +22,7 @@
       - wget
       - git
 
-- name: Setup config file
+- name: Setup umap config file
   template:
     src: umap.conf.jinja
     dest: "{{ umap__basedir }}/umap.conf"
@@ -118,3 +118,8 @@
   nginx_site:
     site: 'umapde'
     src:  'nginx-umap.jinja'
+
+- name: start nginx
+  service:
+    name: nginx
+    state: started
