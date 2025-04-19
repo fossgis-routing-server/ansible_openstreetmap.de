@@ -34,7 +34,7 @@
   git:
     repo: https://github.com/fossgis-routing-server/osrm-backend.git
     dest: '{{ osrm__basedir }}/osrm-backend'
-    version: '0571260d86732c972cd65f724c0435c70dbde183'
+    version: '3a1095d9f1c49ca65044f85b940f030d6be1e32e'
   register: osrm_backend_build
   become: yes
   become_user: '{{ osrm__user }}'
@@ -54,7 +54,7 @@
 
 - name: build osrm-backend
   shell:
-    cmd: "cmake -DCMAKE_BUILD_TYPE=Release .. && make -j {{ ansible_facts['processor_cores'] }}"
+    cmd: "CXXFLAGS=-Wno-error cmake -DCMAKE_BUILD_TYPE=Release .. && make -j {{ ansible_facts['processor_cores'] }}"
     chdir: '{{ osrm__basedir }}/osrm-backend/build/'
     creates: '{{ osrm__basedir }}/osrm-backend/build/osrm-extract'
   environment:
