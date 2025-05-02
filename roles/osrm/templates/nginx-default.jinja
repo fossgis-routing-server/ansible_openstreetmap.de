@@ -64,7 +64,7 @@ map $http_accept_language $lang {
 {% for profile in osrm__profiles.keys() %}
     location /routed-{{ profile }} {
         limit_req zone=standard burst=10;
-        limit_req zone=table burst=5;
+        limit_req zone=table burst=1;
         limit_req zone=tile burst=50;
         rewrite_by_lua_file /etc/nginx/lua/{{ profile }}rewrite.lua;
     }

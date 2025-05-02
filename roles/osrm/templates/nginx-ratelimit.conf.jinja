@@ -3,7 +3,7 @@ map $uri $limit_type {
     default       0;
     ~/route/v1/   1;
     ~/nearest/v1/ 1;
-    ~/match/v1/   1;
+    ~/match/v1/   2;
     ~/table/v1/   2;
     ~/trip/v1/    2;
     ~/tile/v1/    3;
@@ -26,7 +26,7 @@ map $limit_type $limit_tile {
 }
 
 
-limit_req_zone $limit_route zone=standard:50m rate=2r/s;
-limit_req_zone $limit_table zone=table:50m rate=10r/m;
-limit_req_zone $limit_tile zone=tile:5m rate=5r/s;
+limit_req_zone $limit_route zone=standard:50m rate=1r/s;
+limit_req_zone $limit_table zone=table:50m rate=6r/m;
+limit_req_zone $limit_tile zone=tile:5m rate=2r/s;
 
