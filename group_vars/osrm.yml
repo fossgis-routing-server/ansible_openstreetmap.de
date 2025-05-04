@@ -104,6 +104,9 @@ osrm__datauser: 'osrmdata'
 osrm__fronthost: 'goode'
 osrm__buildhost: 'goode'
 osrm__algo: "CH"
+# parallel: how many threads to use for preprocessing. -t 16 for example.
+# Leaving this empty will use as many threads as there are cores available.
+osrm__parallel: ''
 osrm__small: True
 
 osrm__profilearea:

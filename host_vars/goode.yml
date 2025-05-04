@@ -1,2 +1,3 @@
 
 osrm__small: False
+osrm__parallel: '-t 16'
