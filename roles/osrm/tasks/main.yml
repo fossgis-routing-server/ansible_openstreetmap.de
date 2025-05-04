@@ -23,12 +23,12 @@
 # osrm backend
 - name: install prerequisites for osrm-backend
   apt:
-    name: [git, clang, build-essential, cmake,  pkg-config, libprotoc-dev, protobuf-compiler,
+    name: [git, clang-16, build-essential, cmake,  pkg-config, libprotoc-dev, protobuf-compiler,
            libprotobuf-dev, libosmpbf-dev, libpng-dev, libbz2-dev, libstxxl-dev,
-           libstxxl-doc, libstxxl1v5, libxml2-dev, libzip-dev, libboost-thread-dev,
-           libboost-system-dev, libboost-regex-dev, libboost-filesystem-dev,
-           libboost-program-options-dev, libboost-iostreams-dev,
-           libboost-test-dev, liblua5.2-dev, libtbb-dev, libexpat-dev]
+           libstxxl-doc, libstxxl1v5, libxml2-dev, libzip-dev, libboost-thread1.81-dev,
+           libboost-system1.81-dev, libboost-regex1.81-dev, libboost-filesystem1.81-dev,
+           libboost-program-options1.81-dev, libboost-iostreams1.81-dev,
+           libboost-test1.81-dev, liblua5.2-dev, libtbb-dev, libexpat-dev]
 
 - name: checkout osrm-backend
   git:
@@ -54,12 +54,12 @@
 
 - name: build osrm-backend
   shell:
-    cmd: "CXXFLAGS=-Wno-error cmake -DCMAKE_BUILD_TYPE=Release .. && make -j {{ ansible_facts['processor_cores'] }}"
+    cmd: "cmake -DCMAKE_BUILD_TYPE=Release .. && make -j {{ ansible_facts['processor_cores'] }}"
     chdir: '{{ osrm__basedir }}/osrm-backend/build/'
     creates: '{{ osrm__basedir }}/osrm-backend/build/osrm-extract'
   environment:
-    CC: clang
-    CXX: clang++
+    CC: clang-16
+    CXX: clang++-16
   become: yes
   become_user: '{{ osrm__user }}'
 
