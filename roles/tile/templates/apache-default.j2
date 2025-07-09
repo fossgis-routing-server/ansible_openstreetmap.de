@@ -55,3 +55,29 @@
   CustomLog /var/cache/tirex/logs/apache_logs common
   
 {% endcall %}
+
+{% call server(["karte.openstreetmap.de", "karte." ~ tile__hostname], http='forward', https='tilede') %}
+  DocumentRoot {{ tile__basedir }}/karte_osmde_site
+
+  <Directory {{ tile__basedir }}/karte_osmde_site>
+    Options FollowSymLinks MultiViews
+    AllowOverride None
+    Require all granted
+
+    <IfModule mod_headers.c>
+      Header set X-XSS-Protection "1; mode=block"
+      Header set X-Frame-Options "SAMEORIGIN"
+      Header set X-Content-Type-Options "nosniff"
+      Header always set Strict-Transport-Security "max-age=63072000; includeSubDomains"
+      Header set Referrer-Policy "same-origin"
+      Header always set Permissions-Policy "geolocation=(self), picture-in-picture=(), microphone=(), camera=(), usb=()"
+      Header set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src * data:; connect-src *; object-src 'none'; frame-src 'none'; worker-src 'self' blob:;"
+    </IfModule>
+  </Directory>
+
+  RewriteEngine on
+  RedirectMatch 404 /\.git
+
+  LogFormat "%h %l %u %t \"%r\" %>s %b" common
+  CustomLog /var/log/apache2/karte.openstreetmap.de-access.log common
+{% endcall %}

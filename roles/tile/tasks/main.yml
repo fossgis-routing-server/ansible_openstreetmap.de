@@ -557,7 +557,7 @@
 
 - name: set vite_hostname if tile__small is set (vagrant use case)
   set_fact:
-    tile__hostname: "localhost:8443"
+    tile__hostname: "localhost"
   when: tile__small
 
 - name: Replace vars on static website
@@ -580,6 +580,29 @@
           "
   become: yes
   become_user: "{{ tile__user }}"
+
+# website karte.openstreetmap.de
+- name: Create directory for site
+  file:
+    path: "{{ tile__basedir }}/karte_osmde_site"
+    state: directory
+    owner: '{{ tile__user }}'
+    group: '{{ tile__user  }}'
+    mode: 0755
+
+- name: Clone website repo
+  git:
+    repo: https://github.com/astridx/karte.openstreetmap.de
+    dest: "{{ tile__basedir }}/karte.openstreetmap.de"
+  become: yes
+  become_user: "{{ tile__user }}"
+
+- name: Sync static website dist with DocumentRoot
+  ansible.posix.synchronize:
+    src: "{{ tile__basedir }}/karte.openstreetmap.de/public/"
+    dest: "{{ tile__basedir }}/karte_osmde_site/"
+    recursive: true
+  delegate_to: "{{ inventory_hostname }}"
 
 # apache http server conf
 - name: apache enable proxy module
