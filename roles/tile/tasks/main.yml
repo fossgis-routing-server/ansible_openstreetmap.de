@@ -554,10 +554,12 @@
 - name: set vite_hostname 
   set_fact:
     tile__hostname: "{{ inventory_hostname }}.openstreetmap.de"
+    tile__hostname_port: "{{ inventory_hostname }}.openstreetmap.de"
 
 - name: set vite_hostname if tile__small is set (vagrant use case)
   set_fact:
     tile__hostname: "localhost"
+    tile__hostname_port: "localhost:8443"
   when: tile__small
 
 - name: Replace vars on static website
@@ -566,7 +568,7 @@
 
           sed -i \"s/VITE_OSML10N_VERSION/{{ tile__osml10n_version }}/g\" *.js;
           sed -i \"s/VITE_OPENSTREETMAP_CARTO_DE_VERSION/{{ tile__style_version }}/g\" *.js;
-          sed -i 's%VITE_HOSTNAME%{{ tile__hostname }}%' *.js;
+          sed -i 's%VITE_HOSTNAME%{{ tile__hostname_port }}%' *.js;
 
           cd {{ tile__basedir }}/site;
 
@@ -592,7 +594,7 @@
 
 - name: Clone website repo
   git:
-    repo: https://github.com/astridx/karte.openstreetmap.de
+    repo: https://github.com/fossgis/karte.openstreetmap.de
     dest: "{{ tile__basedir }}/karte.openstreetmap.de"
   become: yes
   become_user: "{{ tile__user }}"
