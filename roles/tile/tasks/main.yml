@@ -584,7 +584,7 @@
   become_user: "{{ tile__user }}"
 
 # website karte.openstreetmap.de
-- name: Create directory for site
+- name: Create directory for karte.openstreetmap.de
   file:
     path: "{{ tile__basedir }}/karte_osmde_site"
     state: directory
@@ -592,14 +592,14 @@
     group: '{{ tile__user  }}'
     mode: 0755
 
-- name: Clone website repo
+- name: Clone website repo for karte.openstreetmap.de
   git:
     repo: https://github.com/fossgis/karte.openstreetmap.de
     dest: "{{ tile__basedir }}/karte.openstreetmap.de"
   become: yes
   become_user: "{{ tile__user }}"
 
-- name: Sync static website dist with DocumentRoot
+- name: Sync static website public folder with DocumentRoot
   ansible.posix.synchronize:
     src: "{{ tile__basedir }}/karte.openstreetmap.de/public/"
     dest: "{{ tile__basedir }}/karte_osmde_site/"
