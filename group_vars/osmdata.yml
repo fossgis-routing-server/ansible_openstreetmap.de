@@ -1,0 +1,27 @@
+# Linux user used by the update run
+osmdata__user: osmdata
+
+# Base directory for osmdata service
+osmdata__basedir: /srv/osmdata
+
+# Data directory (contains planet and other volatile data)
+osmdata__datadir: /srv/osmdata/data
+
+# Where to download the planet from, for testing use a smaller file!
+osmdata__planet: https://planet.osm.org/pbf/planet-latest.osm.pbf
+#osmdata__planet: https://download.geofabrik.de/antarctica-latest.osm.pbf
+#osmdata__planet: https://download.geofabrik.de/europe/faroe-islands-latest.osm.pbf
+
+# The domain name for the web server
+osmdata__domain: osmdata.openstreetmap.de
+
+# Used for the pg_virtualenv database. Use smaller setting for vagrant test.
+osmdata__shared_buffers: 2GB
+
+# Settings for TLS certificate.
+osmdata__acme_certificates:
+  - name: osmdata
+    domains:
+      - osmdata.openstreetmap.de
+    on_update:
+      - systemctl reload apache2

@@ -1,0 +1,2 @@
+# Data directory (contains planet and other volatile data)
+osmdata__datadir: /storage/osmdata

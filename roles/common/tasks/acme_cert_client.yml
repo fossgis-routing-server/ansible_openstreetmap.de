@@ -64,6 +64,7 @@
     key: "{{ acme__distribution_account.public }}"
     key_options: 'environment="SHELL=/bin/sh",command="{{ acme__daemon_basedir }}/bin/update_key"'
     comment: acme
+  when: acme__distribution_account is defined
 
 - name: Install key update script
   template:

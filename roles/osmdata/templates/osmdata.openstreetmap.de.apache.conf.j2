@@ -1,0 +1,47 @@
+{% call server([ osmdata__domain ], http='forward', https='osmdata') %}
+
+    DocumentRoot {{ osmdata__basedir }}/web
+
+    Header always set X-Frame-Options "DENY"
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set X-Content-Type-Options "nosniff"
+
+    Alias /download/ {{ osmdata__datadir }}/good/
+    Alias /new/ {{ osmdata__datadir }}/new/
+    Alias /d/ {{ osmdata__datadir }}/web/
+
+    <Directory {{ osmdata__basedir }}/web>
+        Options FollowSymlinks
+        Require all granted
+        AddType text/html .html
+        <Files *.json>
+            Header always set Access-Control-Allow-Origin "*"
+        </Files>
+    </Directory>
+
+    <Directory {{ osmdata__datadir }}/good>
+        Require all granted
+        AddType text/html .html
+        <Files last-update>
+            Header always set Access-Control-Allow-Origin "*"
+        </Files>
+    </Directory>
+
+    <Directory {{ osmdata__datadir }}/new>
+        Require all granted
+        AddType text/html .html
+        <Files last-update>
+            Header always set Access-Control-Allow-Origin "*"
+        </Files>
+    </Directory>
+
+    <Directory {{ osmdata__datadir }}/web>
+        Options FollowSymlinks
+        Require all granted
+        AddType text/html .html
+        Header always set Access-Control-Allow-Origin "*"
+    </Directory>
+
+    {{ custom_log('osmdata') }}
+
+{% endcall %}

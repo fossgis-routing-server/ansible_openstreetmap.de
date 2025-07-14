@@ -1,0 +1,49 @@
+#!/bin/bash
+#------------------------------------------------------------------------------
+#
+#  update-planet.sh
+#
+#------------------------------------------------------------------------------
+
+set -euo pipefail
+#set -x
+
+if [ "$USER" != "{{ osmdata__user }}" ]; then
+    echo "Must be run as user {{ osmdata__user }}"
+    exit 1
+fi
+
+#------------------------------------------------------------------------------
+
+readonly DATADIR="{{ osmdata__datadir }}/planet"
+
+readonly PLANETURL="{{ osmdata__planet }}"
+
+readonly PLANET="$DATADIR/planet.osm.pbf"
+readonly NEW_PLANET="$DATADIR/new-planet.osm.pbf"
+readonly OLD_PLANET="$DATADIR/old-planet.osm.pbf"
+
+#------------------------------------------------------------------------------
+
+readonly iso_date='+%Y-%m-%dT%H:%M:%S'
+
+rm -f "$OLD_PLANET"
+
+date $iso_date
+
+echo "Downloading planet file (if there isn't one)..."
+test -f "$PLANET" || wget --no-verbose -O "$PLANET" "$PLANETURL"
+
+date $iso_date
+
+echo "Updating planet file..."
+rm -f "$NEW_PLANET"
+/usr/lib/python3-pyosmium/pyosmium-up-to-date -v --size 10000 --format pbf,pbf_compression=lz4 "$PLANET"
+
+osmium fileinfo -g header.option.osmosis_replication_timestamp "$PLANET" >"$DATADIR/last-update"
+
+date $iso_date
+
+df -h
+
+#------------------------------------------------------------------------------
