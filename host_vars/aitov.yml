@@ -16,32 +16,38 @@ mail:
 
 
 wordpress_plugins:
+  - name: autoptimize
+    version: 3.1.13
   - name: classic-editor
-    version: 1.6.3
+    version: 1.6.7
   - name: co-authors-plus
-    version: 3.5.15
+    version: 3.6.6
+  - name: crop-thumbnails
+    version: 1.9.5
   - name: enable-media-replace
-    version: 4.1.5
+    version: 4.1.6
   - name: jetpack
-    version: 13.0
+    version: 14.8
   - name: limit-login-attempts-reloaded
-    version: 2.25.29
+    version: 2.26.19
   - name: password-policy-manager
-    version: 1.5.0
+    version: 2.0.5
   - name: qtranslate-xt
     download: https://github.com/qtranslate/qtranslate-xt/archive/refs/tags/3.15.2.tar.gz
   - name: Relevanssi
-    version: 4.22.0
+    version: 4.24.6
   - name: safe-svg
-    version: 2.2.2
+    version: 2.3.1
+  - name: wp-smushit
+    version: 3.20.0
   - name: spam-destroyer
-    version: 2.1.3
+    version: 2.1.6
   - name: two-factor-authentication
-    version: 1.14.17
+    version: 1.14.27
   - name: updraftplus
-    version: 1.23.16
+    version: 1.25.6
   - name: wordfence
-    version: 7.11.1
+    version: 8.0.5
 wordpress_themes:
   - name: ephemeris
-    version: 1.5.1
+    version: 1.5.3

@@ -2,8 +2,8 @@
 ---
 wordpress_import_dumps: false
 wordpress:
-  version: '6.4.3'
-  tarball_sha1: 'ee3bc3a73ab3cfa535c46f111eb641b3467fa44e'
+  version: '6.8.2'
+  tarball_sha1: '03baad10b8f9a416a3e10b89010d811d9361e468'
   hostname: 'weeklyosm.eu'
   hostname_aliases:
     - 'www.weeklyosm.eu'
