@@ -1,0 +1,195 @@
+- name: Install used apt packages
+  ansible.builtin.apt:
+    pkg:
+      - bc
+      - cimg-dev
+      - cmake
+      - g++
+      - gdal-bin
+      - git
+      - jekyll
+      - jq
+      - libgdal-dev
+      - libosmium2-dev
+      - libproj-dev
+      - make
+      - osmcoastline
+      - osmium-tool
+      - python3-gdal
+      - python3-pyosmium
+      - rsync
+      - ruby-json
+      - ruby-sqlite3
+      - spatialite-bin
+      - sqlite3
+      - tmux
+      - unzip
+      - zip
+
+# ----------------------------------------------------------------------------
+
+- name: Create directories owned by root
+  ansible.builtin.file:
+    dest: "{{ osmdata__basedir }}/{{ item }}"
+    state: directory
+    mode: '0755'
+    owner: root
+    group: root
+  loop:
+    - ''
+    - bin
+    - etc
+
+- name: Create user
+  system_account:
+    name: "{{ osmdata__user }}"
+    home: "{{ osmdata__basedir }}/home"
+
+- name: Create directories owned by user
+  ansible.builtin.file:
+    dest: "{{ osmdata__basedir }}/{{ item }}"
+    state: directory
+    mode: '0755'
+    owner: "{{ osmdata__user }}"
+    group: "{{ osmdata__user }}"
+  loop:
+    - log
+    - src
+    - web
+
+- name: Create data directories
+  ansible.builtin.file:
+    dest: "{{ osmdata__datadir }}/{{ item }}"
+    state: directory
+    mode: '0755'
+    owner: "{{ osmdata__user }}"
+    group: "{{ osmdata__user }}"
+  loop:
+    - ''
+    - planet
+    - postgresql
+    - coastline
+    - icesheet
+    - compare
+    - err
+    - good
+    - new
+    - osmi
+    - web
+    - web/coastline
+
+- name: Create symlinks to web dir
+  ansible.builtin.file:
+    src: "{{ osmdata__datadir }}/compare/mask-{{ item }}"
+    dest: "{{ osmdata__datadir }}/web/coastline/mask-{{ item }}"
+    owner: "{{ osmdata__user }}"
+    group: "{{ osmdata__user }}"
+    state: link
+    follow: false
+    force: true
+  loop:
+    - diff.tiff
+    - diff-cog.tiff
+    - good.tiff
+    - good-cog.tiff
+    - new.tiff
+    - new-cog.tiff
+    - diff.geojson
+
+# ----------------------------------------------------------------------------
+
+- name: Check out imagico/gdal-tools
+  ansible.builtin.git:
+    repo: 'https://github.com/imagico/gdal-tools'
+    dest: "{{ osmdata__basedir }}/src/gdal-tools"
+    version: 9c86fefe259ab5265d17169e090f377c9ee6a448
+  register: maskcompare
+  become: true
+  become_user: "{{ osmdata__user }}"
+
+- name: Build maskcompare
+  ansible.builtin.command:
+    chdir: "{{ osmdata__basedir }}/src/gdal-tools"
+    cmd: "make gdal_maskcompare_wm"
+  become: true
+  become_user: "{{ osmdata__user }}"
+  when: maskcompare.changed
+
+# ----------------------------------------------------------------------------
+
+- name: Install misc data files
+  ansible.builtin.copy:
+    src: '{{ item }}'
+    dest: "{{ osmdata__basedir }}/etc/"
+    mode: '0644'
+    owner: root
+    group: root
+  loop:
+    - coastline
+    - icesheet
+
+- name: Install scripts
+  ansible.builtin.template:
+    src: '{{ item }}.sh.j2'
+    dest: "{{ osmdata__basedir }}/bin/{{ item }}.sh"
+    mode: '0755'
+    owner: root
+    group: root
+  loop:
+    - compare-coastline-polygons
+    - release-coastline
+    - split
+    - update-all
+    - update-coastline
+    - update-icesheet
+    - update-icesheet-zip
+    - update-planet
+
+# ----------------------------------------------------------------------------
+
+- name: Check out web source files
+  ansible.builtin.git:
+    repo: 'https://gitlab.fossgis.de/osmdata/osmdata-website'
+    dest: "{{ osmdata__basedir }}/src/osmdata-website"
+  register: maskcompare
+  become: true
+  become_user: "{{ osmdata__user }}"
+
+- name: Compile web page
+  ansible.builtin.command:
+    cmd: "jekyll build --source {{ osmdata__basedir }}/src/osmdata-website --destination {{ osmdata__basedir }}/web"
+  become: true
+  become_user: "{{ osmdata__user }}"
+  changed_when: true
+
+# ----------------------------------------------------------------------------
+
+- name: Enable headers module in apache
+  apache_module:
+    name: headers
+
+- name: Set up apache site
+  apache_site:
+    site: osmdata.openstreetmap.de
+    src: osmdata.openstreetmap.de.apache.conf.j2
+  notify: reload apache2
+
+# ----------------------------------------------------------------------------
+
+- name: Periodically update osmdata
+  systemd_service:
+    name: osmdata-update
+    enabled: true
+    state: started
+    service:
+      Unit:
+        Description: Update osmdata
+      Service:
+        Type: oneshot
+        ExecStart: "{{ osmdata__basedir }}/bin/update-all.sh"
+        User: "{{ osmdata__user }}"
+        Group: "{{ osmdata__user }}"
+    timer:
+      OnCalendar: "*-*-* 01:20:00"
+
+# ----------------------------------------------------------------------------

@@ -1,0 +1,61 @@
+#!/bin/bash
+#------------------------------------------------------------------------------
+#
+#  update-all.sh
+#
+#------------------------------------------------------------------------------
+
+set -euo pipefail
+#set -x
+
+if [ "$USER" != "{{ osmdata__user }}" ]; then
+    echo "Must be run as user {{ osmdata__user }}"
+    exit 1
+fi
+
+#------------------------------------------------------------------------------
+
+readonly BINDIR="{{ osmdata__basedir }}/bin"
+readonly LOGDIR="{{ osmdata__basedir }}/log"
+
+readonly DATADIR="{{ osmdata__datadir }}"
+
+readonly LOCK_FILE="$DATADIR/running"
+
+#------------------------------------------------------------------------------
+
+export LANG=C
+
+readonly iso_date='+%Y-%m-%dT%H:%M:%S'
+
+STARTTIME=$(date $iso_date)
+
+readonly LOGFILE="$LOGDIR/run-$STARTTIME.log"
+
+exec >"$LOGFILE" 2>&1
+
+echo "$STARTTIME" >"$LOCK_FILE"
+
+date $iso_date
+
+"$BINDIR/update-planet.sh"
+"$BINDIR/update-coastline.sh"
+"$BINDIR/update-icesheet.sh"
+
+cp "$DATADIR/planet/last-update" "$DATADIR/new/"
+
+#------------------------------------------------------------------------------
+
+rm -f "$LOCK_FILE"
+
+#------------------------------------------------------------------------------
+
+# Remove old log files.
+echo "Removing old log files..."
+find "$LOGDIR" -mtime +28 -type f -name 'run-*.log' -delete
+
+date $iso_date
+
+echo "update-all.sh done."
+
+#------------------------------------------------------------------------------

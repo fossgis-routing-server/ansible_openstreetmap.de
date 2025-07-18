@@ -98,3 +98,7 @@
   tags: tile
   roles:
     - role: tile
+- hosts: osmdata
+  become: yes
+  roles:
+    - role: osmdata

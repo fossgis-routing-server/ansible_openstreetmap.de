@@ -1,0 +1,45 @@
+#!/bin/bash
+#------------------------------------------------------------------------------
+#
+#  release-coastline.sh
+#
+#------------------------------------------------------------------------------
+
+set -euo pipefail
+#set -x
+
+if [ "$USER" != "{{ osmdata__user }}" ]; then
+    echo "Must be run as user {{ osmdata__user }}"
+    exit 1
+fi
+
+#------------------------------------------------------------------------------
+
+readonly LOGDIR="{{ osmdata__basedir }}/log"
+
+readonly DATADIR="{{ osmdata__datadir }}"
+
+readonly LOCK_FILE="$DATADIR/running"
+
+#------------------------------------------------------------------------------
+
+export LANG=C
+
+if [ -f "$LOCK_FILE" ]; then
+    echo "Update process is running. Can not release coastline."
+    exit 1
+fi
+
+date >>"$LOGDIR/release-coastline.log"
+
+cd "$DATADIR/compare"
+
+NEWEST=$(ls mask-20* | tail -1)
+
+rm -f mask-good.tiff
+ln -s "$NEWEST" mask-good.tiff
+
+mv "$DATADIR/new/"* "$DATADIR/good/"
+cp "$DATADIR/good/"* "$DATADIR/new/"
+
+#------------------------------------------------------------------------------
