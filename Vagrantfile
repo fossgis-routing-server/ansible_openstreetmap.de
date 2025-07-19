@@ -20,13 +20,6 @@ Vagrant.configure("2") do |config|
     lv.nested = true
   end
 
-  config.vm.define "bullseye", primary: true do |sub|
-      sub.vm.box = "debian/bullseye64"
-      sub.vm.provision :ansible do |s|
-        s.playbook = "bootstrap.yml"
-      end
-  end
-
   config.vm.define "bookworm" do |sub|
     sub.vm.box = "debian/bookworm64"
     sub.vm.provision :ansible do |s|
