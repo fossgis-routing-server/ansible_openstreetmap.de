@@ -34,7 +34,8 @@ This command is automatically run with 'make monitor'.
 Deploying a new Host
 ====================
 
-We use Debian 11 on all hosts. Make sure there is a base system on the host.
+We use Debian 11 (Bullseye) or 12 (Bookworm) on all hosts. Make sure there is a
+base system on the host.
 
 You first need to add the host in the inventory (`hosts.ini`). The host should
 be listed with its short internal name and the full domain name in `ansible_host`.
@@ -76,10 +77,18 @@ to install Vagrant and the lib-virt provider:
 
 Spin up the test machine:
 
-    vagrant up
+    vagrant up bullseye
 
-This spins up a Debian Bullseye machine and sets up accounts, so that Ansible
-can access the machine via the root account.
+or
+
+    vagrant up bookworm
+
+This spins up a Debian Bullseye or Bookworm machine and sets up accounts, so
+that Ansible can access the machine via the root account.
+
+Login to the just created virtual machine with
+
+    vagrant ssh bullseye/bookworm
 
 > You can use the environment variables 
 > - `VAGRANT_MEMORY` (default: 2048)
@@ -114,6 +123,16 @@ Testing without the Private Data
 All playbooks should be written such that they can be run without access to
 the private data. You can define drop in replacements for the data in your
 `host_vars/vagrant.yml` file if need be. For example, you have to create the file `host_vars/vagrant.yml` and define the variable `acme__distribution_account` here.
+
+Makefile
+========
+
+There is a helpful Makefile that contains targets for all machines. Run
+`make MACHINENAME` to run the ansible playbook for that machine.
+
+The special targets "vagrant" and "vagrant-bookworm" are used for development.
+They initialize the inventory and run the playbook on you local vagrant
+virtual machine.
 
 Variable naming convention
 ==========================
