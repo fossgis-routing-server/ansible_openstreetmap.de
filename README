@@ -34,8 +34,8 @@ This command is automatically run with 'make monitor'.
 Deploying a new Host
 ====================
 
-We use Debian 11 (Bullseye) or 12 (Bookworm) on all hosts. Make sure there is a
-base system on the host.
+We use Debian 12 (Bookworm) on all hosts (with some still running Debian 11
+but to be updated soon). Make sure there is a base system on the host.
 
 You first need to add the host in the inventory (`hosts.ini`). The host should
 be listed with its short internal name and the full domain name in `ansible_host`.
@@ -77,18 +77,14 @@ to install Vagrant and the lib-virt provider:
 
 Spin up the test machine:
 
-    vagrant up bullseye
-
-or
-
     vagrant up bookworm
 
-This spins up a Debian Bullseye or Bookworm machine and sets up accounts, so
+This spins up a Debian Bookworm machine and sets up accounts, so
 that Ansible can access the machine via the root account.
 
 Login to the just created virtual machine with
 
-    vagrant ssh bullseye/bookworm
+    vagrant ssh bookworm
 
 > You can use the environment variables 
 > - `VAGRANT_MEMORY` (default: 2048)
@@ -101,21 +97,20 @@ Login to the just created virtual machine with
 
 Next you need an inventory:
 
-    ./init_vagrant_inventory.sh
+    ./init_vagrant_inventory.sh bookworm
 
 This creates a file vagrant.ini with the right connection IP. Edit the file
 to put the vagrant test machine into the group you want to test.
 
 Now you can run the global playbook:
 
-     ansible-playbook -i vagrant.ini site.yml
+     make vagrant
 
 Additional hints:
 
-* You may have to rerun `init-vagrant-inventory.sh` when you destroy and rebuild
-  the Vagrant test machine to update the IP.
-* If you are not in the admin user group, you can still run the playbook
-  under the vagrant user: `ansible-playbook -i vagrant.ini -u vagrant site.yml`
+* To destroy and recreate your vagrant machine, run `vagrant destroy bookworm`
+  followed by `vagrant up bookworm`. The make command will automatically
+  run `init-vagrant-inventory.sh` and pick up the new machine.
 
 Testing without the Private Data
 ================================
