@@ -97,6 +97,12 @@ OSMIDIR="$DATADIR/osmi"
 rm -fr "$OSMIDIR"
 mkdir -p "$OSMIDIR"
 
+echo "Errors in error_points:"
+echo "SELECT error, count(*) FROM error_points GROUP BY error" | sqlite3 -batch "$DBFILE"
+
+echo "Errors in error_lines:"
+echo "SELECT error, count(*) FROM error_lines GROUP BY error" | sqlite3 -batch "$DBFILE"
+
 ogr2ogr -f "ESRI Shapefile" "$OSMIDIR/error_points.shp" "$DBFILE" error_points
 ogr2ogr -f "ESRI Shapefile" "$OSMIDIR/error_lines.shp" "$DBFILE" error_lines
 
