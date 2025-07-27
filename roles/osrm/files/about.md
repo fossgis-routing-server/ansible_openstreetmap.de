@@ -38,20 +38,20 @@ in German. Here a short excerpt:
 * No scraping, no heavy usage.
 
 ## General setup
-There are three servers, one is continuously preparing the routing graph
-and fetching the most recent OpenStreetMap data, while the two others are
-serving routes from the precalculated graphs.
+The server is continuously preparing the routing graph
+and fetching the most recent OpenStreetMap data, while serving the three
+profiles.
 
-The three servers have 6 cores and 256GB ram each.
+The server has 40 cores and 1.5TB ram.
 
 ## Used software
 
 Most software running on the servers is available as open source.
-Debian 10 is used as operating system.
+Debian 12 is used as operating system.
 
 ### [OSRM backend](https://github.com/fossgis-routing-server/osrm-backend)
 
-Currently running v5.27.1
+Currently running v6.0
 
 * hints are disabled, because they can crash the server
 
