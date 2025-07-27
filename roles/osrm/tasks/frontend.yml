@@ -213,7 +213,7 @@
 
 - name: "create top consumers list"
   shell:
-    cmd: 'sed -e ''s/^.*+0200] "[^"]\+" [0-9][0-9][0-9] [0-9]\+ //'' -e ''s%"\(https\?://\)\?\(www.\)\?\([^-][^/"]*\)[^"]*" "[^"]\+"$%Referrer \3%'' -e ''s/"-" "\([^"]*\)"$/Agent \1/'' /var/log/nginx/router.log.1 | sort | uniq -c | sort -r -n | head -50 | sed -e ''s/^ *[0-9]\+ //'' > top_consumers'
+    cmd: 'sed -e ''s/^.*+0.00] "[^"]\+" [0-9][0-9][0-9] [0-9]\+ //'' -e''s/rqt=[-0-9.]\+ urt=[-0-9.]\+ //'' -e ''s%"\(https\?://\)\?\(www.\)\?\([^-][^/"]*\)[^"]*" "[^"]\+"$%Referrer \3%'' -e ''s/"-" "\([^"]*\)"$/Agent \1/'' /var/log/nginx/router.log.1 | sort | uniq -c | sort -r -n | head -50 | sed -e ''s/^ *[0-9]\+ //'' > top_consumers'
     chdir: '{{ osrm__basedir }}/stats/'
     creates: '{{ osrm__basedir }}/stats/top_consumers'
   become: yes
@@ -222,7 +222,7 @@
 
 - name: daily refresh of top consumers
   copy:
-    content: '3 0 * * * www-data sed -e ''s/^.*+0200] "[^"]\+" [0-9][0-9][0-9] [0-9]\+ //'' -e ''s%"\(https\?://\)\?\(www.\)\?\([^-][^/"]*\)[^"]*" "[^"]\+"$%Referrer \3%'' -e ''s/"-" "\([^"]*\)"$/Agent \1/'' /var/log/nginx/router.log.1 | sort | uniq -c | sort -r -n | head -50 | sed -e ''s/^ *[0-9]\+ //'' > {{ osrm__basedir }}/stats/top_consumers
+    content: '3 0 * * * www-data sed -e ''s/^.*+0.00] "[^"]\+" [0-9][0-9][0-9] [0-9]\+ //'' -e''s/rqt=[-0-9.]\+ urt=[-0-9.]\+ //'' -e ''s%"\(https\?://\)\?\(www.\)\?\([^-][^/"]*\)[^"]*" "[^"]\+"$%Referrer \3%'' -e ''s/"-" "\([^"]*\)"$/Agent \1/'' /var/log/nginx/router.log.1 | sort | uniq -c | sort -r -n | head -50 | sed -e ''s/^ *[0-9]\+ //'' > {{ osrm__basedir }}/stats/top_consumers
       '
     dest: "/etc/cron.d/daily_top_user_agents"
 

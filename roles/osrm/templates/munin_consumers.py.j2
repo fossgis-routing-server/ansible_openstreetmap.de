@@ -15,7 +15,7 @@ start_time = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(0
 #         4: referrer
 #         5: agent
 
-log_line = re.compile("^[^[]+\\[([^]]+)\\] \"[^\"]+\" [0-9][0-9][0-9] [0-9]+ \"(https?://)?(www\\.)?([^/\"]+)[^\"]*\" \"([^\"]+)\"$")
+log_line = re.compile("^[^[]+\\[([^]]+)\\] \"[^\"]+\" [0-9][0-9][0-9] [0-9]+ +rqt=[-0-9. ]+urt=[-0-9. ]+\"(https?://)?(www\\.)?([^/\"]+)[^\"]*\" \"([^\"]+)\"$")
 min_samples = 128
 
 top_consumers = list(open(top_consumers_file, "rb").read().decode("utf-8").split('\n'))
