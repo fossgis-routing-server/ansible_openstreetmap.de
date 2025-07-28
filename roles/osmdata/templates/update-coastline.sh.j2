@@ -363,6 +363,7 @@ date $iso_date
 mv "$DATADIR/results/"*.zip "$NEWDIR"
 mv "$DATADIR/osmi/"*.json.gz "$DATADIR/../err/"
 mv "$DATADIR/osmi-coastlines.db" "$DATADIR/../web/coastline"
+cp "$PLANETDIR/last-update" "$NEWDIR"
 
 date $iso_date
 
