@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Ephemeris Child Theme functions and definitions
  *
@@ -23,7 +24,8 @@
  * Removes google fonts from server (added locally again in css)
  *
  */
-function ephemeris_fonts_url() {
+function ephemeris_fonts_url()
+{
   return '';
 }
 
@@ -31,29 +33,46 @@ function ephemeris_fonts_url() {
  * disables empty searches, mostly triggered by search engines
  *
  */
-add_filter( 'relevanssi_search_ok', function( $ok, $query ) {
-  if ( empty( $query->query_vars['s'] ) ) {
-      $ok = false;
+add_filter('relevanssi_search_ok', function ($ok, $query) {
+  if (empty($query->query_vars['s'])) {
+    $ok = false;
   }
   return $ok;
-}, 10, 2 );
+}, 10, 2);
 
 /**
- * hides the menu button on mobile view after scrolling down
- *
+ * Hides and shows the menu button on mobile view based on scroll direction
  */
-function hide_mobile_nav_icon() {
-    ?>
-    <script>
-      document.addEventListener('scroll', (event) => {
-      // adjust hide height here
-      const hideAtHeight = 200;
-      if(event.target.scrollingElement.scrollTop > hideAtHeight) {
-        // hides the menu
-        document.getElementById('mobile-site-navigation').style.display = 'none';
-      }
-    });
-    </script>
-    <?php
+function hide_mobile_nav_icon()
+{
+?>
+  <script>
+    (function() {
+      let lastScrollTop = 0;
+      const hideAtHeight = 200; // pixel to scroll to hide the menu button
+      const mobileNavigation = document.getElementById('mobile-site-navigation');
+
+      document.addEventListener('scroll', () => {
+        const currentScrollTop = window.pageYOffset || document.documentElement.scrollTop;
+
+        // scrolling down hides the menu button
+        if (currentScrollTop > lastScrollTop && currentScrollTop > hideAtHeight) {
+          mobileNavigation.style.transform = 'translateY(-100%)';
+          mobileNavigation.style.opacity = '0';
+          mobileNavigation.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+        }
+        // scrolling up shows the manu button again
+        else if (currentScrollTop < lastScrollTop) {
+          mobileNavigation.style.transform = 'translateY(0)';
+          mobileNavigation.style.opacity = '1';
+          mobileNavigation.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+        }
+
+        lastScrollTop = currentScrollTop <= 0 ? 0 : currentScrollTop;
+      });
+    })();
+  </script>
+<?php
 }
+
 add_action('wp_footer', 'hide_mobile_nav_icon', 100);
