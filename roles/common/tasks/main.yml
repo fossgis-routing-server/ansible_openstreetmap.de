@@ -15,7 +15,7 @@
 
 - name: Set up ACME certificate receival
   include_tasks: acme_cert_client.yml
-  when: "hostvars[inventory_hostname]|var_merge_lists(suffix='__acme_certificates')"
+  when: "hostvars[inventory_hostname] | var_merge_lists(suffix='__acme_certificates') | length > 0"
 
 - name: Import task to set timezone and locale
   import_tasks: timezone.yml

@@ -1,18 +1,13 @@
 {% call server(['3dmr.eu'], http='forward', https='t3dmr') %}
-    Alias /static/ {{ t3dmr__basedir }}/static/
 
-    <Directory {{ t3dmr__basedir }}/static>
-        Require all granted
-    </Directory>
-    <Directory {{ t3dmr__basedir }}/3dmr/modelrepository>
-        <Files wsgi.py>
-            Require all granted
-        </Files>
-    </Directory>
+    location /static/ {
+        alias {{ t3dmr__basedir }}/static/;
+    }
 
-    WSGIDaemonProcess 3dmr user=tdmr python-home={{ t3dmr__basedir }}/venv python-path={{ t3dmr__basedir }}/3dmr
-    WSGIProcessGroup 3dmr
-    WSGIScriptAlias / {{ t3dmr__basedir }}/3dmr/modelrepository/wsgi.py
+    location / {
+        include proxy_params;
+        proxy_pass http://unix:/run/3dmr.sock;
+    }
 
     {{ custom_log('3dmr.eu') }}
 {% endcall %}

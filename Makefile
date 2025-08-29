@@ -7,6 +7,9 @@ vagrant: vagrant-bookworm
 miller:
 	ansible-playbook -l miller -i hosts.ini site.yml
 
+conic:
+	ansible-playbook -l conic -i hosts.ini site.yml
+
 ptolemy:
 	ansible-playbook -l ptolemy -i hosts.ini site.yml
 

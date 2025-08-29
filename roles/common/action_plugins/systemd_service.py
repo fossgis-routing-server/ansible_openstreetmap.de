@@ -36,6 +36,11 @@ options:
             - When defined, create an additional path unit that triggers the
               main service unit. Must contain the content of the [Path]
               section in form of a YAML dictionary.
+    socket:
+        description:
+            - When defined, create an additional socket unit that triggers the
+              main service unit. Must contain the content of the [Socket]
+              section in form of a YAML dictionary.
 """
 
 # Make coding more python3-ish, this is required for contributions to Ansible
@@ -78,6 +83,7 @@ class ActionModule(ActionBase):
         content = self._task.args.get('service', None)
         timer = self._task.args.get('timer', None)
         path = self._task.args.get('path', None)
+        socket = self._task.args.get('socket', None)
         scope = self._task.args.get('scope', 'system')
 
         if not name:
@@ -130,6 +136,23 @@ class ActionModule(ActionBase):
             }
             result.update(self._copy_configfile(
                '/etc/systemd/{}/{}.path'.format(destdir, name),
+               cfg_content, task_vars))
+
+            changed = changed or result.get('changed', False)
+
+            if result.get('failed', False):
+                return result
+
+        # Create a socket service if necessary
+        if socket:
+            cfg_content = {
+                'Unit': {'Description': content['Unit']['Description'] + ' (socket)'},
+                'Socket': socket,
+                'Install' : {'WantedBy': 'multi-user.target'}
+
+            }
+            result.update(self._copy_configfile(
+               '/etc/systemd/{}/{}.socket'.format(destdir, name),
                cfg_content, task_vars))
 
             changed = changed or result.get('changed', False)
