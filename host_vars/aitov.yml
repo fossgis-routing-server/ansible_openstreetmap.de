@@ -14,7 +14,6 @@ mail:
     root: osm-server-ag-admins@fossgis.de
   relay: true
 
-
 wordpress_plugins:
   - name: autoptimize
     version: 3.1.13
@@ -27,19 +26,19 @@ wordpress_plugins:
   - name: enable-media-replace
     version: 4.1.6
   - name: jetpack
-    version: 14.9.1
+    version: 15.0
   - name: limit-login-attempts-reloaded
-    version: 2.26.20
+    version: 2.26.23
   - name: password-policy-manager
     version: 2.0.5
   - name: qtranslate-xt
-    download: https://github.com/qtranslate/qtranslate-xt/archive/refs/tags/3.15.4.tar.gz
+    download: https://github.com/qtranslate/qtranslate-xt/archive/refs/tags/3.15.5.tar.gz
   - name: Relevanssi
-    version: 4.24.6
+    version: 4.25.0
   - name: safe-svg
     version: 2.3.3
   - name: wp-smushit
-    version: 3.20.0
+    version: 3.21.1
   - name: spam-destroyer
     version: 2.1.6
   - name: two-factor-authentication
@@ -47,7 +46,7 @@ wordpress_plugins:
   - name: updraftplus
     version: 1.25.7
   - name: wordfence
-    version: 8.0.5
+    version: 8.1.0
 wordpress_themes:
   - name: ephemeris
     version: 1.5.3
