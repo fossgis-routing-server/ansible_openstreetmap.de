@@ -2,4 +2,5 @@ dns__nameserver:
   - robinson.openstreetmap.de.
   - goode.openstreetmap.de.
   - miller.openstreetmap.de.
+  - conic.openstreetmap.de.
 dns__master: robinson.openstreetmap.de.
