@@ -3,7 +3,7 @@
         procs_critical = ":2000"
     }
 
-{% for mntpt in ('/', '/srv', '/srv/osrm') %}
+{% for mntpt in ('/', '/srv') %}
     vars.disks["disk {{ mntpt }}"] = {
         disk_partitions = "{{ mntpt }}"
         disk_exact_match = true
