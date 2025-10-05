@@ -20,6 +20,12 @@
     src: weeklyosm.eu.j2
   notify: reload bind9
 
+- name: Zone File for 3dmr.eu
+  template:
+    dest: /etc/bind/3dmr.eu.db
+    src: 3dmr.eu.j2
+  notify: reload bind9
+
 - name: Bind9 local configuration (zones)
   template:
     dest: /etc/bind/named.conf.local

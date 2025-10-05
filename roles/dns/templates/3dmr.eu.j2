@@ -1,0 +1,19 @@
+;
+; BIND data file for 3dmr.eu
+;
+$TTL    2h
+@       IN      SOA     {{ dns__master }} info.fossgis.de. (
+                           {{ dns_serial }}          ; Serial
+                                   2h          ; Refresh
+                                   1m          ; Retry
+                                   2w          ; Expire
+                                   5m )        ; Default TTL
+
+{% for ns in dns__nameserver %}
+@                       IN  NS          {{ ns }}
+{% endfor %}
+
+3dmr.eu.            IN  A           46.62.138.148
+3dmr.eu.            IN  AAAA        2a01:4f9:c013:9856:0:0:0:1
+www.3dmr.eu.        IN  A           46.62.138.148
+www.3dmr.eu.        IN  AAAA        2a01:4f9:c013:9856:0:0:0:1
