@@ -102,4 +102,5 @@
   become: yes
   tags: umap
   roles:
+    - role: nginx
     - role: umap

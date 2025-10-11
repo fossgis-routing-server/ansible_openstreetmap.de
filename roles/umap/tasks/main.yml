@@ -3,16 +3,22 @@
     name: "{{ umap__user }}"
     home: "{{ umap__basedir }}"
 
-- name: Populate base directories
+- name: Set umap directory permissions for docker group access
   file:
-    dest: "{{ umap__basedir }}/{{ item }}"
+    path: "{{ umap__basedir }}"
     owner: "{{ umap__user }}"
-    group: "{{ umap__user }}"
-    state: directory
-  loop:
-    - umap
-    - umap/iconpacks
-    - userdata
+    group: docker
+    mode: "0775"
+    recurse: yes
+
+- name: Fix umapdata directory ownership (created by Docker)
+  file:
+    path: "{{ umap__basedir }}/umapdata"
+    owner: "{{ umap__user }}"
+    group: docker
+    mode: "0775"
+    recurse: yes
+  ignore_errors: yes
 
 - name: Install prerequisites
   apt:
@@ -27,26 +33,40 @@
     src: umap.conf.jinja
     dest: "{{ umap__basedir }}/umap.conf"
     owner: "{{ umap__user }}"
-    group: "{{ umap__user }}"
-    mode: "0644"
+    group: docker
+    mode: "0664"
 
-- name: Copy scripts
+- name: Copy init_db script
   copy:
-    src: "umap_{{ item }}"
-    dest: "{{ umap__basedir }}/{{ item }}"
+    src: "umap_init_db.sh"
+    dest: "{{ umap__basedir }}/init_db.sh"
     owner: "{{ umap__user }}"
-    group: "{{ umap__user }}"
-  loop:
-    - init_db.sh
-    - docker-compose.yml
+    group: docker
+    mode: "0664"
+
+- name: Setup docker-compose file
+  template:
+    src: "umap_docker-compose.yml.jinja"
+    dest: "{{ umap__basedir }}/docker-compose.yml"
+    owner: "{{ umap__user }}"
+    group: docker
+    mode: "0664"
+
+- name: Setup nginx.conf for proxy
+  template:
+    src: "nginx.conf.jinja"
+    dest: "{{ umap__basedir }}/nginx.conf"
+    owner: "{{ umap__user }}"
+    group: docker
+    mode: "0664"
 
 - name: Setup umap db env file
   template:
     src: "{{ item }}.jinja"
     dest: "{{ umap__basedir }}/{{ item }}"
     owner: "{{ umap__user }}"
-    group: "{{ umap__user }}"
-    mode: "0644"
+    group: docker
+    mode: "0664"
   loop:
     - database.env
 
@@ -55,8 +75,8 @@
     src: "{{ item }}.jinja"
     dest: "{{ umap__basedir }}/.env"
     owner: "{{ umap__user }}"
-    group: "{{ umap__user }}"
-    mode: "0644"
+    group: docker
+    mode: "0664"
   loop:
     - umap.env
 
@@ -71,14 +91,21 @@
     - import_umapdb.sh
     - backup_umapdb.sh
 
+- name: Create apt keyrings directory
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+
 - name: Add Docker GPG apt Key
-  apt_key:
+  get_url:
     url: https://download.docker.com/linux/ubuntu/gpg
-    state: present
+    dest: /etc/apt/keyrings/docker.asc
+    mode: '0644'
 
 - name: Add Docker Repository
   apt_repository:
-    repo: deb https://download.docker.com/linux/debian bookworm stable
+    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian trixie stable"
     state: present
 
 - name: Update apt and install docker-ce
@@ -99,11 +126,35 @@
     groups: docker
     append: yes
 
+- name: Add admin users to docker group
+  user:
+    name: "{{ item.name }}"
+    groups: docker
+    append: yes
+  loop: "{{ users | default([]) }}"
+  when: "item.name in accounts__active | default([])"
+
+- name: Create Ansible remote_tmp directory for umap user
+  file:
+    path: "/srv/umap/.ansible/tmp"
+    state: directory
+    owner: "{{ umap__user }}"
+    group: "{{ umap__user }}"
+    mode: "0755"
+
 - name: Ensure Docker service is started
   systemd:
     name: docker
     state: started
     enabled: yes
+
+- name: Create sudoers rule for docker group
+  copy:
+    dest: /etc/sudoers.d/docker
+    content: |
+      # Allow docker group to run docker commands without password
+      %docker ALL=(ALL) NOPASSWD: /usr/bin/docker, /usr/bin/docker compose, /usr/bin/docker-compose
+    mode: "0440"
 
 - name: Run Docker Compose up as user "{{ umap__user }}"
   become: true
@@ -118,6 +169,7 @@
   nginx_site:
     site: 'umapde'
     src:  'nginx-umap.jinja'
+  notify: reload nginx
 
 - name: start nginx
   service:

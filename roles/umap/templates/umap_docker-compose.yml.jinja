@@ -14,6 +14,8 @@ services:
       retries: 5
     command: ["redis-server"]
     restart: always
+    logging:
+      driver: journald
     networks:
       - reverseproxy_web
 
@@ -29,14 +31,13 @@ services:
     volumes:
       - umap_db:/var/lib/postgresql/data
       - ./init_db.sh:/docker-entrypoint-initdb.d/01-init_umap_db.sh
-      - ./backupstorage:/tmp/backupstorage
-      - ./logs/postgresql:/var/log/postgresql
     environment:
       - POSTGRES_LOG_MIN_DURATION_STATEMENT=0
       - POSTGRES_LOG_STATEMENT=all
-      - POSTGRES_LOG_DESTINATION=stderr,csvlog
-      - POSTGRES_LOGGING_COLLECTOR=on
+      - POSTGRES_LOG_DESTINATION=stderr
     restart: always
+    logging:
+      driver: journald
     networks:
       - reverseproxy_web
 
@@ -50,10 +51,12 @@ services:
         condition: service_healthy
     volumes:
       - ./umap.conf:/etc/umap/umap.conf
-      - ./iconpacks/osmic:/tmp/iconimport
-      - data:/srv/umap/uploads
-      - static:/srv/umap/static
+      - ./umapdata/iconpacks/osmic:/tmp/iconimport
+      - ./umapdata/uploads:/srv/umap/uploads
+      - ./umapdata/static:/srv/umap/static
     restart: always
+    logging:
+      driver: journald
     networks:
       - reverseproxy_web
 
@@ -64,18 +67,16 @@ services:
       - "8000:80"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - static:/srv/umap/static:ro
-      - data:/data:ro
+      - ./umapdata/static:/srv/umap/static:ro
+      - ./umapdata/uploads:/data:ro
     depends_on:
       - app
     restart: always
+    logging:
+      driver: journald
     networks:
       - reverseproxy_web
 
 volumes:
   umap_db:
-    name: umap_db_data
-  data:
-    name: umap_uploads
-  static:
-    name: umap_static 
+    name: umap_db_data 

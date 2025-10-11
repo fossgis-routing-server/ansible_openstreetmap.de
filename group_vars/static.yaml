@@ -5,6 +5,20 @@ robinson__acme_certificates:
     on_update:
       - systemctl reload nginx
 
+boggs__acme_certificates:
+  - name: umapde
+    domains:
+      - umap.openstreetmap.de
+      - boggs.openstreetmap.de
+    on_update:
+      - systemctl reload nginx
+  - name: munin
+    domains:
+      - munin.umap.openstreetmap.de
+      - munin.boggs.openstreetmap.de
+    on_update:
+      - systemctl reload nginx
+
 osmblog__acme_certificates:
   - name: blog.openstreetmap.de
     domains:
