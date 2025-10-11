@@ -1,0 +1,6 @@
+#!/bin/bash
+
+sudo -u postgres createdb -O {{ umap__user }}  {{ umap__dbname }}
+sudo -u postgres psql -d {{ umap__dbname }} -c "CREATE EXTENSION postgis;"
+
+zcat "$1" | sudo -u {{ umap__user }}  psql -d {{ umap__dbname }}
