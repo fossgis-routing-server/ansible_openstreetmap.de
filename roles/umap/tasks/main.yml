@@ -167,7 +167,7 @@
 
 - name: "umap nginx site and munin"
   nginx_site:
-    site: 'umapde'
+    site: '000-umapde'
     src:  'nginx-umap.jinja'
   notify: reload nginx
 

@@ -52,7 +52,7 @@ services:
     volumes:
       - ./umap.conf:/etc/umap/umap.conf
       - ./umapdata/iconpacks/osmic:/tmp/iconimport
-      - ./umapdata/uploads:/srv/umap/uploads
+      - ./umapdata/uploads:/srv/umap/data
       - ./umapdata/static:/srv/umap/static
     restart: always
     logging:
