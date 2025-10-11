@@ -1,0 +1,81 @@
+networks:
+  reverseproxy_web:
+    name: reverseproxy_web
+#    external: true
+
+services:
+  redis:
+    image: redis:latest
+    container_name: umap_redis
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 1s
+      timeout: 3s
+      retries: 5
+    command: ["redis-server"]
+    restart: always
+    networks:
+      - reverseproxy_web
+
+  db:
+    image: postgis/postgis:17-3.5-alpine
+    container_name: umap_db
+    env_file: ./database.env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d umapdb -U umapuser"]
+      interval: 2s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - umap_db:/var/lib/postgresql/data
+      - ./init_db.sh:/docker-entrypoint-initdb.d/01-init_umap_db.sh
+      - ./backupstorage:/tmp/backupstorage
+      - ./logs/postgresql:/var/log/postgresql
+    environment:
+      - POSTGRES_LOG_MIN_DURATION_STATEMENT=0
+      - POSTGRES_LOG_STATEMENT=all
+      - POSTGRES_LOG_DESTINATION=stderr,csvlog
+      - POSTGRES_LOGGING_COLLECTOR=on
+    restart: always
+    networks:
+      - reverseproxy_web
+
+  app:
+    image: umap/umap:3.3.6
+    container_name: umap_app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./umap.conf:/etc/umap/umap.conf
+      - ./iconpacks/osmic:/tmp/iconimport
+      - data:/srv/umap/uploads
+      - static:/srv/umap/static
+    restart: always
+    networks:
+      - reverseproxy_web
+
+  proxy:
+    image: nginx:latest
+    container_name: umap_proxy
+    ports:
+      - "8000:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - static:/srv/umap/static:ro
+      - data:/data:ro
+    depends_on:
+      - app
+    restart: always
+    networks:
+      - reverseproxy_web
+
+volumes:
+  umap_db:
+    name: umap_db_data
+  data:
+    name: umap_uploads
+  static:
+    name: umap_static 
