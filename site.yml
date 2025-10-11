@@ -102,3 +102,9 @@
   become: yes
   roles:
     - role: osmdata
+- hosts: umap
+  become: yes
+  tags: umap
+  roles:
+    - role: nginx
+    - role: umap

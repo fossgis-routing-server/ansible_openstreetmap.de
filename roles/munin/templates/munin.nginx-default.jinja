@@ -1,0 +1,33 @@
+{% call server(umap__acme_certificates[1].domains, http='yes', https='munin') -%}
+
+# Munin-Web-Dokumenten-Root fuer NGINX
+location / {
+    alias /var/cache/munin/www;
+    autoindex on;
+    expires 310s;
+    try_files $uri $uri/ =404;
+}
+
+# Munin CGI Graph Handler
+location /munin-cgi/munin-cgi-graph {
+    fastcgi_pass unix:/var/run/fcgiwrap.socket;  # Pfad zum fcgiwrap-Socket
+    include fastcgi_params;
+    fastcgi_param SCRIPT_FILENAME /usr/lib/munin/cgi/munin-cgi-graph;
+    fastcgi_param QUERY_STRING $query_string;
+}
+
+# Munin CGI HTML Handler
+location /munin-cgi/munin-cgi-html {
+    fastcgi_pass unix:/var/run/fcgiwrap.socket;  # Pfad zum fcgiwrap-Socket
+    include fastcgi_params;
+    fastcgi_param SCRIPT_FILENAME /usr/lib/munin/cgi/munin-cgi-html;
+    fastcgi_param QUERY_STRING $query_string;
+}
+
+# Optional: Authentifizierung fuer den Zugriff auf CGI-Skripte
+# location /munin-cgi/ {
+#     auth_basic "Restricted";
+#     auth_basic_user_file /etc/nginx/.htpasswd;  # Pfad zur htpasswd-Datei
+# }
+
+{% endcall %}
