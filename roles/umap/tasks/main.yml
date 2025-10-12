@@ -3,6 +3,43 @@
     name: "{{ umap__user }}"
     home: "{{ umap__basedir }}"
 
+- name: Add Docker GPG apt Key
+  get_url:
+    url: https://download.docker.com/linux/ubuntu/gpg
+    dest: /etc/apt/keyrings/docker.asc
+    mode: '0644'
+
+- name: Add Docker Repository
+  apt_repository:
+    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian trixie stable"
+    state: present
+
+- name: Update apt and install docker-ce
+  apt:
+    name: docker-ce
+    state: latest
+    update_cache: true
+
+- name: Install docker compose plugin
+  apt:
+    name: docker-compose-plugin
+    state: latest
+    update_cache: true
+
+- name: Add "{{ umap__user }}" user to "docker" group
+  user:
+    name: "{{ umap__user }}"
+    groups: docker
+    append: yes
+
+- name: Add admin users to docker group
+  user:
+    name: "{{ item.name }}"
+    groups: docker
+    append: yes
+  loop: "{{ users | default([]) }}"
+  when: "item.name in accounts__active | default([])"
+
 - name: Set umap directory permissions for docker group access
   file:
     path: "{{ umap__basedir }}"
@@ -96,43 +133,6 @@
     path: /etc/apt/keyrings
     state: directory
     mode: '0755'
-
-- name: Add Docker GPG apt Key
-  get_url:
-    url: https://download.docker.com/linux/ubuntu/gpg
-    dest: /etc/apt/keyrings/docker.asc
-    mode: '0644'
-
-- name: Add Docker Repository
-  apt_repository:
-    repo: "deb [arch=amd64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian trixie stable"
-    state: present
-
-- name: Update apt and install docker-ce
-  apt:
-    name: docker-ce
-    state: latest
-    update_cache: true
-
-- name: Install docker compose plugin
-  apt:
-    name: docker-compose-plugin
-    state: latest
-    update_cache: true
-
-- name: Add "{{ umap__user }}" user to "docker" group
-  user:
-    name: "{{ umap__user }}"
-    groups: docker
-    append: yes
-
-- name: Add admin users to docker group
-  user:
-    name: "{{ item.name }}"
-    groups: docker
-    append: yes
-  loop: "{{ users | default([]) }}"
-  when: "item.name in accounts__active | default([])"
 
 - name: Create Ansible remote_tmp directory for umap user
   file:
