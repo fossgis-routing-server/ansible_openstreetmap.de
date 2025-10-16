@@ -1,0 +1,75 @@
+events {
+    worker_connections 1024;
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    sendfile        on;
+    keepalive_timeout  65;
+
+    map $http_upgrade $connection_upgrade {
+        default upgrade;
+        ''      close;
+    }
+
+    upstream umap_app {
+        server unix:{{ umap__paths.container.sockets }}/umap.sock;
+    }
+
+    server {
+        listen 80;
+        server_name localhost;
+
+        # Serve static files directly
+        location /static/ {
+            alias {{ umap__paths.container.static_root }}/;
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+        }
+
+        # Serve pictograms directly
+        location /pictograms/ {
+            alias /symbols/pictograms/;
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+        }
+
+        # Serve uploads directly
+        location /uploads/ {
+            alias {{ umap__paths.container.media_root }}/;
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+            
+            # Exclude direct access to geojson, as permissions must be checked by django
+            location /uploads/datalayer/ { 
+                return 404; 
+            }
+        }
+
+        # X-Accel-Redirect for secure GeoJSON delivery
+        location /internal/ {
+            internal;
+            gzip_vary on;
+            gzip_static on;
+            # Next line is very important!
+            add_header X-DataLayer-Version $upstream_http_x_datalayer_version;
+            alias {{ umap__paths.container.media_root }}/;
+        }
+
+        # Proxy everything else to the app
+        location / {
+            proxy_pass http://umap_app;
+            proxy_set_header Host $http_host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            
+            # WebSocket support for realtime functionality
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection $connection_upgrade;
+        }
+    }
+}

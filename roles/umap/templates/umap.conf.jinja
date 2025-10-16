@@ -4,7 +4,11 @@ from umap.settings.base import *   # pylint: disable=W0614,W0401
 
 SECRET_KEY = '{{ umap__django_secret_key }}'
 INTERNAL_IPS = ('127.0.0.1', )
-ALLOWED_HOSTS = ['*', 'umap.openstreetmap.de', 'localhost', '127.0.0.1']
+ALLOWED_HOSTS = ['{{ umap__server_url }}'] + {{ umap__additional_allowed_hosts | default([]) }}
+
+CSRF_TRUSTED_ORIGINS = [
+    'https://{{ umap__server_url }}'
+]
 
 DEBUG = False
 
@@ -25,8 +29,6 @@ DATABASES = {
 }
 
 LANGUAGE_CODE = 'de'
-
-
 
 # Set to False if login into django account should not be possible. You can
 # administer accounts in the admin interface.
@@ -58,6 +60,9 @@ SOCIAL_AUTH_REDIRECT_IS_HTTPS = True
 SOCIAL_AUTH_RAISE_EXCEPTIONS = False
 SOCIAL_AUTH_BACKEND_ERROR_URL = "/"
 
+
+OPENROUTESERVICE_APIKEY = '{{ umap__openrouteservice_apikey }}'
+
 # If you want to add a playgroud map, add its primary key
 # UMAP_DEMO_PK = 204
 # If you want to add a showcase map on the home page, add its primary key
@@ -73,21 +78,14 @@ UMAP_ALLOW_ANONYMOUS = True
 UMAP_EXCLUDE_DEFAULT_MAPS = True
 
 # How many maps should be showcased on the main page resp. on the user page
-UMAP_MAPS_PER_PAGE = 1
+UMAP_MAPS_PER_PAGE = 5
 # How many maps should be looked for when performing a (sub)search
 UMAP_MAPS_PER_SEARCH = 15
 # How many maps should be showcased on the user page, if owner
 UMAP_MAPS_PER_PAGE_OWNER = 10
 
-SITE_URL = "https://umap.openstreetmap.de"
+SITE_URL = "https://{{ umap__server_url }}"
 #SHORT_SITE_URL = "http://s.hort"
-
-# CACHES = {
-#     'default': {
-#         'BACKEND': 'django.core.cache.backends.filebased.FileBasedCache',
-#         'LOCATION': '/var/tmp/django_cache',
-#     }
-# }
 
 # POSTGIS_VERSION = (2, 1, 0)
 #EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
@@ -102,14 +100,34 @@ EMAIL_PORT = 25
 UMAP_USE_UNACCENT = False
 
 # Put the site in readonly mode (useful for migration or any maintenance)
-UMAP_READONLY = True
+UMAP_READONLY = False
+
+# WebSocket support for live collaboration
+REALTIME_ENABLED = True
+
+# ASGI configuration for WebSocket support
+ASGI_APPLICATION = 'umap.asgi.application'
+
+# Cache configuration for WebSocket support
+CACHES = {
+    "default": {
+        "BACKEND": "django.core.cache.backends.filebased.FileBasedCache",
+        "LOCATION": "{{ umap__paths.container.cache }}",
+    }
+}
+
+# Redis configuration for realtime functionality
+REDIS_URL = "redis://redis:6379"
+
+# X-Accel-Redirect for secure GeoJSON delivery
+UMAP_XSENDFILE_HEADER = "X-Accel-Redirect"
 
 #For static deployment
-STATIC_ROOT = '{{ umap__basedir }}/static'
+STATIC_ROOT = '{{ umap__paths.container.static_root }}'
 STATIC_URL = '/static/'
 
 #For users' statics (geojson mainly)
-MEDIA_ROOT = '{{ umap__basedir }}/data'
+MEDIA_ROOT = '{{ umap__paths.container.media_root }}'
 
 # Default map location for new maps
 LEAFLET_LONGITUDE = 2
@@ -119,12 +137,13 @@ LEAFLET_ZOOM = 6
 # Number of old version to keep per datalayer.
 UMAP_KEEP_VERSIONS = 10
 
-UMAP_CUSTOM_TEMPLATES = '{{ umap__basedir }}/custom/templates'
-#UMAP_CUSTOM_STATICS = '{{ umap__basedir }}/custom/static'
+UMAP_CUSTOM_TEMPLATES = '{{ umap__container_basedir }}/custom/templates'
+#UMAP_CUSTOM_STATICS = '{{ umap__container_basedir }}/custom/static'
 SITE_ID=2
 
 COMPRESS_ENABLED = True
 COMPRESS_OFFLINE = True
+UMAP_GZIP ) True 
 
 UMAP_IMPORTERS = {
     "overpass": {"url": "https://overpass-api.de/api/interpreter"}
@@ -137,4 +156,24 @@ UMAP_HOST_INFOS = {
     "name": "{{ umap__host_info_name }}",
     "url": "{{ umap__host_info_url }}",
     "contact": "{{ umap__host_info_contact }}"
+}
+
+# Pictograms configuration
+UMAP_PICTOGRAMS_COLLECTIONS = {
+    "osmic": {
+        "path": "{{ umap__paths.container.symbols }}/osmic",
+        "attribution": "Osmic Icons",
+    },
+    "brewery": {
+        "path": "{{ umap__paths.container.symbols }}/brewery",
+        "attribution": "geggus",
+    },
+    "remixicon-line": {
+        "path": "{{ umap__paths.container.symbols }}/remixicon-line",
+        "attribution": "Remix Icon",
+    },
+    "remixicon-fill": {
+        "path": "{{ umap__paths.container.symbols }}/remixicon-fill",
+        "attribution": "Remix Icon",
+    },
 }

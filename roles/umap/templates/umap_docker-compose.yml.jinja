@@ -42,18 +42,27 @@ services:
       - reverseproxy_web
 
   app:
-    image: umap/umap:3.3.6
+    # Custom WSGI Image mit WebSocket-Unterstützung
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        UMAP_VERSION: {{ umap_version | default('release') }}
     container_name: umap_app
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
+    environment:
+      - SOCKET_PATH=/srv/umap/sockets/umap.sock
     volumes:
       - ./umap.conf:/etc/umap/umap.conf
-      - ./umapdata/iconpacks/osmic:/tmp/iconimport
-      - ./umapdata/uploads:/srv/umap/data
-      - ./umapdata/static:/srv/umap/static
+      - ./umapdata/symbols:/srv/umap/umapdata/symbols:ro
+      - ./umapdata/media_root:/srv/umap/media_root
+      - ./umapdata/static_root:/srv/umap/static_root
+      - umap_cache:/srv/umap/cache
+      - ./sockets:/srv/umap/sockets
     restart: always
     logging:
       driver: journald
@@ -64,11 +73,13 @@ services:
     image: nginx:latest
     container_name: umap_proxy
     ports:
-      - "8000:80"
+      - "127.0.0.1:{{ umap__proxy_port }}:80"
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./umapdata/static:/srv/umap/static:ro
-      - ./umapdata/uploads:/data:ro
+      - ./nginx-docker.conf:/etc/nginx/nginx.conf:ro
+      - ./umapdata/static_root:/srv/umap/static_root:ro
+      - ./umapdata/symbols:/symbols:ro
+      - ./umapdata/media_root:/srv/umap/media_root:ro
+      - ./sockets:/srv/umap/sockets:ro
     depends_on:
       - app
     restart: always
@@ -79,4 +90,6 @@ services:
 
 volumes:
   umap_db:
-    name: umap_db_data 
+    name: umap_db_data
+  umap_cache:
+    name: umap_cache_data 
