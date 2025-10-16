@@ -1,3 +1,0 @@
-#!/bin/bash
-
-pg_dump -h localhost -p 5432 -U {{ umap__user}} -T spatial_ref_sys -C -O {{ umap__dbname }} | grep -v -E '^(CREATE EXTENSION|COMMENT\ ON)' | gzip > "$1"

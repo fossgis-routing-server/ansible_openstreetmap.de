@@ -1,12 +1,37 @@
+# uMap Version Control
+umap_version: release  # Options: release or specific version like "3.3.6"
+
 umap__user: umap
-umap__basedir: /srv/umap
+
+# Base directories for different contexts
+umap__host_basedir: /srv/umap
+umap__container_basedir: /srv/umap
+
+# Path configurations
+umap__paths:
+  host:
+    media_root: "{{ umap__host_basedir }}/umapdata/media_root"
+    static_root: "{{ umap__host_basedir }}/umapdata/static_root"
+    symbols: "{{ umap__host_basedir }}/umapdata/symbols"
+    sockets: "{{ umap__host_basedir }}/sockets"
+  container:
+    media_root: "{{ umap__container_basedir }}/media_root"
+    static_root: "{{ umap__container_basedir }}/static_root"
+    sockets: "{{ umap__container_basedir }}/sockets"
+    cache: "{{ umap__container_basedir }}/cache"
+    symbols: "{{ umap__container_basedir }}/umapdata/symbols"
+
+# Proxy configuration
+umap__proxy_port: 8000
 umap__dbname: umapdb
 umap__dbuser: umapuser
 umap__host: db
 umap__port: 5432
-umap__db_dumpfile: /tmp/umap_db.backup.sql
 umap__admin_email_address: "umap@openstreetmap.de"
-umap__server_url: "umap.openstreetmap.de"
+umap__server_url: "boggs.openstreetmap.de"
+
+# OpenRouteService API Key for routing
+umap__openrouteservice_apikey: "{{ umap__openrouteservice_apikey }}"
 
 umap__host_info_name: "FOSSGIS e.V."
 umap__host_info_url: "https://www.fossgis.de"
@@ -15,9 +40,18 @@ umap__host_info_contact: "umap@openstreetmap.de"
 umap__acme_certificates:
   - name: umapde
     domains:
-      - umap.openstreetmap.de
+      - boggs.openstreetmap.de
   - name: munin
     domains:
       - "{{ munin__hostname | regex_replace(':.*', '') }}"
     on_update:
       - systemctl reload nginx
+
+# Backup configuration
+# umap__backup_enabled: true
+# umap__backup_ssh_key_name: "backup_key"
+# umap__backup_passphrase: "{{ umap__backup_passphrase }}"
+# umap__backup_remote_user: "backup_user"
+# umap__backup_remote_host: "backup.example.com"
+# umap__backup_remote_port: "22"
+# umap__backup_remote_directory: "umap"
