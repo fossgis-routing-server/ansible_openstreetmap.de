@@ -42,12 +42,7 @@ ARG UMAP_VERSION=release
 # Download uMap from GitHub
 RUN if [ "$UMAP_VERSION" = "release" ]; then \
         echo "Fetching latest stable release..."; \
-        RELEASE_TAG=$(python3 -c "\
-            import urllib.request, json; \
-            response = urllib.request.urlopen('https://api.github.com/repos/umap-project/umap/releases/latest'); \
-            data = json.loads(response.read()); \
-            print(data['tag_name'])\
-        "); \
+        RELEASE_TAG=$(python3 -c "import urllib.request, json; response = urllib.request.urlopen('https://api.github.com/repos/umap-project/umap/releases/latest'); data = json.loads(response.read()); print(data['tag_name'])"); \
     elif [ "$UMAP_VERSION" = "main" ] || [ "$UMAP_VERSION" = "dev" ]; then \
         echo "Using development version from main branch"; \
         RELEASE_TAG=""; \
@@ -60,7 +55,8 @@ RUN if [ "$UMAP_VERSION" = "release" ]; then \
         git clone --depth 1 https://github.com/umap-project/umap.git /tmp/umap; \
     else \
         echo "Installing uMap release: $RELEASE_TAG"; \
-        git clone --branch $RELEASE_TAG --depth 1 https://github.com/umap-project/umap.git /tmp/umap; \
+        git clone --depth 1 https://github.com/umap-project/umap.git /tmp/umap; \
+        cd /tmp/umap && git fetch --depth 1 origin tag $RELEASE_TAG && git checkout $RELEASE_TAG; \
     fi && \
     cp -r /tmp/umap/* /srv/umap/ && \
     rm -rf /tmp/umap

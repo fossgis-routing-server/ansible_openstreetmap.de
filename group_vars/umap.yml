@@ -3,30 +3,29 @@ umap_version: release  # Options: release or specific version like "3.3.6"
 
 umap__user: umap
 
-# Base directories for different contexts
-umap__host_basedir: /srv/umap
-umap__container_basedir: /srv/umap
-
 # Path configurations
 umap__paths:
   host:
-    media_root: "{{ umap__host_basedir }}/umapdata/media_root"
-    static_root: "{{ umap__host_basedir }}/umapdata/static_root"
-    symbols: "{{ umap__host_basedir }}/umapdata/symbols"
-    sockets: "{{ umap__host_basedir }}/sockets"
+    basedir: /srv/umap
+    media_root: "/srv/umap/umapdata/media_root"
+    static_root: "/srv/umap/umapdata/static_root"
+    symbols: "/srv/umap/umapdata/symbols"
+    sockets: "/srv/umap/sockets"
   container:
-    media_root: "{{ umap__container_basedir }}/media_root"
-    static_root: "{{ umap__container_basedir }}/static_root"
-    sockets: "{{ umap__container_basedir }}/sockets"
-    cache: "{{ umap__container_basedir }}/cache"
-    symbols: "{{ umap__container_basedir }}/umapdata/symbols"
+    basedir: /srv/umap
+    media_root: "/srv/umap/media_root"
+    static_root: "/srv/umap/static_root"
+    sockets: "/srv/umap/sockets"
+    cache: "/srv/umap/cache"
+    symbols: "/srv/umap/symbols"
 
 # Proxy configuration
 umap__proxy_port: 8000
-umap__dbname: umapdb
-umap__dbuser: umapuser
-umap__host: db
-umap__port: 5432
+umap__database_name: umapdb
+umap__database_user: umapuser
+umap__database_password: "{{ umap__database_password }}"
+umap__database_host: db
+umap__database_port: 5432
 umap__admin_email_address: "umap@openstreetmap.de"
 umap__server_url: "boggs.openstreetmap.de"
 
