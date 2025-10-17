@@ -29,9 +29,9 @@ http {
             add_header Cache-Control "public, immutable";
         }
 
-        # Serve pictograms directly
-        location /pictograms/ {
-            alias /symbols/pictograms/;
+        # Serve old pictogram URLs (for existing maps)
+        location /uploads/pictogram/ {
+            alias {{ umap__paths.container.static_root }}/pictograms/;
             expires 1y;
             add_header Cache-Control "public, immutable";
         }

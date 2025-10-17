@@ -1,7 +1,12 @@
 - name: Create umap system account
   system_account:
     name: "{{ umap__user }}"
-    home: "{{ umap__host_basedir }}"
+    home: "{{ umap__paths.host.basedir }}"
+
+- name: Update apt cache
+  apt:
+    update_cache: true
+    cache_valid_time: 3600
 
 - name: Install prerequisites
   apt:
@@ -10,7 +15,6 @@
       - curl
       - wget
       - git
-    update_cache: true
 
 - name: Create apt keyrings directory
   file:
@@ -35,7 +39,6 @@
       - docker-ce
       - docker-compose-plugin
     state: latest
-    update_cache: true
 
 - name: Add users to docker group
   user:
@@ -48,7 +51,7 @@
 - name: Setup umap config file
   template:
     src: "umap.conf.jinja"
-    dest: "{{ umap__host_basedir }}/umap.conf"
+    dest: "{{ umap__paths.host.basedir }}/umap.conf"
     owner: "{{ umap__user }}"
     group: docker
     mode: "0664"
@@ -56,7 +59,7 @@
 
 - name: Create umap directories
   file:
-    path: "{{ umap__host_basedir }}/{{ item }}"
+    path: "{{ umap__paths.host.basedir }}/{{ item }}"
     state: directory
     owner: "{{ umap__user }}"
     group: docker
@@ -66,7 +69,7 @@
 
 - name: Create umapdata directories
   file:
-    path: "{{ umap__host_basedir }}/umapdata/{{ item }}"
+    path: "{{ umap__paths.host.basedir }}/umapdata/{{ item }}"
     state: directory
     owner: "{{ umap__user }}"
     group: docker
@@ -96,7 +99,7 @@
 - name: Setup docker-compose file
   template:
     src: "umap_docker-compose.yml.jinja"
-    dest: "{{ umap__host_basedir }}/docker-compose.yml"
+    dest: "{{ umap__paths.host.basedir }}/docker-compose.yml"
     owner: "{{ umap__user }}"
     group: docker
     mode: "0664"
@@ -104,7 +107,7 @@
 - name: Setup nginx-docker.conf for proxy
   template:
     src: "nginx-docker.conf.jinja"
-    dest: "{{ umap__host_basedir }}/nginx-docker.conf"
+    dest: "{{ umap__paths.host.basedir }}/nginx-docker.conf"
     owner: "{{ umap__user }}"
     group: docker
     mode: "0664"
@@ -112,7 +115,7 @@
 - name: Copy WSGI Dockerfile
   copy:
     src: "Dockerfile"
-    dest: "{{ umap__host_basedir }}/Dockerfile"
+    dest: "{{ umap__paths.host.basedir }}/Dockerfile"
     owner: "{{ umap__user }}"
     group: docker
     mode: "0664"
@@ -120,15 +123,23 @@
 - name: Copy .dockerignore file
   copy:
     src: ".dockerignore"
-    dest: "{{ umap__host_basedir }}/.dockerignore"
+    dest: "{{ umap__paths.host.basedir }}/.dockerignore"
     owner: "{{ umap__user }}"
     group: docker
     mode: "0664"
 
+- name: Copy entrypoint script
+  copy:
+    src: "entrypoint.sh"
+    dest: "{{ umap__paths.host.basedir }}/entrypoint.sh"
+    owner: "{{ umap__user }}"
+    group: docker
+    mode: "0755"
+
 - name: Setup umap db env file
   template:
     src: "{{ item }}.jinja"
-    dest: "{{ umap__host_basedir }}/{{ item }}"
+    dest: "{{ umap__paths.host.basedir }}/{{ item }}"
     owner: "{{ umap__user }}"
     group: docker
     mode: "0664"
@@ -144,9 +155,9 @@
 - name: Run Docker Compose up as user "{{ umap__user }}"
   become: true
   become_user: "{{ umap__user }}"
-  command: docker compose -f "{{ umap__host_basedir }}"/docker-compose.yml up -d
+  command: docker compose -f "{{ umap__paths.host.basedir }}"/docker-compose.yml up -d
   args:
-    chdir: "{{ umap__host_basedir }}"
+    chdir: "{{ umap__paths.host.basedir }}"
   environment:
     COMPOSE_HTTP_TIMEOUT: 200
 

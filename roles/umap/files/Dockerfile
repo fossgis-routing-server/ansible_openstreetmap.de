@@ -42,12 +42,7 @@ ARG UMAP_VERSION=release
 # Download uMap from GitHub
 RUN if [ "$UMAP_VERSION" = "release" ]; then \
         echo "Fetching latest stable release..."; \
-        RELEASE_TAG=$(python3 -c "\
-            import urllib.request, json; \
-            response = urllib.request.urlopen('https://api.github.com/repos/umap-project/umap/releases/latest'); \
-            data = json.loads(response.read()); \
-            print(data['tag_name'])\
-        "); \
+        RELEASE_TAG=$(python3 -c "import urllib.request, json; response = urllib.request.urlopen('https://api.github.com/repos/umap-project/umap/releases/latest'); data = json.loads(response.read()); print(data['tag_name'])"); \
     elif [ "$UMAP_VERSION" = "main" ] || [ "$UMAP_VERSION" = "dev" ]; then \
         echo "Using development version from main branch"; \
         RELEASE_TAG=""; \
