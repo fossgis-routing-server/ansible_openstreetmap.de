@@ -13,6 +13,8 @@ services:
       timeout: 3s
       retries: 5
     command: ["redis-server"]
+    volumes:
+      - umap_redis:/data
     restart: always
     logging:
       driver: journald
@@ -24,13 +26,12 @@ services:
     container_name: umap_db
     env_file: ./database.env
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -d umapdb -U umapuser"]
+      test: ["CMD-SHELL", "pg_isready -d {{ umap__database_name }} -U {{ umap__database_user }}"]
       interval: 2s
       timeout: 5s
       retries: 5
     volumes:
       - umap_db:/var/lib/postgresql/data
-      - ./init_db.sh:/docker-entrypoint-initdb.d/01-init_umap_db.sh
     environment:
       - POSTGRES_LOG_MIN_DURATION_STATEMENT=0
       - POSTGRES_LOG_STATEMENT=all
@@ -56,13 +57,15 @@ services:
         condition: service_healthy
     environment:
       - SOCKET_PATH=/srv/umap/sockets/umap.sock
+    env_file: ./database.env
     volumes:
       - ./umap.conf:/etc/umap/umap.conf
-      - ./umapdata/symbols:/srv/umap/umapdata/symbols:ro
+      - ./umapdata/symbols:/srv/umap/symbols:ro
       - ./umapdata/media_root:/srv/umap/media_root
       - ./umapdata/static_root:/srv/umap/static_root
-      - umap_cache:/srv/umap/cache
       - ./sockets:/srv/umap/sockets
+      - ./umapdata/custom:/srv/umap/custom:ro
+      - umap_cache:/srv/umap/cache
     restart: always
     logging:
       driver: journald
@@ -76,10 +79,11 @@ services:
       - "127.0.0.1:{{ umap__proxy_port }}:80"
     volumes:
       - ./nginx-docker.conf:/etc/nginx/nginx.conf:ro
-      - ./umapdata/static_root:/srv/umap/static_root:ro
       - ./umapdata/symbols:/symbols:ro
       - ./umapdata/media_root:/srv/umap/media_root:ro
+      - ./umapdata/static_root:/srv/umap/static_root:ro
       - ./sockets:/srv/umap/sockets:ro
+      - ./logs/nginx:/var/log/nginx
     depends_on:
       - app
     restart: always
@@ -92,4 +96,6 @@ volumes:
   umap_db:
     name: umap_db_data
   umap_cache:
-    name: umap_cache_data 
+    name: umap_cache_data
+  umap_redis:
+    name: umap_redis_data 

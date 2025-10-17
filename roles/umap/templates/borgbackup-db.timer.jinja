@@ -1,0 +1,14 @@
+[Unit]
+Description=Run uMap Database Backup Daily
+Requires=borgbackup-db.service
+
+[Timer]
+OnCalendar=daily
+# Run at 02:00 every day
+OnCalendar=*-*-* 02:00:00
+RandomizedDelaySec=300
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+

@@ -1,10 +1,9 @@
-# uMap-Daten (sehr groß!)
+# uMap-Daten
 umapdata/
-uploads/
-data/
+logs/
 
-# Statische Dateien (werden im Container generiert)
-static/
+# Socket-Verzeichnis
+sockets/
 
 # Git-Verzeichnis
 .git/
@@ -12,24 +11,28 @@ static/
 # Python-Cache
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
 
-# Log-Dateien
-*.log
+# Docker-Dateien
+docker-compose.yml
+
+# Nginx-Konfiguration
+nginx-docker.conf
+
+# uMap-Konfigurationen
+umap.conf
+database.env
 
 # Ansible-Temporärdateien
 .ansible/
 
-# Docker-Compose-Datei (nicht für den Build benötigt)
-docker-compose.yml
+# Log-Dateien
+*.log
 
-# Socket-Verzeichnis (wird zur Laufzeit erstellt)
-sockets/
+# Backup-Scripts
+backup-umap-*.sh
 
-# Nginx-Konfigurationen
-nginx.conf
-
-# uMap-Konfigurationen
-umap.conf
-
-# Entrypoint-Skripte
-entrypoint-*.sh
+# Documentation
+*.md

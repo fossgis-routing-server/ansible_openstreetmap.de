@@ -1,0 +1,15 @@
+[Unit]
+Description=Borg Backup uMap Data
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User={{ umap__user }}
+Group=docker
+WorkingDirectory={{ umap__paths.host.basedir }}
+ExecStart={{ umap__paths.host.basedir }}/backup-umap-data.sh
+
+[Install]
+WantedBy=multi-user.target
+

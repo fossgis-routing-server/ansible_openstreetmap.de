@@ -1,0 +1,48 @@
+# uMap Nginx Log Rotation Configuration
+# This file is managed by Ansible - do not edit manually
+
+# Additional log files for specific purposes
+{{ umap__paths.host.basedir }}/logs/nginx/access.log {
+    daily
+    missingok
+    rotate 90
+    compress
+    delaycompress
+    notifempty
+    create 644 {{ umap__user }} {{ umap__user }}
+    su {{ umap__user }} {{ umap__user }}
+    sharedscripts
+    postrotate
+        docker exec umap_proxy nginx -s reopen 2>/dev/null || true
+    endscript
+}
+
+{{ umap__paths.host.basedir }}/logs/nginx/geojson.log {
+    daily
+    missingok
+    rotate 60
+    compress
+    delaycompress
+    notifempty
+    create 644 {{ umap__user }} {{ umap__user }}
+    su {{ umap__user }} {{ umap__user }}
+    sharedscripts
+    postrotate
+        docker exec umap_proxy nginx -s reopen 2>/dev/null || true
+    endscript
+}
+
+{{ umap__paths.host.basedir }}/logs/nginx/error.log {
+    daily
+    missingok
+    rotate 30
+    compress
+    delaycompress
+    notifempty
+    create 644 {{ umap__user }} {{ umap__user }}
+    su {{ umap__user }} {{ umap__user }}
+    sharedscripts
+    postrotate
+        docker exec umap_proxy nginx -s reopen 2>/dev/null || true
+    endscript
+}

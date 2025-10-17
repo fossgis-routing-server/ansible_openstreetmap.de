@@ -17,14 +17,16 @@ ADMINS = (
 )
 MANAGERS = ADMINS
 
+import os
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': '{{ umap__dbname }}',
-        'HOST': '{{ umap__host }}',
-        'PORT': '{{ umap__port }}',
-        'USER': '{{ umap__dbuser }}',
-        'PASSWORD': '{{ umap__dbuser_password }}'
+        'NAME': os.getenv('POSTGRES_DB'),
+        'HOST': os.getenv('POSTGRES_HOST'),
+        'PORT': int(os.getenv('POSTGRES_PORT', 5432)),
+        'USER': os.getenv('POSTGRES_USER'),
+        'PASSWORD': os.getenv('POSTGRES_PASSWORD')
     }
 }
 
@@ -62,6 +64,24 @@ SOCIAL_AUTH_BACKEND_ERROR_URL = "/"
 
 
 OPENROUTESERVICE_APIKEY = '{{ umap__openrouteservice_apikey }}'
+
+# Suppress DisallowedHost exceptions as per Django documentation
+# https://docs.djangoproject.com/en/5.2/ref/logging/#django-security-disallowedhost
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "null": {
+            "class": "logging.NullHandler",
+        },
+    },
+    "loggers": {
+        "django.security.DisallowedHost": {
+            "handlers": ["null"],
+            "propagate": False,
+        },
+    },
+}
 
 # If you want to add a playgroud map, add its primary key
 # UMAP_DEMO_PK = 204
@@ -137,13 +157,13 @@ LEAFLET_ZOOM = 6
 # Number of old version to keep per datalayer.
 UMAP_KEEP_VERSIONS = 10
 
-UMAP_CUSTOM_TEMPLATES = '{{ umap__container_basedir }}/custom/templates'
-#UMAP_CUSTOM_STATICS = '{{ umap__container_basedir }}/custom/static'
+UMAP_CUSTOM_TEMPLATES = '{{ umap__paths.container.basedir }}/custom/templates'
+UMAP_CUSTOM_STATICS = '{{ umap__paths.container.basedir }}/custom/static'
 SITE_ID=2
 
 COMPRESS_ENABLED = True
 COMPRESS_OFFLINE = True
-UMAP_GZIP ) True 
+UMAP_GZIP = True 
 
 UMAP_IMPORTERS = {
     "overpass": {"url": "https://overpass-api.de/api/interpreter"}
@@ -155,7 +175,7 @@ UMAP_HOME_FEED = "none"
 UMAP_HOST_INFOS = {
     "name": "{{ umap__host_info_name }}",
     "url": "{{ umap__host_info_url }}",
-    "contact": "{{ umap__host_info_contact }}"
+    "email": "{{ umap__host_info_contact }}"
 }
 
 # Pictograms configuration
@@ -166,14 +186,6 @@ UMAP_PICTOGRAMS_COLLECTIONS = {
     },
     "brewery": {
         "path": "{{ umap__paths.container.symbols }}/brewery",
-        "attribution": "geggus",
-    },
-    "remixicon-line": {
-        "path": "{{ umap__paths.container.symbols }}/remixicon-line",
-        "attribution": "Remix Icon",
-    },
-    "remixicon-fill": {
-        "path": "{{ umap__paths.container.symbols }}/remixicon-fill",
-        "attribution": "Remix Icon",
+        "attribution": "Sven Geggus",
     },
 }
