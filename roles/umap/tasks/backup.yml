@@ -1,0 +1,171 @@
+---
+# Borg Backup Tasks for uMap
+# This task file handles the deployment of BorgBackup for uMap servers
+
+- name: Install borgbackup
+  apt:
+    name:
+      - borgbackup
+    state: present
+    update_cache: yes
+  tags:
+    - umap
+    - backup
+
+- name: Create .ssh directory for umap user
+  file:
+    path: /srv/umap/.ssh
+    state: directory
+    owner: "{{ umap__user }}"
+    group: docker
+    mode: "0700"
+  tags:
+    - umap
+    - backup
+
+- name: Ensure SSH key permissions are correct
+  file:
+    path: /srv/umap/.ssh/{{ umap__backup_ssh_key_name }}
+    state: file
+    owner: "{{ umap__user }}"
+    group: docker
+    mode: "0600"
+  tags:
+    - umap
+    - backup
+
+- name: Deploy backup scripts
+  template:
+    src: "{{ item.src }}.sh.jinja"
+    dest: "{{ umap__paths.host.basedir }}/{{ item.dest }}"
+    owner: "{{ umap__user }}"
+    group: docker
+    mode: "0755"
+  loop:
+    - { src: "backup-umap-data", dest: "backup-umap-data.sh" }
+    - { src: "backup-umap-db", dest: "backup-umap-db.sh" }
+  tags:
+    - umap
+    - backup
+
+- name: Create remote backup directories on storagebox
+  command: ssh -i /srv/umap/.ssh/{{ umap__backup_ssh_key_name }} -p {{ umap__backup_remote_port }} {{ umap__backup_remote_user }}@{{ umap__backup_remote_host }} mkdir -p backups/{{ inventory_hostname }}/{{ item }}
+  become: yes
+  become_user: "{{ umap__user }}"
+  loop:
+    - umapdata
+    - umapdb
+  changed_when: false
+  tags:
+    - umap
+    - backup
+
+- name: Check if Borg data repository exists
+  command: borg info ssh://{{ umap__backup_remote_user }}@{{ umap__backup_remote_host }}:{{ umap__backup_remote_port }}/./backups/{{ inventory_hostname }}/umapdata
+  become: yes
+  become_user: "{{ umap__user }}"
+  environment:
+    BORG_RSH: "ssh -i /srv/umap/.ssh/{{ umap__backup_ssh_key_name }}"
+    BORG_PASSPHRASE: "{{ umap__backup_passphrase }}"
+  register: borg_data_repo_check
+  changed_when: false
+  failed_when: false
+  tags:
+    - umap
+    - backup
+
+- name: Initialize Borg repository for data backups
+  command: borg init --encryption=repokey ssh://{{ umap__backup_remote_user }}@{{ umap__backup_remote_host }}:{{ umap__backup_remote_port }}/./backups/{{ inventory_hostname }}/umapdata
+  become: yes
+  become_user: "{{ umap__user }}"
+  environment:
+    BORG_RSH: "ssh -i /srv/umap/.ssh/{{ umap__backup_ssh_key_name }}"
+    BORG_PASSPHRASE: "{{ umap__backup_passphrase }}"
+  when: borg_data_repo_check.rc != 0
+  tags:
+    - umap
+    - backup
+
+- name: Check if Borg database repository exists
+  command: borg info ssh://{{ umap__backup_remote_user }}@{{ umap__backup_remote_host }}:{{ umap__backup_remote_port }}/./backups/{{ inventory_hostname }}/umapdb
+  become: yes
+  become_user: "{{ umap__user }}"
+  environment:
+    BORG_RSH: "ssh -i /srv/umap/.ssh/{{ umap__backup_ssh_key_name }}"
+    BORG_PASSPHRASE: "{{ umap__backup_passphrase }}"
+  register: borg_db_repo_check
+  changed_when: false
+  failed_when: false
+  tags:
+    - umap
+    - backup
+
+- name: Initialize Borg repository for database backups
+  command: borg init --encryption=repokey ssh://{{ umap__backup_remote_user }}@{{ umap__backup_remote_host }}:{{ umap__backup_remote_port }}/./backups/{{ inventory_hostname }}/umapdb
+  become: yes
+  become_user: "{{ umap__user }}"
+  environment:
+    BORG_RSH: "ssh -i /srv/umap/.ssh/{{ umap__backup_ssh_key_name }}"
+    BORG_PASSPHRASE: "{{ umap__backup_passphrase }}"
+  when: borg_db_repo_check.rc != 0
+  tags:
+    - umap
+    - backup
+
+- name: Deploy systemd service and timer files
+  template:
+    src: "{{ item }}.jinja"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - borgbackup-data.service
+    - borgbackup-data.timer
+    - borgbackup-db.service
+    - borgbackup-db.timer
+  tags:
+    - umap
+    - backup
+
+- name: Enable and start backup timers
+  systemd:
+    name: "{{ item }}"
+    daemon_reload: yes
+    enabled: yes
+    state: started
+  loop:
+    - borgbackup-data.timer
+    - borgbackup-db.timer
+  tags:
+    - umap
+    - backup
+
+- name: Test backup connectivity (data)
+  command: borg info ssh://{{ umap__backup_remote_user }}@{{ umap__backup_remote_host }}:{{ umap__backup_remote_port }}/./backups/{{ inventory_hostname }}/umapdata
+  become: yes
+  become_user: "{{ umap__user }}"
+  environment:
+    BORG_RSH: "ssh -i /srv/umap/.ssh/{{ umap__backup_ssh_key_name }}"
+  register: borg_test_data
+  changed_when: false
+  failed_when: false
+  tags:
+    - umap
+    - backup
+    - never
+
+- name: Test backup connectivity (db)
+  command: borg info ssh://{{ umap__backup_remote_user }}@{{ umap__backup_remote_host }}:{{ umap__backup_remote_port }}/./backups/{{ inventory_hostname }}/umapdb
+  become: yes
+  become_user: "{{ umap__user }}"
+  environment:
+    BORG_RSH: "ssh -i /srv/umap/.ssh/{{ umap__backup_ssh_key_name }}"
+  register: borg_test_db
+  changed_when: false
+  failed_when: false
+  tags:
+    - umap
+    - backup
+    - never
+

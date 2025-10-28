@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# uMap Database Backup Script
+# Usage: ./backup-umap-db.sh
+
+# Configuration
+export BORG_RSH='ssh -i /srv/umap/.ssh/{{ umap__backup_ssh_key_name }}'
+export BORG_PASSPHRASE="{{ umap__backup_passphrase }}"
+export REPO="ssh://{{ umap__backup_remote_user }}@{{ umap__backup_remote_host }}:{{ umap__backup_remote_port }}/./backups/{{ inventory_hostname }}/umapdb"
+
+# Backup database
+docker exec umap_db pg_dump -U postgres {{ umap__database_name }} \
+        | borg create --stats -C lz4 \
+        ${REPO}::umapdb-`date +%Y%m%d%H%M` - 
+
+if [ $? -eq 0 ]; then
+    # Prune old backups
+    borg prune ${REPO} \
+            --keep-daily={{ umap__backup_keep_daily }} \
+            --keep-weekly={{ umap__backup_keep_weekly }} \
+            --keep-monthly={{ umap__backup_keep_monthly }} \
+            --glob-archives="umapdb-*"
+    
+    # Compact repository
+    borg compact ${REPO} >/dev/null 2>&1
+    
+    echo "uMap database backup completed successfully"
+else
+    echo "ERROR: uMap database backup failed!"
+    exit 1
+fi
+

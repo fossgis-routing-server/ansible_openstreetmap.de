@@ -1,12 +1,36 @@
+# uMap Version Control
+umap_version: release  # Options: release or specific version like "3.3.6"
+
 umap__user: umap
-umap__basedir: /srv/umap
-umap__dbname: umapdb
-umap__dbuser: umapuser
-umap__host: db
-umap__port: 5432
-umap__db_dumpfile: /tmp/umap_db.backup.sql
+
+# Path configurations
+umap__paths:
+  host:
+    basedir: /srv/umap
+    media_root: "/srv/umap/umapdata/media_root"
+    static_root: "/srv/umap/umapdata/static_root"
+    symbols: "/srv/umap/umapdata/symbols"
+    sockets: "/srv/umap/sockets"
+  container:
+    basedir: /srv/umap
+    media_root: "/srv/umap/media_root"
+    static_root: "/srv/umap/static_root"
+    sockets: "/srv/umap/sockets"
+    cache: "/srv/umap/cache"
+    symbols: "/srv/umap/symbols"
+
+# Proxy configuration
+umap__proxy_port: 8000
+umap__database_name: umapdb
+umap__database_user: umapuser
+umap__database_password: "{{ umap__database_password }}"
+umap__database_host: db
+umap__database_port: 5432
 umap__admin_email_address: "umap@openstreetmap.de"
 umap__server_url: "umap.openstreetmap.de"
+
+# OpenRouteService API Key for routing
+umap__openrouteservice_apikey: "{{ umap__openrouteservice_apikey }}"
 
 umap__host_info_name: "FOSSGIS e.V."
 umap__host_info_url: "https://www.fossgis.de"
@@ -21,3 +45,17 @@ umap__acme_certificates:
       - "{{ munin__hostname | regex_replace(':.*', '') }}"
     on_update:
       - systemctl reload nginx
+
+# Borg Backup Configuration
+# StorageBox Pfad-Struktur: /backups/<hostname>/<type>
+# - Data backups: /backups/<hostname>/umapdata
+# - DB backups: /backups/<hostname>/umapdb
+umap__backup_enabled: true 
+umap__backup_ssh_key_name: "id_ed25519_borgbackup"
+umap__backup_passphrase: "{{ umap__backup_passphrase }}"  
+umap__backup_remote_user: "{{ umap__backup_remote_user }}"
+umap__backup_remote_host: "{{ umap__backup_remote_host }}"
+umap__backup_remote_port: "{{ umap__backup_remote_port | default(22) }}"
+umap__backup_keep_daily: 7
+umap__backup_keep_weekly: 4
+umap__backup_keep_monthly: 3

@@ -1,0 +1,38 @@
+# uMap-Daten
+umapdata/
+logs/
+
+# Socket-Verzeichnis
+sockets/
+
+# Git-Verzeichnis
+.git/
+
+# Python-Cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Docker-Dateien
+docker-compose.yml
+
+# Nginx-Konfiguration
+nginx-docker.conf
+
+# uMap-Konfigurationen
+umap.conf
+database.env
+
+# Ansible-Temporärdateien
+.ansible/
+
+# Log-Dateien
+*.log
+
+# Backup-Scripts
+backup-umap-*.sh
+
+# Documentation
+*.md
