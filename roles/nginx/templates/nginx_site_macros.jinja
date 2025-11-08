@@ -12,6 +12,23 @@
     access_log /var/log/nginx/{{ name }}-access.log anonymized;
     error_log /var/log/nginx/{{ name }}-error.log;
 {%- endmacro %}
+{% macro block_map() %}
+    map $http_user_agent $blocked_user_agent {
+        default 0;
+        include /etc/nginx/blocked_user_agent.conf;
+    }
+
+    map $http_referer $blocked_referrer {
+        default 0;
+        include /etc/nginx/blocked_referrer.conf;
+    }
+{% endmacro %}
+{% macro error_out_blocked(error='403') %}
+    if ($blocked_user_agent)
+        { return {{ error }}; }
+    if ($blocked_referrer)
+        { return {{ error }}; }
+{% endmacro %}
 {% macro server(fqdns, http='yes', https='', listen_params='') -%}
 {% if http == 'forward' -%}
 server {

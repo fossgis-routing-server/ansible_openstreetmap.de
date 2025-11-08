@@ -30,3 +30,14 @@
     src: 'log_anonymized.conf'
     dest: '/etc/nginx/conf.d/log_anonymized.conf'
   notify: restart nginx
+
+- name: Make sure block files exist
+  copy:
+    content: ''
+    dest: '/etc/nginx/{{ item }}'
+    mode: 0664
+    group: adm
+    force: false
+  loop:
+    - blocked_user_agent.conf
+    - blocked_referrer.conf
