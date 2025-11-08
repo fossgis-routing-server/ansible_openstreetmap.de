@@ -3,3 +3,8 @@ vagrant.ini
 .vagrant
 __pycache__
 host_vars/vagrant.yml
+vm/id_ed25519
+vm/id_ed25519.pub
+vm/network-config
+vm/user-data
+vm/*.qcow2

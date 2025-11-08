@@ -1,0 +1,8 @@
+<network>
+  <name>osm-server</name>
+  <uuid>c9d3a91a-1213-4ff7-a59e-2263d9798f33</uuid>
+  <bridge name="vm-osm-server"/>
+  <forward mode="nat"/>
+  <ip address="192.168.137.1" netmask="255.255.255.0">
+  </ip>
+</network>
