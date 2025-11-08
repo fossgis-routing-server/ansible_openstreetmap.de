@@ -12,7 +12,7 @@ VM_VCPUS=2
 VM_IP="192.168.137.13"
 IMAGE_FILE=/var/lib/libvirt/images/debian-${DEB_NAME}.qcow
 
-if [ ! "$(virsh dominfo OSM-server-debian-trixie)" = "error: failed to get domain 'OSM-server-debian-trixie'" ]
+if [ "$(virsh dominfo OSM-server-debian-trixie)" ]
 then
   echo "OSM-server-debian-trixie already exists, exiting"
   exit 0
