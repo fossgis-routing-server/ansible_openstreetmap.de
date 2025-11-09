@@ -12,7 +12,7 @@ VM_VCPUS=2
 VM_IP="192.168.137.13"
 IMAGE_FILE=/var/lib/libvirt/images/debian-${DEB_NAME}.qcow
 
-if [ "$(virsh dominfo OSM-server-debian-trixie)" ]
+if [ "$(virsh dominfo OSM-server-debian-$DEB_NAME)" ]
 then
   echo "OSM-server-debian-trixie already exists, exiting"
   exit 0
@@ -93,10 +93,10 @@ virt-install \
     --cloud-init user-data="vm/user-data",network-config="vm/network-config"
 #    --cloud-init user-data="vm/user-data,meta-data=vm/meta-data,network-config=vm/network-config"
 
-ssh-keygen -R 192.168.137.13
+ssh-keygen -R $VM_IP
 
 echo VM created, waiting a few seconds...
 sleep 15
 echo Doing ansible bootstrap
 
-ansible-playbook -i vm/ansible_vm.ini bootstrap.yml -l trixie --key-file vm/id_ed25519
+ansible-playbook -i vm/ansible_vm.ini bootstrap.yml -l $DEB_NAME --key-file vm/id_ed25519
