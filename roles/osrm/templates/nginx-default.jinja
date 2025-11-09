@@ -11,6 +11,8 @@ map $http_accept_language $lang {
     ~zh zh;
 }
 
+{{ block_map() }}
+
 {% call server([server_name], http='yes', https=cert, listen_params=default_server ) %}
 
     root {{ root }};
@@ -32,6 +34,7 @@ map $http_accept_language $lang {
         # First attempt to serve request as file, then
         # as directory, then fall back to displaying a 404.
         try_files $uri $uri/ =404;
+        {{ error_out_blocked() }}
     }
 
     location /nginx_status {

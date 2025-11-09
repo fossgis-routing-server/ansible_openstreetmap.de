@@ -191,6 +191,11 @@ osrm__acme_certificates:
       - router.project-osrm.org
     on_update:
       - systemctl reload nginx
+  - name: munin
+    domains:
+      - "{{ munin__hostname | regex_replace(':.*', '') }}"
+    on_update:
+      - systemctl reload apache2
 
 icinga2customcheck__addon:
  - check_connections

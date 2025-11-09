@@ -1,4 +1,6 @@
 
+{{ block_map() }}
+
 {% call server([server_name], http='yes', https='osrmorg') %}
 
     root /var/www/routing;
@@ -26,6 +28,7 @@
         rewrite_by_lua_file /etc/nginx/lua/carorgrewrite.lua;
         access_log /var/log/nginx/router.log anonymized;
         access_log /var/log/nginx/routing-times-car.log access_times;
+        {{ error_out_blocked() }}
     }
 
 {% for profilearea in osrm__profilearea.keys() %}
