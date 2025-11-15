@@ -1,36 +1,74 @@
 #!/bin/bash
 
 # uMap Data Backup Script
-# Usage: ./backup-umap-data.sh
+# Verwendung: ./backup-umap-data.sh
 
-# Configuration
-export BORG_RSH='ssh -i /srv/umap/.ssh/{{ umap__backup_ssh_key_name }}'
-export BORG_PASSPHRASE="{{ umap__backup_passphrase }}"
+set -euo pipefail
+
+# Lade gemeinsame SSH-Konfiguration
+. /srv/umap/scripts/backup/backup-ssh-config.sh
+
+# Repository-Konfiguration
 export REPO="ssh://{{ umap__backup_remote_user }}@{{ umap__backup_remote_host }}:{{ umap__backup_remote_port }}/./backups/{{ inventory_hostname }}/umapdata"
 
-# Backup uMap data
-nice -n 19 \
-ionice -c idle \
-        borg create ${REPO}::umapdata-`date +%Y%m%d%H%M` \
+# Prüfe ob SSH-Key existiert
+if [ ! -f "${SSH_KEY}" ]; then
+    echo "ERROR: SSH-Key ${SSH_KEY} existiert nicht!"
+    echo "Bitte kopiere den SSH-Key zuerst auf den Server."
+    exit 1
+fi
+
+# Teste SSH-Verbindung zum Backup-Server (beendet Script bei Fehler)
+test_ssh_connection true
+
+# Starte Zeitmessung
+BACKUP_START_TIME=$(date +%s)
+echo "=== uMap Data-Backup gestartet ==="
+echo "Startzeit: $(date '+%Y-%m-%d %H:%M:%S')"
+echo ""
+
+# Backup uMap-Daten
+if nice -n 19 \
+    ionice -c idle \
+    /usr/bin/borg create ${REPO}::umapdata-`date +%Y%m%d%H%M` \
         /srv/umap/umapdata \
         -C lz4 \
         --stats \
-        --exclude-caches
-
-if [ $? -eq 0 ]; then
-    # Prune old backups
-    borg prune ${REPO} \
+        --exclude-caches; then
+    
+    # Lösche alte Backups
+    echo ""
+    echo "Lösche alte Backups..."
+    /usr/bin/borg prune ${REPO} \
             --keep-daily={{ umap__backup_keep_daily }} \
             --keep-weekly={{ umap__backup_keep_weekly }} \
             --keep-monthly={{ umap__backup_keep_monthly }} \
             --glob-archives="umapdata-*"
     
-    # Compact repository
-    borg compact ${REPO} >/dev/null 2>&1
+    # Komprimiere Repository
+    echo "Komprimiere Repository..."
+    /usr/bin/borg compact ${REPO} >/dev/null 2>&1
     
-    echo "uMap data backup completed successfully"
+    # Berechne Dauer
+    BACKUP_END_TIME=$(date +%s)
+    BACKUP_DURATION=$((BACKUP_END_TIME - BACKUP_START_TIME))
+    BACKUP_MINUTES=$((BACKUP_DURATION / 60))
+    BACKUP_SECONDS=$((BACKUP_DURATION % 60))
+    
+    echo ""
+    echo "=== uMap Data-Backup erfolgreich abgeschlossen ==="
+    echo "Endzeit: $(date '+%Y-%m-%d %H:%M:%S')"
+    if [ $BACKUP_MINUTES -gt 0 ]; then
+        echo "Dauer: ${BACKUP_MINUTES} Minuten, ${BACKUP_SECONDS} Sekunden (${BACKUP_DURATION} Sekunden gesamt)"
+    else
+        echo "Dauer: ${BACKUP_SECONDS} Sekunden"
+    fi
 else
-    echo "ERROR: uMap data backup failed!"
+    BACKUP_END_TIME=$(date +%s)
+    BACKUP_DURATION=$((BACKUP_END_TIME - BACKUP_START_TIME))
+    echo ""
+    echo "ERROR: uMap Data-Backup fehlgeschlagen!"
+    echo "Dauer bis Fehler: ${BACKUP_DURATION} Sekunden"
     exit 1
 fi
 

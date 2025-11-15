@@ -1,32 +1,77 @@
 #!/bin/bash
 
 # uMap Database Backup Script
-# Usage: ./backup-umap-db.sh
+# Verwendung: ./backup-umap-db.sh
 
-# Configuration
-export BORG_RSH='ssh -i /srv/umap/.ssh/{{ umap__backup_ssh_key_name }}'
-export BORG_PASSPHRASE="{{ umap__backup_passphrase }}"
+set -euo pipefail
+
+# Lade gemeinsame SSH-Konfiguration
+. /srv/umap/scripts/backup/backup-ssh-config.sh
+
+# Repository-Konfiguration
 export REPO="ssh://{{ umap__backup_remote_user }}@{{ umap__backup_remote_host }}:{{ umap__backup_remote_port }}/./backups/{{ inventory_hostname }}/umapdb"
 
-# Backup database
-docker exec umap_db pg_dump -U postgres {{ umap__database_name }} \
-        | borg create --stats -C lz4 \
-        ${REPO}::umapdb-`date +%Y%m%d%H%M` - 
+# Prüfe ob SSH-Key existiert
+if [ ! -f "${SSH_KEY}" ]; then
+    echo "ERROR: SSH-Key ${SSH_KEY} existiert nicht!"
+    echo "Bitte kopiere den SSH-Key zuerst auf den Server."
+    exit 1
+fi
 
-if [ $? -eq 0 ]; then
-    # Prune old backups
-    borg prune ${REPO} \
+# Teste SSH-Verbindung zum Backup-Server (beendet Script bei Fehler)
+test_ssh_connection true
+
+# Prüfe ob Datenbank-Container läuft
+COMPOSE_FILE="{{ umap__paths.host.basedir }}/docker-compose.yml"
+if ! docker compose -f "$COMPOSE_FILE" ps db 2>/dev/null | grep -qE '(Up|running)'; then
+    echo "ERROR: Datenbank-Container (Service 'db') läuft nicht!"
+    exit 1
+fi
+
+# Starte Zeitmessung
+BACKUP_START_TIME=$(date +%s)
+echo "=== uMap Datenbank-Backup gestartet ==="
+echo "Startzeit: $(date '+%Y-%m-%d %H:%M:%S')"
+echo ""
+
+# Backup Datenbank
+if docker compose -f "$COMPOSE_FILE" exec -T db pg_dump -U {{ umap__database_user }} {{ umap__database_name }} \
+        | /usr/bin/borg create --stats -C lz4 \
+        ${REPO}::umapdb-`date +%Y%m%d%H%M` -; then
+    
+    # Lösche alte Backups
+    echo ""
+    echo "Lösche alte Backups..."
+    /usr/bin/borg prune ${REPO} \
             --keep-daily={{ umap__backup_keep_daily }} \
             --keep-weekly={{ umap__backup_keep_weekly }} \
             --keep-monthly={{ umap__backup_keep_monthly }} \
             --glob-archives="umapdb-*"
     
-    # Compact repository
-    borg compact ${REPO} >/dev/null 2>&1
+    # Komprimiere Repository
+    echo "Komprimiere Repository..."
+    /usr/bin/borg compact ${REPO} >/dev/null 2>&1
     
-    echo "uMap database backup completed successfully"
+    # Berechne Dauer
+    BACKUP_END_TIME=$(date +%s)
+    BACKUP_DURATION=$((BACKUP_END_TIME - BACKUP_START_TIME))
+    BACKUP_MINUTES=$((BACKUP_DURATION / 60))
+    BACKUP_SECONDS=$((BACKUP_DURATION % 60))
+    
+    echo ""
+    echo "=== uMap Datenbank-Backup erfolgreich abgeschlossen ==="
+    echo "Endzeit: $(date '+%Y-%m-%d %H:%M:%S')"
+    if [ $BACKUP_MINUTES -gt 0 ]; then
+        echo "Dauer: ${BACKUP_MINUTES} Minuten, ${BACKUP_SECONDS} Sekunden (${BACKUP_DURATION} Sekunden gesamt)"
+    else
+        echo "Dauer: ${BACKUP_SECONDS} Sekunden"
+    fi
 else
-    echo "ERROR: uMap database backup failed!"
+    BACKUP_END_TIME=$(date +%s)
+    BACKUP_DURATION=$((BACKUP_END_TIME - BACKUP_START_TIME))
+    echo ""
+    echo "ERROR: uMap Datenbank-Backup fehlgeschlagen!"
+    echo "Dauer bis Fehler: ${BACKUP_DURATION} Sekunden"
     exit 1
 fi
 

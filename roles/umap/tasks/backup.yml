@@ -2,12 +2,72 @@
 # Borg Backup Tasks for uMap
 # This task file handles the deployment of BorgBackup for uMap servers
 
-- name: Install borgbackup
+# Set backup environment variables
+- name: Set backup environment variables
+  set_fact:
+    backup_borg_rsh: "ssh -i /srv/umap/.ssh/{{ umap__backup_ssh_key_name }} -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/srv/umap/.ssh/known_hosts"
+    backup_data_repo: "ssh://{{ umap__backup_remote_user }}@{{ umap__backup_remote_host }}:{{ umap__backup_remote_port }}/./backups/{{ inventory_hostname }}/umapdata"
+    backup_db_repo: "ssh://{{ umap__backup_remote_user }}@{{ umap__backup_remote_host }}:{{ umap__backup_remote_port }}/./backups/{{ inventory_hostname }}/umapdb"
+  tags:
+    - umap
+    - backup
+
+- name: Install borgbackup and dependencies
   apt:
     name:
       - borgbackup
+      - jq
     state: present
     update_cache: yes
+  tags:
+    - umap
+    - backup
+
+- name: Create backup group
+  group:
+    name: borgbackup
+    state: present
+  tags:
+    - umap
+    - backup
+
+- name: Add umap user to backup group
+  user:
+    name: "{{ umap__user }}"
+    groups: borgbackup
+    append: yes
+  tags:
+    - umap
+    - backup
+
+# Add login users to backup group
+# This allows login users (defined in inventory) to run backup commands.
+# We filter users based on their group membership (same logic as accounts.yml):
+# - Users with group 'all' have access to all hosts
+# - Users with groups matching the host's group_names have access
+# Note: This filter determines which users SHOULD have access, but doesn't guarantee
+# that the user accounts exist on the system.
+- name: Gather active accounts for backup group
+  set_fact:
+    backup_users_active: "{{ backup_users_active | default([]) + [item.0.name] }}"
+  when: "item.1 in group_names or item.1 == 'all'"
+  loop: "{{ users | default([]) | subelements('groups', skip_missing=True) }}"
+  loop_control:
+    label: "{{ item.0.name | default('unknown') }}"
+  no_log: true  # Suppress output of user data (SSH keys etc.)
+  tags:
+    - umap
+    - backup
+
+- name: Add login users to backup group
+  user:
+    name: "{{ item }}"
+    groups: borgbackup
+    append: yes
+  loop: "{{ backup_users_active | default([]) }}"
+  register: backup_group_result
+  ignore_errors: true   # User might not exist
+  failed_when: false    # Don't fail playbook if user doesn't exist
   tags:
     - umap
     - backup
@@ -17,8 +77,70 @@
     path: /srv/umap/.ssh
     state: directory
     owner: "{{ umap__user }}"
-    group: docker
-    mode: "0700"
+    group: borgbackup
+    mode: "0750"
+  tags:
+    - umap
+    - backup
+
+- name: Check if SSH key exists on server
+  stat:
+    path: /srv/umap/.ssh/{{ umap__backup_ssh_key_name }}
+  register: ssh_key_stat
+  tags:
+    - umap
+    - backup
+
+- name: Check if SSH key exists in sshkeys directory
+  stat:
+    path: "{{ playbook_dir }}/sshkeys/{{ umap__backup_ssh_key_name }}"
+  register: ssh_key_local_stat
+  delegate_to: localhost
+  become: false
+  tags:
+    - umap
+    - backup
+
+# Copy SSH key from sshkeys directory to server
+# Note: The key is only copied if it doesn't exist on the server.
+# To update an existing key, manually delete it on the server first, then re-run the playbook.
+- name: Copy SSH key from sshkeys directory to server
+  copy:
+    src: "{{ playbook_dir }}/sshkeys/{{ umap__backup_ssh_key_name }}"
+    dest: /srv/umap/.ssh/{{ umap__backup_ssh_key_name }}
+    owner: "{{ umap__user }}"
+    group: borgbackup
+    mode: "0600"
+  when:
+    - not ssh_key_stat.stat.exists
+    - ssh_key_local_stat.stat.exists
+  tags:
+    - umap
+    - backup
+
+- name: Update ssh_key_stat after copying
+  set_fact:
+    ssh_key_stat:
+      stat:
+        exists: true
+  when:
+    - not ssh_key_stat.stat.exists
+    - ssh_key_local_stat.stat.exists
+  tags:
+    - umap
+    - backup
+
+- name: Warn if SSH key does not exist
+  debug:
+    msg: |
+      WARNING: SSH key /srv/umap/.ssh/{{ umap__backup_ssh_key_name }} does not exist!
+      Backup-related tasks will be skipped.
+      The key should be placed in the sshkeys/ directory or copied to 
+      /srv/umap/.ssh/{{ umap__backup_ssh_key_name }} on the server manually.
+      After providing the key, re-run the playbook to complete backup setup.
+  when:
+    - not ssh_key_stat.stat.exists
+    - not ssh_key_local_stat.stat.exists
   tags:
     - umap
     - backup
@@ -28,8 +150,23 @@
     path: /srv/umap/.ssh/{{ umap__backup_ssh_key_name }}
     state: file
     owner: "{{ umap__user }}"
-    group: docker
+    group: borgbackup
     mode: "0600"
+  when: ssh_key_stat.stat.exists
+  tags:
+    - umap
+    - backup
+
+- name: Ensure script and restore directories exist
+  file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { path: "{{ umap__paths.host.basedir }}/scripts/backup", owner: "{{ umap__user }}", group: "docker", mode: "0755" }
+    - { path: "{{ umap__paths.host.basedir }}/restoredata", owner: "{{ umap__user }}", group: "docker", mode: "0755" }
   tags:
     - umap
     - backup
@@ -37,77 +174,132 @@
 - name: Deploy backup scripts
   template:
     src: "{{ item.src }}.sh.jinja"
-    dest: "{{ umap__paths.host.basedir }}/{{ item.dest }}"
+    dest: "{{ umap__paths.host.basedir }}/scripts/backup/{{ item.dest }}"
     owner: "{{ umap__user }}"
     group: docker
-    mode: "0755"
+    mode: "{{ item.mode }}"
   loop:
-    - { src: "backup-umap-data", dest: "backup-umap-data.sh" }
-    - { src: "backup-umap-db", dest: "backup-umap-db.sh" }
+    - { src: "backup-ssh-config", dest: "backup-ssh-config.sh", mode: "0644" }
+    - { src: "backup-umap-data", dest: "backup-umap-data.sh", mode: "0755" }
+    - { src: "backup-umap-db", dest: "backup-umap-db.sh", mode: "0755" }
+  when: ssh_key_stat.stat.exists
   tags:
     - umap
     - backup
 
-- name: Create remote backup directories on storagebox
-  command: ssh -i /srv/umap/.ssh/{{ umap__backup_ssh_key_name }} -p {{ umap__backup_remote_port }} {{ umap__backup_remote_user }}@{{ umap__backup_remote_host }} mkdir -p backups/{{ inventory_hostname }}/{{ item }}
-  become: yes
+- name: Deploy backup management tool
+  template:
+    src: umap-backup.sh.jinja
+    dest: "{{ umap__paths.host.basedir }}/scripts/admin/umap-backup.sh"
+    owner: "{{ umap__user }}"
+    group: docker
+    mode: "0755"
+  when: ssh_key_stat.stat.exists
+  tags:
+    - umap
+    - backup
+
+- name: Deploy sudoers configuration for borgbackup group
+  copy:
+    content: |
+      # Allow members of borgbackup group to run borg and ssh commands as umap user without password
+      # This enables direct access to backup commands without needing explicit sudo
+      %borgbackup ALL=({{ umap__user }}) NOPASSWD: /usr/bin/borg, /usr/bin/ssh
+    dest: /etc/sudoers.d/borgbackup
+    owner: root
+    group: root
+    mode: "0440"
+    validate: /usr/sbin/visudo -cf %s
+  tags:
+    - umap
+    - backup
+
+# Create remote backup directories on backup server
+# Note: This command is executed on every Ansible run, even if directories already exist.
+# mkdir -p is idempotent (creates only if missing, no error if exists), so this is safe but
+# not optimal. The command will always run, but mkdir -p won't do anything if dirs exist.
+# changed_when: false prevents false "changed" status since mkdir -p always succeeds.
+- name: Create remote backup directories
+  command: >
+    ssh -i /srv/umap/.ssh/{{ umap__backup_ssh_key_name }}
+    -o StrictHostKeyChecking=accept-new
+    -o UserKnownHostsFile=/srv/umap/.ssh/known_hosts
+    -p {{ umap__backup_remote_port }}
+    {{ umap__backup_remote_user }}@{{ umap__backup_remote_host }}
+    mkdir -p backups/{{ inventory_hostname }}/{{ item }}
+  become: true
   become_user: "{{ umap__user }}"
   loop:
     - umapdata
     - umapdb
+  changed_when: false  # mkdir -p is idempotent, always succeeds (no change if dir exists)
+  failed_when: false   # Don't fail if directories already exist (mkdir -p handles this)
+  ignore_errors: true  # Ignore any other errors (e.g., permission issues)
+  when: ssh_key_stat.stat.exists
+  tags:
+    - umap
+    - backup
+
+# Check and initialize Borg repositories for data and database
+# We use a two-step process:
+# 1. Check if repository exists (using borg info)
+# 2. Initialize repository only if it doesn't exist (rc != 0 means repository not found)
+# We use failed_when: false and ignore_errors: true because borg info returns non-zero
+# exit code when repository doesn't exist, which is expected behavior, not an error.
+- name: Check if Borg repository exists
+  command: borg info {{ repo_item.repo }}
+  become: true
+  become_user: "{{ umap__user }}"
+  environment:
+    BORG_RSH: "{{ backup_borg_rsh }}"
+    BORG_PASSPHRASE: "{{ umap__backup_passphrase }}"
+  register: borg_repo_check
   changed_when: false
+  failed_when: false  # borg info returns non-zero if repo doesn't exist (expected)
+  ignore_errors: true  # Don't fail the playbook if repo doesn't exist
+  when: ssh_key_stat.stat.exists
+  loop:
+    - { name: "data", repo: "{{ backup_data_repo }}" }
+    - { name: "db", repo: "{{ backup_db_repo }}" }
+  loop_control:
+    loop_var: repo_item
   tags:
     - umap
     - backup
 
-- name: Check if Borg data repository exists
-  command: borg info ssh://{{ umap__backup_remote_user }}@{{ umap__backup_remote_host }}:{{ umap__backup_remote_port }}/./backups/{{ inventory_hostname }}/umapdata
-  become: yes
-  become_user: "{{ umap__user }}"
-  environment:
-    BORG_RSH: "ssh -i /srv/umap/.ssh/{{ umap__backup_ssh_key_name }}"
-    BORG_PASSPHRASE: "{{ umap__backup_passphrase }}"
-  register: borg_data_repo_check
-  changed_when: false
-  failed_when: false
+# Initialize repository only if it doesn't exist
+# Filter repositories that don't exist (rc != 0) before looping to reduce output
+- name: Filter repositories that need initialization
+  set_fact:
+    repos_to_init: "{{ repos_to_init | default([]) + [item] }}"
+  when:
+    - ssh_key_stat.stat.exists
+    - borg_repo_check.results is defined
+    - item.rc != 0  # Repository doesn't exist
+  loop: "{{ borg_repo_check.results | default([]) }}"
+  loop_control:
+    label: "{{ item.item.name | default('unknown') }} repository"
+  no_log: true
   tags:
     - umap
     - backup
 
-- name: Initialize Borg repository for data backups
-  command: borg init --encryption=repokey ssh://{{ umap__backup_remote_user }}@{{ umap__backup_remote_host }}:{{ umap__backup_remote_port }}/./backups/{{ inventory_hostname }}/umapdata
-  become: yes
+- name: Initialize Borg repository if it does not exist
+  command: borg init --encryption=repokey {{ item.item.repo }}
+  become: true
   become_user: "{{ umap__user }}"
   environment:
-    BORG_RSH: "ssh -i /srv/umap/.ssh/{{ umap__backup_ssh_key_name }}"
+    BORG_RSH: "{{ backup_borg_rsh }}"
     BORG_PASSPHRASE: "{{ umap__backup_passphrase }}"
-  when: borg_data_repo_check.rc != 0
-  tags:
-    - umap
-    - backup
-
-- name: Check if Borg database repository exists
-  command: borg info ssh://{{ umap__backup_remote_user }}@{{ umap__backup_remote_host }}:{{ umap__backup_remote_port }}/./backups/{{ inventory_hostname }}/umapdb
-  become: yes
-  become_user: "{{ umap__user }}"
-  environment:
-    BORG_RSH: "ssh -i /srv/umap/.ssh/{{ umap__backup_ssh_key_name }}"
-    BORG_PASSPHRASE: "{{ umap__backup_passphrase }}"
-  register: borg_db_repo_check
-  changed_when: false
-  failed_when: false
-  tags:
-    - umap
-    - backup
-
-- name: Initialize Borg repository for database backups
-  command: borg init --encryption=repokey ssh://{{ umap__backup_remote_user }}@{{ umap__backup_remote_host }}:{{ umap__backup_remote_port }}/./backups/{{ inventory_hostname }}/umapdb
-  become: yes
-  become_user: "{{ umap__user }}"
-  environment:
-    BORG_RSH: "ssh -i /srv/umap/.ssh/{{ umap__backup_ssh_key_name }}"
-    BORG_PASSPHRASE: "{{ umap__backup_passphrase }}"
-  when: borg_db_repo_check.rc != 0
+  when:
+    - ssh_key_stat.stat.exists
+    - repos_to_init is defined
+    - repos_to_init | length > 0
+  failed_when: false  # Don't fail if init fails (might already exist from concurrent run)
+  ignore_errors: true
+  loop: "{{ repos_to_init }}"
+  loop_control:
+    label: "{{ item.item.name }} repository"
   tags:
     - umap
     - backup
@@ -124,6 +316,32 @@
     - borgbackup-data.timer
     - borgbackup-db.service
     - borgbackup-db.timer
+  when: ssh_key_stat.stat.exists
+  tags:
+    - umap
+    - backup
+
+# Systemd Timer Management
+# Timer state is managed based on SSH key availability:
+# - If SSH key exists: Enable and start timers (backups are ready to run)
+# - If SSH key is missing: Disable and stop timers (cleanup for existing timers)
+# 
+# Why disable timers when key is missing?
+# - Backup scripts check for SSH key and exit with code 1 if missing (clean failure)
+# - This task prevents repeated failed jobs and makes the state explicit: backups disabled
+# - Without this, you'd see failed backup attempts every timer interval
+- name: Disable and stop backup timers when SSH key is missing
+  systemd:
+    name: "{{ item }}"
+    daemon_reload: yes
+    enabled: no
+    state: stopped
+  loop:
+    - borgbackup-data.timer
+    - borgbackup-db.timer
+  when: not ssh_key_stat.stat.exists
+  ignore_errors: true  # Timers might not exist yet (first run) or already disabled
+  failed_when: false
   tags:
     - umap
     - backup
@@ -137,35 +355,8 @@
   loop:
     - borgbackup-data.timer
     - borgbackup-db.timer
+  when: ssh_key_stat.stat.exists
   tags:
     - umap
     - backup
-
-- name: Test backup connectivity (data)
-  command: borg info ssh://{{ umap__backup_remote_user }}@{{ umap__backup_remote_host }}:{{ umap__backup_remote_port }}/./backups/{{ inventory_hostname }}/umapdata
-  become: yes
-  become_user: "{{ umap__user }}"
-  environment:
-    BORG_RSH: "ssh -i /srv/umap/.ssh/{{ umap__backup_ssh_key_name }}"
-  register: borg_test_data
-  changed_when: false
-  failed_when: false
-  tags:
-    - umap
-    - backup
-    - never
-
-- name: Test backup connectivity (db)
-  command: borg info ssh://{{ umap__backup_remote_user }}@{{ umap__backup_remote_host }}:{{ umap__backup_remote_port }}/./backups/{{ inventory_hostname }}/umapdb
-  become: yes
-  become_user: "{{ umap__user }}"
-  environment:
-    BORG_RSH: "ssh -i /srv/umap/.ssh/{{ umap__backup_ssh_key_name }}"
-  register: borg_test_db
-  changed_when: false
-  failed_when: false
-  tags:
-    - umap
-    - backup
-    - never
 

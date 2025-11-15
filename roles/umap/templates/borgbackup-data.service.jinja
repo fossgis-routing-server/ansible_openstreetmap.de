@@ -8,7 +8,9 @@ Type=oneshot
 User={{ umap__user }}
 Group=docker
 WorkingDirectory={{ umap__paths.host.basedir }}
-ExecStart={{ umap__paths.host.basedir }}/backup-umap-data.sh
+ExecStart={{ umap__paths.host.basedir }}/scripts/backup/backup-umap-data.sh
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target

@@ -1,0 +1,71 @@
+# SSH-Konfiguration für Backup-Skripte
+# Diese Datei wird von allen Backup-Skripten verwendet
+
+SSH_KEY="/srv/umap/.ssh/{{ umap__backup_ssh_key_name }}"
+
+# SSH-Optionen
+SSH_OPTS="-i ${SSH_KEY} \
+  -o StrictHostKeyChecking=accept-new \
+  -o UserKnownHostsFile=/srv/umap/.ssh/known_hosts \
+  -p {{ umap__backup_remote_port }}"
+
+export BORG_RSH="ssh ${SSH_OPTS}"
+export BORG_PASSPHRASE="{{ umap__backup_passphrase }}"
+
+# Teste SSH-Verbindung zum Backup-Server
+# Parameter: exit_on_failure (optional, Standard: false)
+#   - true: Beendet Script mit exit 0 bei Fehler (für automatische Backups)
+#   - false: Gibt 1 zurück bei Fehler (für interaktive Skripte)
+test_ssh_connection() {
+    local exit_on_failure="${1:-false}"
+    
+    # Verwende Array für SSH-Optionen für sichere Expansion
+    local ssh_cmd=(
+        ssh
+        -i "${SSH_KEY}"
+        -o "StrictHostKeyChecking=accept-new"
+        -o "UserKnownHostsFile=/srv/umap/.ssh/known_hosts"
+        -p "{{ umap__backup_remote_port }}"
+        -o "ConnectTimeout=10"
+        "{{ umap__backup_remote_user }}@{{ umap__backup_remote_host }}"
+        pwd
+    )
+    
+    # Prüfe ob wir als root laufen - wenn ja, führe SSH-Befehl als umap-User aus
+    # Dies ist wichtig für umap-backup.sh, das als root ausgeführt wird
+    if [ "$EUID" -eq 0 ]; then
+        # Escape SSH-Befehl für sichere Verwendung in bash -c
+        local escaped_cmd
+        printf -v escaped_cmd '%q ' "${ssh_cmd[@]}"
+        escaped_cmd="${escaped_cmd% }"  # Entferne letztes Leerzeichen
+        
+        # Escape HOME für sichere Verwendung
+        local escaped_home
+        escaped_home=$(printf '%q' "{{ umap__paths.host.basedir }}")
+        
+        if ! sudo -u {{ umap__user }} -E bash -c "export HOME=${escaped_home}; ${escaped_cmd}" >/dev/null 2>&1; then
+            if [ "$exit_on_failure" = "true" ]; then
+                echo "WARNUNG: Kann nicht zum Backup-Server verbinden. Überspringe Backup."
+                exit 0
+            else
+                echo "ERROR: Kann nicht zum Backup-Server verbinden!"
+                echo "Prüfe Netzwerkverbindung und SSH-Konfiguration."
+                return 1
+            fi
+        fi
+    else
+        # Nicht als root - führe direkt aus
+        if ! "${ssh_cmd[@]}" >/dev/null 2>&1; then
+            if [ "$exit_on_failure" = "true" ]; then
+                echo "WARNUNG: Kann nicht zum Backup-Server verbinden. Überspringe Backup."
+                exit 0
+            else
+                echo "ERROR: Kann nicht zum Backup-Server verbinden!"
+                echo "Prüfe Netzwerkverbindung und SSH-Konfiguration."
+                return 1
+            fi
+        fi
+    fi
+    return 0
+}
+
