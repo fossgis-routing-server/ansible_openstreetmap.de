@@ -10,7 +10,8 @@ RUN apt-get update && \
         && \
     apt-get autoremove -y && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* && \
+    rm -rf /root/.cache
 
 # This part adds deps needed only at buildtime.
 FROM common AS build
@@ -62,9 +63,15 @@ RUN if [ "$UMAP_VERSION" = "release" ]; then \
     rm -rf /tmp/umap
 
 # Install original uMap dependencies
-RUN /venv/bin/pip install .[docker,s3,sync]
-
-RUN /venv/bin/pip install uvicorn[standard] channels
+# sync extra is required for WebSocket/realtime features (REALTIME_ENABLED=True)
+#   - sync: redis, websockets, pydantic for WebSocket/realtime features
+# Optional extras (not currently used):
+#   - docker: uvicorn (already installed separately, redundant)
+#   - s3: django-storages[s3] for AWS S3 storage backend
+# To enable s3: change .[sync] to .[sync,s3]
+RUN /venv/bin/pip install --no-cache-dir .[sync] && \
+    /venv/bin/pip install --no-cache-dir uvicorn[standard] channels && \
+    rm -rf /tmp/* /root/.cache
 
 # Copy entrypoint script
 COPY entrypoint.sh /srv/umap/docker/entrypoint.sh
@@ -72,18 +79,30 @@ RUN chmod +x /srv/umap/docker/entrypoint.sh
 
 FROM common
 
-COPY --from=build /srv/umap/docker/ /srv/umap/docker/
-COPY --from=build /venv/ /venv/
+# Create umap user with configurable UID/GID to match host user
+# UMAP_GID should match the host's docker group GID (group name in container doesn't matter)
+ARG UMAP_UID=999
+ARG UMAP_GID=988
+RUN groupadd -g ${UMAP_GID} umap 2>/dev/null || true && \
+    (useradd -u ${UMAP_UID} -g ${UMAP_GID} -d /srv/umap -s /bin/bash -m umap 2>/dev/null || \
+     usermod -u ${UMAP_UID} -g ${UMAP_GID} umap) && \
+    echo "umap:x:${UMAP_UID}:${UMAP_GID}:uMap User:/srv/umap:/bin/bash" >> /etc/passwd 2>/dev/null || true
+
+COPY --from=build --chown=umap:umap /srv/umap/docker/ /srv/umap/docker/
+COPY --from=build --chown=umap:umap /venv/ /venv/
 
 WORKDIR /srv/umap
 
-RUN mkdir -p /srv/umap/media_root /srv/umap/cache
+RUN mkdir -p /srv/umap/media_root /srv/umap/cache && \
+    chown -R umap:umap /srv/umap
 
 ENV PYTHONUNBUFFERED=1 \
     PORT=8000 \
     PATH="/venv/bin:$PATH"
 
 EXPOSE 8000
+
+USER umap
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
 

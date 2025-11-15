@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -eo pipefail
 
+umask 022
+
 source /venv/bin/activate
 
 # collect static files
