@@ -239,3 +239,9 @@
   tags:
     - umap
     - backup
+
+- name: Include monitoring tasks
+  include_tasks: monitoring.yml
+  tags:
+    - umap
+    - monitoring

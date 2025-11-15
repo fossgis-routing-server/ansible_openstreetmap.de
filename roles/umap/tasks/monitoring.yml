@@ -1,0 +1,34 @@
+- name: Check if munin role is in use
+  set_fact:
+    munin_available: "{{ munin__in_use is defined }}"
+  
+- name: Create uMap Stats Munin plugin script
+  template:
+    dest: '/usr/local/share/munin-node/plugins/umap_stats'
+    src: 'munin_umap_stats.py.j2'
+    owner: root
+    group: root
+    mode: '0755'
+  when: munin_available | default(false)
+
+- name: Enable umap_stats plugin
+  file:
+    src: /usr/local/share/munin-node/plugins/umap_stats
+    dest: /etc/munin/plugins/umap_stats
+    state: link
+  notify: restart munin-node
+  when: munin_available | default(false)
+
+- name: Configure umap_stats plugin
+  copy:
+    content: |
+      [umap_stats]
+      user munin
+      timeout 15
+    dest: /etc/munin/plugin-conf.d/umap_stats
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart munin-node
+  when: munin_available | default(false)
+
