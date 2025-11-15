@@ -65,6 +65,7 @@ services:
       - ./umapdata/static_root:/srv/umap/static_root
       - ./sockets:/srv/umap/sockets
       - ./umapdata/custom:/srv/umap/custom:ro
+      - ./scripts/admin:/srv/umap/scripts/admin:ro
       - umap_cache:/srv/umap/cache
     restart: always
     logging:
@@ -84,6 +85,7 @@ services:
       - ./umapdata/static_root:/srv/umap/static_root:ro
       - ./sockets:/srv/umap/sockets:ro
       - ./logs/nginx:/var/log/nginx
+      - ./nginx/run:/var/run/nginx
     depends_on:
       - app
     restart: always

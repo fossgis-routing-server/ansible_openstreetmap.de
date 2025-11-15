@@ -160,6 +160,59 @@
     mode: "0644"
     directory_mode: "0775"
 
+- name: Create scripts directory structure
+  file:
+    path: "{{ umap__paths.host.basedir }}/scripts/{{ item }}"
+    state: directory
+    owner: "{{ umap__user }}"
+    group: docker
+    mode: "0755"
+  loop:
+    - admin
+
+- name: Deploy admin scripts
+  copy:
+    src: "admin_scripts/{{ item }}"
+    dest: "{{ umap__paths.host.basedir }}/scripts/admin/{{ item }}"
+    owner: "{{ umap__user }}"
+    group: docker
+    mode: "0644"
+  loop:
+    - analyze_maps.py
+    - analyze_users.py
+    - get_map_details.py
+    - get_user_details.py
+    - umap_utils.py
+  register: admin_scripts_deployed
+
+- name: Deploy admin script wrapper with executable permissions
+  copy:
+    src: "admin_scripts/umap-admin"
+    dest: "{{ umap__paths.host.basedir }}/scripts/admin/umap-admin"
+    owner: "{{ umap__user }}"
+    group: docker
+    mode: "0755"
+
+- name: Create docs directory
+  file:
+    path: "{{ umap__paths.host.basedir }}/docs"
+    state: directory
+    owner: "{{ umap__user }}"
+    group: docker
+    mode: "0755"
+
+- name: Deploy documentation files
+  copy:
+    src: "docs/{{ item }}"
+    dest: "{{ umap__paths.host.basedir }}/docs/{{ item }}"
+    owner: "{{ umap__user }}"
+    group: docker
+    mode: "0644"
+  loop:
+    - README_ADMINSCRIPTS.md
+    - README_BACKUP.md
+    - HOW_TO_SETUP_UMAP.md
+
 - name: Run Docker Compose up
   command: docker compose -f "{{ umap__paths.host.basedir }}"/docker-compose.yml up -d
   args:
