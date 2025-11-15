@@ -115,6 +115,21 @@
     src:  'nginx-host.conf.jinja'
   notify: reload nginx
 
+- name: Configure uMap log format (extended anonymized)
+  copy:
+    src: 'umap_log_format.conf'
+    dest: '/etc/nginx/conf.d/umap_log_format.conf'
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart nginx
+
+- name: Disable default nginx site
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: reload nginx
+
 - name: Ensure Docker service is started
   systemd:
     name: docker
