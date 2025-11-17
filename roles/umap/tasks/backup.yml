@@ -91,41 +91,67 @@
     - umap
     - backup
 
-- name: Check if SSH key exists in sshkeys directory
-  stat:
-    path: "{{ playbook_dir }}/sshkeys/{{ umap__backup_ssh_key_name }}"
-  register: ssh_key_local_stat
-  delegate_to: localhost
-  become: false
-  tags:
-    - umap
-    - backup
-
-# Copy SSH key from sshkeys directory to server
-# Note: The key is only copied if it doesn't exist on the server.
-# To update an existing key, manually delete it on the server first, then re-run the playbook.
-- name: Copy SSH key from sshkeys directory to server
-  copy:
-    src: "{{ playbook_dir }}/sshkeys/{{ umap__backup_ssh_key_name }}"
-    dest: /srv/umap/.ssh/{{ umap__backup_ssh_key_name }}
+# Generate SSH key on server if it doesn't exist
+# This allows automatic key generation without manual intervention
+- name: Generate SSH key on server if it doesn't exist
+  openssh_keypair:
+    path: /srv/umap/.ssh/{{ umap__backup_ssh_key_name }}
+    type: ed25519
     owner: "{{ umap__user }}"
     group: borgbackup
     mode: "0600"
-  when:
-    - not ssh_key_stat.stat.exists
-    - ssh_key_local_stat.stat.exists
+    comment: "umap-backup-{{ inventory_hostname }}"
+  when: not ssh_key_stat.stat.exists
+  become: true
+  become_user: "{{ umap__user }}"
+  register: key_generated
   tags:
     - umap
     - backup
 
-- name: Update ssh_key_stat after copying
+- name: Update ssh_key_stat after generation
   set_fact:
     ssh_key_stat:
       stat:
         exists: true
   when:
     - not ssh_key_stat.stat.exists
-    - ssh_key_local_stat.stat.exists
+    - key_generated.changed | default(false)
+  tags:
+    - umap
+    - backup
+
+# Stop playbook if key was just generated
+# User needs to deploy the public key to backup server first
+- name: Display deployment command
+  debug:
+    msg:
+      - "SSH-Key wurde auf dem Server generiert: /srv/umap/.ssh/{{ umap__backup_ssh_key_name }}"
+      - ""
+      - "Bitte deploye den öffentlichen Key jetzt auf den Backupserver:"
+      - ""
+      - "WICHTIG: Das Deployment muss VOM uMap-Server aus erfolgen, nicht vom Ansible-Host!"
+      - ""
+      - "1. Führe auf dem umap-Server einen der folgenden Befehle aus:"
+      - ""
+      - "   Mit persönlichen SSH-Key (muss bereits auf der Storage Box hinterlegt sein):"
+      - "   sudo -u umap cat /srv/umap/.ssh/{{ umap__backup_ssh_key_name }}.pub | ssh -p {{ umap__backup_remote_port }} {{ umap__backup_remote_user }}@{{ umap__backup_remote_host }} install-ssh-key"
+      - ""
+      - "   Hinweis: Der persönliche SSH-Key muss auf dem umap-Server verfügbar sein und auf der Storagebox hinterlegt sein."
+      - "   Falls der Key einen anderen Namen hat, Option -i verwenden:"
+      - "   sudo -u umap cat /srv/umap/.ssh/{{ umap__backup_ssh_key_name }}.pub | ssh -i ~/.ssh/dein-key-name -p {{ umap__backup_remote_port }} {{ umap__backup_remote_user }}@{{ umap__backup_remote_host }} install-ssh-key"
+      - ""
+      - "Nach dem Deployment das Playbook erneut ausführen:"
+      - "ansible-playbook -l {{ inventory_hostname }} -i hosts.ini site.yml"
+  when: key_generated.changed | default(false)
+  tags:
+    - umap
+    - backup
+
+- name: Stop playbook after key generation
+  fail:
+    msg: "SSH-Key wurde generiert. Bitte deploye den öffentlichen Key auf den Backupserver (siehe Befehl oben) und starte das Playbook erneut."
+  when: key_generated.changed | default(false)
   tags:
     - umap
     - backup
@@ -135,12 +161,10 @@
     msg: |
       WARNING: SSH key /srv/umap/.ssh/{{ umap__backup_ssh_key_name }} does not exist!
       Backup-related tasks will be skipped.
-      The key should be placed in the sshkeys/ directory or copied to 
-      /srv/umap/.ssh/{{ umap__backup_ssh_key_name }} on the server manually.
-      After providing the key, re-run the playbook to complete backup setup.
+      The key will be automatically generated on the next playbook run.
   when:
     - not ssh_key_stat.stat.exists
-    - not ssh_key_local_stat.stat.exists
+    - not (key_generated.changed | default(false))
   tags:
     - umap
     - backup
@@ -153,6 +177,32 @@
     group: borgbackup
     mode: "0600"
   when: ssh_key_stat.stat.exists
+  tags:
+    - umap
+    - backup
+
+# Test SSH connection to backup server
+# This test is performed after key generation/copying to verify the key is deployed
+- name: Test SSH connection to backup server
+  command: ssh -i /srv/umap/.ssh/{{ umap__backup_ssh_key_name }} -o ConnectTimeout=5 -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=/srv/umap/.ssh/known_hosts -p {{ umap__backup_remote_port }} {{ umap__backup_remote_user }}@{{ umap__backup_remote_host }} pwd
+  become: true
+  become_user: "{{ umap__user }}"
+  register: ssh_backup_test
+  changed_when: false
+  failed_when: false  # Don't treat as error, we check return code instead
+  when: ssh_key_stat.stat.exists
+  tags:
+    - umap
+    - backup
+
+# Warn if SSH connection fails (but don't fail the playbook)
+# Backup tasks will be skipped, but other tasks continue
+- name: Warn if SSH connection to backup server fails
+  debug:
+    msg: "INFO: Backups sind deaktiviert - SSH-Verbindung zum Backupserver fehlgeschlagen (Key nicht deployt oder Verbindungsproblem)"
+  when:
+    - ssh_key_stat.stat.exists
+    - ssh_backup_test.rc != 0
   tags:
     - umap
     - backup
@@ -235,7 +285,7 @@
   changed_when: false  # mkdir -p is idempotent, always succeeds (no change if dir exists)
   failed_when: false   # Don't fail if directories already exist (mkdir -p handles this)
   ignore_errors: true  # Ignore any other errors (e.g., permission issues)
-  when: ssh_key_stat.stat.exists
+  when: ssh_backup_test.rc | default(1) == 0  # Only if SSH connection to backup server works
   tags:
     - umap
     - backup
@@ -257,7 +307,7 @@
   changed_when: false
   failed_when: false  # borg info returns non-zero if repo doesn't exist (expected)
   ignore_errors: true  # Don't fail the playbook if repo doesn't exist
-  when: ssh_key_stat.stat.exists
+  when: ssh_backup_test.rc | default(1) == 0  # Only if SSH connection to backup server works
   loop:
     - { name: "data", repo: "{{ backup_data_repo }}" }
     - { name: "db", repo: "{{ backup_db_repo }}" }
@@ -273,7 +323,7 @@
   set_fact:
     repos_to_init: "{{ repos_to_init | default([]) + [item] }}"
   when:
-    - ssh_key_stat.stat.exists
+    - ssh_backup_test.rc | default(1) == 0  # Only if SSH connection to backup server works
     - borg_repo_check.results is defined
     - item.rc != 0  # Repository doesn't exist
   loop: "{{ borg_repo_check.results | default([]) }}"
@@ -292,7 +342,7 @@
     BORG_RSH: "{{ backup_borg_rsh }}"
     BORG_PASSPHRASE: "{{ umap__backup_passphrase }}"
   when:
-    - ssh_key_stat.stat.exists
+    - ssh_backup_test.rc | default(1) == 0  # Only if SSH connection to backup server works
     - repos_to_init is defined
     - repos_to_init | length > 0
   failed_when: false  # Don't fail if init fails (might already exist from concurrent run)
@@ -316,17 +366,17 @@
     - borgbackup-data.timer
     - borgbackup-db.service
     - borgbackup-db.timer
-  when: ssh_key_stat.stat.exists
+  when: ssh_backup_test.rc | default(1) == 0  # Only if SSH connection to backup server works
   tags:
     - umap
     - backup
 
 # Systemd Timer Management
-# Timer state is managed based on SSH key availability:
-# - If SSH key exists: Enable and start timers (backups are ready to run)
-# - If SSH key is missing: Disable and stop timers (cleanup for existing timers)
+# Timer state is managed based on SSH key availability and connection status:
+# - If SSH key exists AND connection works: Enable and start timers (backups are ready to run)
+# - If SSH key is missing OR connection fails: Disable and stop timers (prevent failed backup attempts)
 # 
-# Why disable timers when key is missing?
+# Why disable timers when connection fails?
 # - Backup scripts check for SSH key and exit with code 1 if missing (clean failure)
 # - This task prevents repeated failed jobs and makes the state explicit: backups disabled
 # - Without this, you'd see failed backup attempts every timer interval
@@ -346,6 +396,24 @@
     - umap
     - backup
 
+- name: Disable and stop backup timers when SSH connection fails
+  systemd:
+    name: "{{ item }}"
+    daemon_reload: yes
+    enabled: no
+    state: stopped
+  loop:
+    - borgbackup-data.timer
+    - borgbackup-db.timer
+  when:
+    - ssh_key_stat.stat.exists
+    - ssh_backup_test.rc | default(1) != 0  # Disable if SSH connection to backup server fails
+  ignore_errors: true  # Timers might not exist yet (first run) or already disabled
+  failed_when: false
+  tags:
+    - umap
+    - backup
+
 - name: Enable and start backup timers
   systemd:
     name: "{{ item }}"
@@ -355,7 +423,7 @@
   loop:
     - borgbackup-data.timer
     - borgbackup-db.timer
-  when: ssh_key_stat.stat.exists
+  when: ssh_backup_test.rc | default(1) == 0  # Only if SSH connection to backup server works
   tags:
     - umap
     - backup

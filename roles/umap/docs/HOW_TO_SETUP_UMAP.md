@@ -135,19 +135,35 @@ umap__backup_remote_port: <port>
 
 **Wenn Backups aktiviert sind, wird ein SSH-Key benötigt:**
 
-1. **SSH-Key generieren** (falls noch nicht vorhanden):
-   ```bash
-   ssh-keygen -t ed25519 -f sshkeys/id_ed25519_borgbackup -N ""
-   ```
+Der SSH-Key wird **automatisch auf dem Server generiert** beim ersten Playbook-Lauf. Nach der Generierung muss der öffentliche Key manuell auf die Storage Box deployt werden.
 
-2. **Public Key auf StorageBox hochladen:**
-   ```bash
-   ssh-copy-id -i sshkeys/id_ed25519_borgbackup.pub -p <port> <user>@<storagebox-host>
-   ```
+**Workflow:**
 
-3. **Private Key muss im Pfad liegen (aber nicht zum Repository pushen!):**
-   - Der private Key (`sshkeys/id_ed25519_borgbackup`) wird automatisch auf den Server kopiert
-   - Stelle sicher, dass `sshkeys/` im `.gitignore` ist (sensible Daten!)
+1. **Playbook das erste Mal ausführen:**
+   ```bash
+   ansible-playbook -l <hostname> -i hosts.ini site.yml
+   ```
+   Das Playbook generiert automatisch einen SSH-Key auf dem Server unter `/srv/umap/.ssh/id_ed25519_borgbackup` und stoppt dann mit einer Anweisung.
+
+2. **Öffentlichen Key auf Storage Box deployen:**
+   
+   **WICHTIG:** Das Deployment muss **VOM uMap-Server aus** erfolgen, nicht vom Ansible-Host!
+   
+   Deploye den öffentlichen Key auf die Storage Box mit deinem persönlichen SSH-Key (muss bereits auf der Storage Box hinterlegt sein):
+   ```bash
+   sudo -u umap cat /srv/umap/.ssh/id_ed25519_borgbackup.pub | ssh -p <port> <user>@<storagebox-host> install-ssh-key
+   ```
+   
+   **Hinweis:** Der SSH-Key muss auf dem uMap-Server verfügbar sein. Falls der Key keinen Standard-Namen hat, verwende die Option `-i`:
+   ```bash
+   sudo -u umap cat /srv/umap/.ssh/id_ed25519_borgbackup.pub | ssh -i ~/.ssh/dein-key-name -p <port> <user>@<storagebox-host> install-ssh-key
+   ```
+   
+3. **Playbook erneut ausführen:**
+   ```bash
+   ansible-playbook -l <hostname> -i hosts.ini site.yml
+   ```
+   Das Playbook testet nun die SSH-Verbindung und setzt das Setup fort.
 
 **Hinweis:** Für Zugriff auf einen bestehenden Backup-Server frage das FOSSGIS-Admin-Team.
 
@@ -211,6 +227,7 @@ Das Playbook führt folgende Schritte aus:
 
 4. **Backups:** 
    - Installiert BorgBackup
+   - Generiert SSH-Key automatisch auf dem Server
    - Erstellt SSH-Konfiguration
    - Initialisiert Borg-Repositories
    - Richtet systemd-Timer für automatische Backups ein
