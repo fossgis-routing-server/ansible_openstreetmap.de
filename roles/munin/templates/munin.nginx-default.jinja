@@ -2,7 +2,7 @@
 
 # Munin-Web-Dokumenten-Root fuer NGINX
 location / {
-    alias /var/cache/munin/www;
+    alias /var/cache/munin/www/;
     autoindex on;
     expires 310s;
     try_files $uri $uri/ =404;

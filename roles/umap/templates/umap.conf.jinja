@@ -18,6 +18,12 @@ ADMINS = (
 MANAGERS = ADMINS
 
 import os
+os.umask(0o022)  # for .gz files from gzip_file()
+FILE_UPLOAD_DIRECTORY_PERMISSIONS = 0o755 #default none
+FILE_UPLOAD_PERMISSIONS = 0o644           #default 0o644
+
+# Upload settings for larger files
+DATA_UPLOAD_MAX_MEMORY_SIZE = 10485760  # 10 MB (Standard: 2.5 MB = 2621440)
 
 DATABASES = {
     'default': {

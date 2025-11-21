@@ -53,8 +53,6 @@ umap__acme_certificates:
 umap__backup_enabled: true 
 umap__backup_ssh_key_name: "id_ed25519_borgbackup"
 umap__backup_passphrase: "{{ umap__backup_passphrase }}"  
-umap__backup_remote_user: "{{ umap__backup_remote_user }}"
-umap__backup_remote_host: "{{ umap__backup_remote_host }}"
 umap__backup_remote_port: "{{ umap__backup_remote_port | default(22) }}"
 umap__backup_keep_daily: 7
 umap__backup_keep_weekly: 4

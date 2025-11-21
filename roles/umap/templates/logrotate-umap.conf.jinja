@@ -5,7 +5,7 @@
 {{ umap__paths.host.basedir }}/logs/nginx/access.log {
     daily
     missingok
-    rotate 90
+    rotate 14
     compress
     delaycompress
     notifempty
@@ -20,7 +20,7 @@
 {{ umap__paths.host.basedir }}/logs/nginx/geojson.log {
     daily
     missingok
-    rotate 60
+    rotate 14
     compress
     delaycompress
     notifempty
@@ -35,7 +35,7 @@
 {{ umap__paths.host.basedir }}/logs/nginx/error.log {
     daily
     missingok
-    rotate 30
+    rotate 14
     compress
     delaycompress
     notifempty

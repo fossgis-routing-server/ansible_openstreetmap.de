@@ -1,0 +1,286 @@
+#!/bin/bash
+# Allgemeines Wrapper-Script für alle uMap Admin-Skripte
+# Ermöglicht einfachen Aufruf: ./umap-admin <command> [args...]
+
+set -euo pipefail
+
+# ============================================================================
+# Konfiguration
+# ============================================================================
+
+readonly CONTAINER_NAME="${UMAP_CONTAINER_NAME:-umap_app}"
+readonly ADMIN_SCRIPTS_DIR="/srv/umap/scripts/admin"
+
+# ============================================================================
+# Hilfsfunktionen
+# ============================================================================
+
+# Führt ein Python-Skript im Container aus
+run_script() {
+    local script_name="${1:-}"
+    shift
+    local script_path="${ADMIN_SCRIPTS_DIR}/${script_name}.py"
+    
+    if [ -z "$script_name" ]; then
+        echo "Fehler: Kein Skriptname angegeben." >&2
+        exit 1
+    fi
+    
+    docker exec "$CONTAINER_NAME" /venv/bin/python3 "$script_path" "$@"
+}
+
+# Prüft ob --help oder -h angegeben wurde
+is_help_requested() {
+    [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]
+}
+
+# Prüft ob Argumente fehlen
+require_args() {
+    [ $# -gt 0 ]
+}
+
+# ============================================================================
+# Hilfe-Funktionen
+# ============================================================================
+
+show_help() {
+    cat << EOF
+Usage: $0 <command> [OPTIONS] [ARGS...]
+
+Wrapper-Script für uMap Admin-Skripte zur Verwaltung und Analyse von uMap-Daten.
+
+Commands:
+    analyze users [OPTIONS]
+        Zeigt User-Statistiken (Karten, Layer, Größe, Teams).
+        Optionen: --top N, --sort SORT (maps|layers|size|teams|username)
+
+    analyze maps [OPTIONS]
+        Analysiert Karten nach Größe und Aktivität.
+        Optionen: --top N, --metric METRIC (size|layers|activity|inactive|largest-layers)
+
+    get map <id>|<url> [OPTIONS]
+        Zeigt Details einer Karte inklusive aller Layer und GeoJSON-Dateipfade.
+        Optionen: --show-edit-link
+
+    get user <id>|<username>
+        Zeigt detaillierte Informationen zu einem User.
+
+Options:
+    -h, --help    Zeigt diese Hilfe an
+
+Examples:
+    $0 analyze users --top 50 --sort size
+    $0 analyze maps --metric activity --top 30
+    $0 get map <MAP_ID>
+    $0 get map <MAP_ID> --show-edit-link
+    $0 get user <USER_ID>
+EOF
+}
+
+show_help_analyze_users() {
+    cat << EOF
+Usage: $0 analyze users [OPTIONS]
+
+Zeigt User-Statistiken (Karten, Layer, Größe, Teams).
+
+Options:
+    --top N
+        Anzahl der Top-Einträge (Standard: 20)
+
+    --sort SORT
+        Sortierung nach:
+            maps      - Karten-Anzahl (Standard)
+            layers    - Layer-Anzahl
+            size      - Gesamtgröße
+            teams     - Team-Anzahl
+            username  - Username (alphabetisch)
+
+Examples:
+    $0 analyze users --top 50 --sort size
+EOF
+}
+
+show_help_analyze_maps() {
+    cat << EOF
+Usage: $0 analyze maps [OPTIONS]
+
+Analysiert Karten nach Größe und Aktivität.
+
+Options:
+    --top N
+        Anzahl der Top-Einträge (Standard: 20)
+
+    --metric METRIC
+        Metrik für die Auswertung:
+            size           - Gesamtgröße (Standard)
+            layers         - Layer-Anzahl
+            activity       - Aktivität (letzte Änderung)
+            inactive       - Inaktive Karten
+            largest-layers - Größte einzelne Layer
+
+Examples:
+    $0 analyze maps --metric activity --top 30
+    $0 analyze maps --metric inactive
+EOF
+}
+
+show_help_get_map() {
+    cat << EOF
+Usage: $0 get map <id>|<url> [OPTIONS]
+
+Zeigt Details einer Karte inklusive aller Layer und GeoJSON-Dateipfade.
+
+Arguments:
+    <id>                 Map-ID
+    <url>                Vollständige URL oder Pfad zur Karte
+
+Options:
+    --show-edit-link
+        Zeigt den anonymen Bearbeitungslink an
+
+Examples:
+    $0 get map <MAP_ID>
+    $0 get map <MAP_ID> --show-edit-link
+EOF
+}
+
+show_help_get_user() {
+    cat << EOF
+Usage: $0 get user <id>|<username>
+
+Zeigt detaillierte Informationen zu einem User inklusive Statistiken,
+Karten, Teams und Datenvolumen.
+
+Arguments:
+    <id>                 User-ID
+    <username>           Username
+
+Examples:
+    $0 get user <USER_ID>
+EOF
+}
+
+# ============================================================================
+# Kommando-Handler
+# ============================================================================
+
+handle_analyze_users() {
+    shift 2  # Entferne "analyze users"
+    
+    if is_help_requested "${1:-}"; then
+        show_help_analyze_users
+        exit 0
+    fi
+    
+    run_script "analyze_users" "$@"
+}
+
+handle_analyze_maps() {
+    shift 2  # Entferne "analyze maps"
+    
+    if is_help_requested "${1:-}"; then
+        show_help_analyze_maps
+        exit 0
+    fi
+    
+    run_script "analyze_maps" "$@"
+}
+
+handle_get_map() {
+    shift 2  # Entferne "get map"
+    
+    if is_help_requested "${1:-}"; then
+        show_help_get_map
+        exit 0
+    fi
+    
+    if ! require_args "$@"; then
+        echo "Fehler: Map-ID oder URL erforderlich." >&2
+        echo "" >&2
+        echo "Verwendung: $0 get map <map_id>|<url> [OPTIONS]" >&2
+        echo "Führe '$0 get map --help' aus für Details." >&2
+        exit 1
+    fi
+    
+    run_script "get_map_details" "$@"
+}
+
+handle_get_user() {
+    shift 2  # Entferne "get user"
+    
+    if is_help_requested "${1:-}"; then
+        show_help_get_user
+        exit 0
+    fi
+    
+    if ! require_args "$@"; then
+        echo "Fehler: User-ID oder Username erforderlich." >&2
+        echo "" >&2
+        echo "Verwendung: $0 get user <user_id>|<username>" >&2
+        echo "Führe '$0 get user --help' aus für Details." >&2
+        exit 1
+    fi
+    
+    run_script "get_user_details" "$@"
+}
+
+# ============================================================================
+# Hauptlogik
+# ============================================================================
+
+main() {
+    case "${1:-}" in
+        analyze)
+            case "${2:-}" in
+                users)
+                    handle_analyze_users "$@"
+                    ;;
+                maps)
+                    handle_analyze_maps "$@"
+                    ;;
+                *)
+                    echo "Fehler: Unbekanntes Analyse-Kommando: ${2:-}" >&2
+                    echo "Verwendung: $0 analyze users|maps [OPTIONS]" >&2
+                    echo "Führe '$0 help' aus für eine Liste verfügbarer Kommandos." >&2
+                    exit 1
+                    ;;
+            esac
+            ;;
+        
+        get)
+            case "${2:-}" in
+                map)
+                    handle_get_map "$@"
+                    ;;
+                user)
+                    handle_get_user "$@"
+                    ;;
+                *)
+                    echo "Fehler: Unbekanntes Get-Kommando: ${2:-}" >&2
+                    echo "Verwendung: $0 get map|user [ARGS...]" >&2
+                    echo "Führe '$0 help' aus für eine Liste verfügbarer Kommandos." >&2
+                    exit 1
+                    ;;
+            esac
+            ;;
+        
+        list|help|--help|-h)
+            show_help
+            exit 0
+            ;;
+        
+        *)
+            if [ -z "${1:-}" ]; then
+                echo "Fehler: Kein Kommando angegeben." >&2
+            else
+                echo "Fehler: Unbekanntes Kommando: $1" >&2
+            fi
+            echo "" >&2
+            echo "Verwendung: $0 <command> [OPTIONS] [ARGS...]" >&2
+            echo "Führe '$0 help' aus für eine Liste verfügbarer Kommandos." >&2
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

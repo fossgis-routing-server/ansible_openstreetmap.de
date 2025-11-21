@@ -2,6 +2,17 @@
   system_account:
     name: "{{ umap__user }}"
     home: "{{ umap__paths.host.basedir }}"
+  register: umap_account
+
+- name: Get umap UID
+  command: id -u {{ umap__user }}
+  register: umap_uid_result
+  changed_when: false
+  check_mode: false
+
+- name: Set umap UID fact
+  set_fact:
+    umap_uid: "{{ umap_uid_result.stdout | int }}"
 
 - name: Install prerequisites
   apt:
@@ -41,13 +52,50 @@
       - docker-ce
       - docker-compose-plugin
 
+- name: Get docker group GID
+  command: getent group docker
+  register: docker_gid_raw
+  changed_when: false
+  check_mode: false
+  failed_when: false
+
+- name: Set docker GID fact
+  set_fact:
+    umap_gid: "{{ docker_gid_raw.stdout.split(':')[2] | int }}"
+  when: docker_gid_raw.rc == 0
+
+- name: Set umap basedir permissions
+  file:
+    path: "{{ umap__paths.host.basedir }}"
+    state: directory
+    owner: "{{ umap__user }}"
+    group: docker
+    mode: "0775"
+
+# Add login users to docker group
+# We filter users based on their group membership (same logic as accounts.yml):
+# - Users with group 'all' have access to all hosts
+# - Users with groups matching the host's group_names have access
+# Note: This filter determines which users SHOULD have access, but doesn't guarantee
+# that the user accounts exist on the system.
+- name: Gather active accounts for docker group
+  set_fact:
+    docker_users_active: "{{ docker_users_active | default([]) + [item.0.name] }}"
+  when: "item.1 in group_names or item.1 == 'all'"
+  loop: "{{ users | default([]) | subelements('groups', skip_missing=True) }}"
+  loop_control:
+    label: "{{ item.0.name | default('unknown') }}"
+  no_log: true  # Suppress output of user data (SSH keys etc.)
+
 - name: Add users to docker group
   user:
     name: "{{ item }}"
     groups: docker
     append: yes
-  loop: "{{ [umap__user] + (users | default([]) | map(attribute='name') | list) }}"
-  when: "item in accounts__active | default([]) or item == umap__user"
+  loop: "{{ [umap__user] + (docker_users_active | default([])) }}"
+  register: docker_group_result
+  ignore_errors: true   # User might not exist
+  failed_when: false    # Don't fail playbook if user doesn't exist
 
 - name: Setup umap db env file
   template:
@@ -79,7 +127,21 @@
     - umapdata/static_root
     - umapdata/media_root
     - umapdata/symbols
-    - logs/nginx
+    - umapdata/symbols/osmic
+    - umapdata/symbols/osmic/pictograms
+    - umapdata/symbols/brewery
+    - umapdata/symbols/brewery/pictograms
+    - nginx
+    - nginx/cache
+    - nginx/run
+
+- name: Create and set setgid on nginx log directory
+  file:
+    path: "{{ umap__paths.host.basedir }}/nginx/logs"
+    state: directory
+    owner: "{{ umap__user }}"
+    group: docker
+    mode: "2775"
 
 - name: Setup docker-compose file
   template:
@@ -115,6 +177,21 @@
     src:  'nginx-host.conf.jinja'
   notify: reload nginx
 
+- name: Configure uMap log format (extended anonymized)
+  copy:
+    src: 'umap_log_format.conf'
+    dest: '/etc/nginx/conf.d/umap_log_format.conf'
+    owner: root
+    group: root
+    mode: '0644'
+  notify: restart nginx
+
+- name: Disable default nginx site
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: reload nginx
+
 - name: Ensure Docker service is started
   systemd:
     name: docker
@@ -123,19 +200,20 @@
 
 - name: Copy favicon files
   copy:
-    src: "favicon/{{ item }}"
-    dest: "{{ umap__paths.host.basedir }}/umapdata/static_root/{{ item }}"
+    src: "favicon/{{ item.src }}"
+    dest: "{{ umap__paths.host.basedir }}/umapdata/static_root/{{ item.dest }}"
     owner: "{{ umap__user }}"
     group: docker
     mode: "0644"
   loop:
-    - favicon.ico
-    - favicon.svg
-    - favicon-96x96.png
-    - apple-touch-icon.png
-    - site.webmanifest
-    - web-app-manifest-192x192.png
-    - web-app-manifest-512x512.png
+    - { src: favicon.ico, dest: favicon.ico }
+    - { src: favicon.svg, dest: favicon.svg }
+    - { src: favicon-96x96.png, dest: favicon-96x96.png }
+    - { src: apple-touch-icon.png, dest: apple-touch-icon.png }
+    - { src: apple-touch-icon.png, dest: apple-touch-icon-precomposed.png }
+    - { src: site.webmanifest, dest: site.webmanifest }
+    - { src: web-app-manifest-192x192.png, dest: web-app-manifest-192x192.png }
+    - { src: web-app-manifest-512x512.png, dest: web-app-manifest-512x512.png }
 
 - name: Create custom directories
   file:
@@ -149,7 +227,6 @@
     - templates/umap
     - static
     - static/umap
-    - static/umap/css
 
 - name: Deploy custom website files
   copy:
@@ -160,6 +237,59 @@
     mode: "0644"
     directory_mode: "0775"
 
+- name: Create scripts directory structure
+  file:
+    path: "{{ umap__paths.host.basedir }}/scripts/{{ item }}"
+    state: directory
+    owner: "{{ umap__user }}"
+    group: docker
+    mode: "0755"
+  loop:
+    - admin
+
+- name: Deploy admin scripts
+  copy:
+    src: "admin_scripts/{{ item }}"
+    dest: "{{ umap__paths.host.basedir }}/scripts/admin/{{ item }}"
+    owner: "{{ umap__user }}"
+    group: docker
+    mode: "0644"
+  loop:
+    - analyze_maps.py
+    - analyze_users.py
+    - get_map_details.py
+    - get_user_details.py
+    - umap_utils.py
+  register: admin_scripts_deployed
+
+- name: Deploy admin script wrapper with executable permissions
+  copy:
+    src: "admin_scripts/umap-admin"
+    dest: "{{ umap__paths.host.basedir }}/scripts/admin/umap-admin"
+    owner: "{{ umap__user }}"
+    group: docker
+    mode: "0755"
+
+- name: Create docs directory
+  file:
+    path: "{{ umap__paths.host.basedir }}/docs"
+    state: directory
+    owner: "{{ umap__user }}"
+    group: docker
+    mode: "0755"
+
+- name: Deploy documentation files
+  copy:
+    src: "docs/{{ item }}"
+    dest: "{{ umap__paths.host.basedir }}/docs/{{ item }}"
+    owner: "{{ umap__user }}"
+    group: docker
+    mode: "0644"
+  loop:
+    - README_ADMINSCRIPTS.md
+    - README_BACKUP.md
+    - HOW_TO_SETUP_UMAP.md
+
 - name: Run Docker Compose up
   command: docker compose -f "{{ umap__paths.host.basedir }}"/docker-compose.yml up -d
   args:
@@ -169,6 +299,24 @@
   become_user: "{{ umap__user }}"
   become: true
   register: docker_compose_up_result
+  changed_when: "'Creating' in docker_compose_up_result.stdout or 'Starting' in docker_compose_up_result.stdout or 'Recreating' in docker_compose_up_result.stdout"
+  failed_when: false
+
+- name: Check if umap_app container is running
+  command: docker inspect -f '{{ "{{" }}.State.Running{{ "}}" }}' umap_app
+  register: container_running_check
+  changed_when: false
+  failed_when: false
+  when: docker_compose_up_result is defined
+
+- name: Fix cache directory permissions in Docker volume
+  shell: |
+    docker exec --user root umap_app chown -R {{ umap_uid }}:{{ umap_gid }} /srv/umap/cache 2>/dev/null || true
+    docker exec --user root umap_app chmod 775 /srv/umap/cache 2>/dev/null || true
+  when:
+    - docker_compose_up_result is defined
+    - container_running_check.stdout == "true"
+  changed_when: false
 
 - name: Setup logrotate configuration for uMap
   template:
@@ -186,3 +334,9 @@
   tags:
     - umap
     - backup
+
+- name: Include monitoring tasks
+  include_tasks: monitoring.yml
+  tags:
+    - umap
+    - monitoring

@@ -1,0 +1,1378 @@
+#!/bin/bash
+#
+# uMap Backup Management Tool
+# Verwaltet Backups, ermöglicht manuelles Starten und Halb-Restore
+# Verwendung: sudo ./umap-backup.sh [command] [options]
+#
+
+# Funktioniert nur als root oder mit sudo
+if [ "$EUID" -ne 0 ]; then
+    log_error "Dieses Script muss als root oder mit sudo ausgeführt werden"
+    echo "Verwendung: sudo $0 [command] [options]"
+    exit 1
+fi
+
+# Fehlerbehandlung aktivieren
+set -euo pipefail
+
+# Konstanten
+readonly HOUR_IN_SECONDS=3600
+readonly DB_READY_TIMEOUT=30
+readonly DB_READY_RETRIES=30
+readonly BORG_CMD="/usr/bin/borg"
+readonly COMPOSE_FILE="{{ umap__paths.host.basedir }}/docker-compose.yml"
+readonly UMAP_BASEDIR="{{ umap__paths.host.basedir }}"
+
+# Lade gemeinsame SSH-Konfiguration
+. /srv/umap/scripts/backup/backup-ssh-config.sh
+
+# Logging-Funktionen für konsistente Fehlerbehandlung
+log_error() {
+    echo "ERROR: $1" >&2
+}
+
+log_warning() {
+    echo "WARNUNG: $1" >&2
+}
+
+# Formatiere Dauer im Format HH:MM:SS
+# Parameter: $1 = Sekunden
+format_duration() {
+    local seconds="${1:-0}"
+    local hours=$((seconds / HOUR_IN_SECONDS))
+    local minutes=$(((seconds % HOUR_IN_SECONDS) / 60))
+    local secs=$((seconds % 60))
+    printf "%02d:%02d:%02d\n" "$hours" "$minutes" "$secs"
+}
+
+# Hilfsfunktion zur Bestätigung einer Aktion
+# Parameter: $1 = Nachricht
+# Gibt 0 zurück bei "yes"/"ja", 1 bei Abbruch
+confirm_action() {
+    local message="${1:-Fortfahren?}"
+    read -p "$message (yes/ja/no/nein): " confirm
+    if [ "$confirm" != "yes" ] && [ "$confirm" != "ja" ]; then
+        echo "Abgebrochen."
+        return 1
+    fi
+    return 0
+}
+
+# Konfiguration
+BACKUP_BASE_URL="ssh://{{ umap__backup_remote_user }}@{{ umap__backup_remote_host }}:{{ umap__backup_remote_port }}/./backups"
+CURRENT_HOST="{{ inventory_hostname }}"
+RESTORE_DIR_DEFAULT="{{ umap__paths.host.basedir }}/restoredata"
+
+# Generiere Repository-URLs für einen Host
+# Parameter: hostname (optional, Standard: CURRENT_HOST)
+get_repo_urls() {
+    local host="${1:-${CURRENT_HOST}}"
+    local data_repo="${BACKUP_BASE_URL}/${host}/umapdata"
+    local db_repo="${BACKUP_BASE_URL}/${host}/umapdb"
+    echo "${data_repo}|${db_repo}"
+}
+
+# Initialisiere Repository-URLs für aktuellen Host
+_repo_urls=$(get_repo_urls "${CURRENT_HOST}")
+DATA_REPO="${_repo_urls%%|*}"
+DB_REPO="${_repo_urls##*|}"
+
+# Funktionen für Backup-Operationen
+# Sicherer Wrapper für Befehle, die als umap-User ausgeführt werden sollen
+run_as_umap() {
+    # Escape alle Argumente einzeln und verbinde sie mit Leerzeichen
+    local escaped_args=()
+    local arg
+    for arg in "$@"; do
+        escaped_args+=("$(printf '%q' "$arg")")
+    done
+    local escaped_cmd
+    printf -v escaped_cmd '%s ' "${escaped_args[@]}"
+    escaped_cmd="${escaped_cmd% }"  # Entferne letztes Leerzeichen
+    
+    # Escape BORG_RSH und BORG_PASSPHRASE für sichere Verwendung in bash -c
+    local escaped_borg_rsh
+    escaped_borg_rsh=$(printf '%q' "${BORG_RSH}")
+    local escaped_borg_passphrase
+    escaped_borg_passphrase=$(printf '%q' "${BORG_PASSPHRASE}")
+    local escaped_home
+    escaped_home=$(printf '%q' "{{ umap__paths.host.basedir }}")
+    
+    # Führe Befehl aus - escaped_cmd wird sicher in bash -c eingefügt
+    sudo -u {{ umap__user }} -E bash -c \
+        "export HOME=${escaped_home}; \
+         export BORG_RSH=${escaped_borg_rsh}; \
+         export BORG_PASSPHRASE=${escaped_borg_passphrase}; \
+         ${escaped_cmd}"
+    return $?
+}
+
+# Führe Borg-Befehl für ein Repository aus
+# Parameter: repo_type ("data" oder "db"), danach alle Borg-Befehlsargumente
+check_repo() {
+    local repo_type="${1:-}"
+    shift  # Entferne ersten Parameter, restliche Argumente sind der Borg-Befehl
+    
+    # Bestimme Repository-Name und Ausgabe-Text
+    local repo_label=""
+    case "$repo_type" in
+        data)
+            repo_label="=== Data Repository ==="
+            ;;
+        db)
+            repo_label="=== Database Repository ==="
+            ;;
+        *)
+            log_error "Ungültiger Repository-Typ: $repo_type"
+            return 1
+            ;;
+    esac
+    
+    echo "$repo_label"
+    
+    # Übergebe alle verbleibenden Argumente als separates Array
+    run_as_umap "$@"
+    return $?
+}
+
+# Extrahiere Timestamp aus Archiv-Namen
+# Parameter: archive_name (Format: umapdb-YYYYMMDDHHMM oder umapdata-YYYYMMDDHHMM)
+# Gibt den 12-stelligen Timestamp zurück oder leeren String bei Fehler
+extract_timestamp_from_archive() {
+    local archive_name="${1:-}"
+    [ -z "$archive_name" ] && return 1
+    
+    # Extrahiere Timestamp nach dem ersten Bindestrich
+    local timestamp="${archive_name#*-}"
+    
+    # Prüfe ob Timestamp im erwarteten Format ist (12 Ziffern: YYYYMMDDHHMM)
+    echo "$timestamp" | grep -qE '^[0-9]{12}$' || return 1
+    
+    echo "$timestamp"
+}
+
+# Konvertiere Datum-String zu Unix-Timestamp
+# Parameter: date_str ("YYYY-MM-DD HH:MM" oder "YYYYMMDDHHMM")
+# Gibt Unix-Timestamp zurück oder leeren String bei Fehler
+date_to_timestamp() {
+    local date_str="${1:-}"
+    [ -z "$date_str" ] && return 1
+    
+    # Wenn Format YYYYMMDDHHMM, konvertiere zu YYYY-MM-DD HH:MM
+    if echo "$date_str" | grep -qE '^[0-9]{12}$'; then
+        local year="${date_str:0:4}"
+        local month="${date_str:4:2}"
+        local day="${date_str:6:2}"
+        local hour="${date_str:8:2}"
+        local minute="${date_str:10:2}"
+        date_str="${year}-${month}-${day} ${hour}:${minute}"
+    fi
+    
+    # Konvertiere zu Unix-Timestamp (GNU date)
+    local timestamp
+    timestamp=$(date -d "$date_str" +%s 2>/dev/null)
+    [ -n "$timestamp" ] && echo "$timestamp"
+}
+
+# Parse --host Parameter und Repository-Typ
+# Parameter: $1 = "--host" oder Repository-Typ, $2 = Hostname (wenn $1 = "--host"), $3 = Repository-Typ (wenn $1 = "--host")
+# Gibt "host|repo" zurück via echo
+parse_host_and_repo() {
+    if [ "${1:-}" = "--host" ] || [ "${1:-}" = "-h" ]; then
+        [ -z "${2:-}" ] && { log_error "Hostname fehlt nach --host"; return 1; }
+        echo "${2}|${3:-}"
+    else
+        echo "${CURRENT_HOST}|${1:-}"
+    fi
+}
+
+# Parse --restore-dir Parameter aus Argumenten
+# Parameter: $@ = alle Argumente
+# Setzt RESTORE_DIR global und gibt die verbleibenden Argumente zurück
+parse_restore_dir() {
+    RESTORE_DIR="${RESTORE_DIR_DEFAULT}"
+    local args=()
+    local i=1
+    while [ $i -le $# ]; do
+        if [ "${!i}" = "--restore-dir" ] || [ "${!i}" = "-d" ]; then
+            if [ $i -lt $# ]; then
+                RESTORE_DIR="${!((i+1))}"
+                i=$((i+2))
+            else
+                log_error "Verzeichnis fehlt nach --restore-dir"
+                return 1
+            fi
+        else
+            args+=("${!i}")
+            i=$((i+1))
+        fi
+    done
+    # Gib verbleibende Argumente zurück
+    echo "${args[@]}"
+}
+
+# Prüfe ob Repository existiert
+# Parameter: repo_url
+check_repo_exists() {
+    local repo_url="${1:-}"
+    [ -z "$repo_url" ] && return 1
+    
+    run_as_umap "${BORG_CMD}" info "${repo_url}" >/dev/null 2>&1
+    return $?
+}
+
+# Formatiere Backup-Datum und berechne Alter
+# Parameter: archive_name (Format: umapdb-YYYYMMDDHHMM oder umapdata-YYYYMMDDHHMM)
+format_backup_date() {
+    local archive_name="${1:-}"
+    [ -z "$archive_name" ] && return 1
+    
+    # Extrahiere Timestamp aus Archiv-Namen
+    local timestamp_str
+    timestamp_str=$(extract_timestamp_from_archive "$archive_name")
+    if [ -z "$timestamp_str" ]; then
+        return 1
+    fi
+    
+    # Konvertiere zu Unix-Timestamp
+    local backup_timestamp
+    backup_timestamp=$(date_to_timestamp "$timestamp_str")
+    
+    # Formatiere Datum aus Unix-Timestamp
+    local formatted_date
+    if [ -n "$backup_timestamp" ]; then
+        formatted_date=$(date -d "@${backup_timestamp}" "+%Y-%m-%d %H:%M" 2>/dev/null || \
+                         echo "${timestamp_str:0:4}-${timestamp_str:4:2}-${timestamp_str:6:2} ${timestamp_str:8:2}:${timestamp_str:10:2}")
+        
+        # Berechne Alter in Sekunden
+        local current_timestamp
+        current_timestamp=$(date +%s)
+        local age_seconds=$((current_timestamp - backup_timestamp))
+        
+        local age_str
+        age_str=$(format_duration "$age_seconds")
+        
+        echo "${formatted_date} (vor ${age_str})"
+    else
+        log_error "Kein gültiges Datum in '$archive_name' erkannt"
+        return 1
+    fi
+}
+
+# Hilfsfunktion zum Starten eines Backup-Services
+# Parameter: $1 = service_type ("data" oder "db"), $2 = prefix (optional, für "all"-Fall)
+start_backup_service() {
+    local service_type="${1:-}"
+    local prefix="${2:-}"
+    
+    local service_name
+    local backup_label
+    case "$service_type" in
+        data)
+            service_name="borgbackup-data.service"
+            backup_label="Data-Backup"
+            ;;
+        db)
+            service_name="borgbackup-db.service"
+            backup_label="Database-Backup"
+            ;;
+        *)
+            log_error "Ungültiger Service-Typ: $service_type"
+            return 1
+            ;;
+    esac
+    
+    # Prüfe ob Service bereits läuft
+    if systemctl is-active --quiet "$service_name" 2>/dev/null; then
+        [ -n "$prefix" ] && printf "%s" "$prefix"
+        log_warning "${backup_label} läuft bereits!"
+        echo "Status: sudo systemctl status ${service_name}"
+        echo "Logs: sudo journalctl -u ${service_name} -f"
+        return 1
+    fi
+    
+    # Starte Service
+    [ -n "$prefix" ] && printf "%s" "$prefix"
+    echo "Starte ${backup_label}..."
+    
+    # Starte Service im Hintergrund, damit bei "all" beide parallel laufen können
+    # Bei oneshot Services blockiert systemctl start normalerweise, daher starten wir es im Hintergrund
+    systemctl start "$service_name" >/dev/null 2>&1 &
+    
+    # Kurze Pause, damit systemd den Service registrieren kann
+    sleep 0.3
+    
+    # Prüfe ob Service fehlgeschlagen ist (nicht ob er läuft, da oneshot Services schnell fertig sein können)
+    if systemctl is-failed --quiet "$service_name" 2>/dev/null; then
+        log_error "${backup_label} konnte nicht gestartet werden"
+        return 1
+    fi
+    
+    [ -n "$prefix" ] && printf "%s" "$prefix"
+    echo "${backup_label} gestartet. Logs: sudo journalctl -u ${service_name} -f"
+    return 0
+}
+
+# Backup starten
+start_backup() {
+    local backup_type="${1:-}"
+    
+    # Prüfe ob Backups bereits laufen
+    local db_running=false
+    local data_running=false
+    
+    if systemctl is-active --quiet borgbackup-db.service 2>/dev/null; then
+        db_running=true
+    fi
+    if systemctl is-active --quiet borgbackup-data.service 2>/dev/null; then
+        data_running=true
+    fi
+    
+    case "$backup_type" in
+        umapdata)
+            start_backup_service "data"
+            return $?
+            ;;
+        umapdb)
+            start_backup_service "db"
+            return $?
+            ;;
+        all)
+            if [ "$db_running" = true ] || [ "$data_running" = true ]; then
+                log_warning "Ein oder beide Backups laufen bereits!"
+                [ "$db_running" = true ] && echo "  Database-Backup: läuft"
+                [ "$data_running" = true ] && echo "  Data-Backup: läuft"
+                echo "Status: sudo systemctl status borgbackup-db.service borgbackup-data.service"
+                return 1
+            fi
+            
+            echo "Starte beide Backups..."
+            echo ""
+            echo "1. Database-Backup..."
+            if ! start_backup_service "db" "   "; then
+                return 1
+            fi
+            echo ""
+            echo "2. Data-Backup..."
+            if ! start_backup_service "data" "   "; then
+                return 1
+            fi
+            echo ""
+            echo "Beide Backups laufen jetzt."
+            ;;
+        *)
+            log_error "Ungültiger Backup-Typ: $backup_type"
+            echo "Verwende 'umapdata', 'umapdb' oder 'all'"
+            return 1
+            ;;
+    esac
+}
+
+# Liste alle Hosts (== Backup Verzeichnisse) auf dem Backup-Server auf
+list_hosts() {
+    local hosts
+    local host
+    
+    echo "Verfügbare Hosts auf dem Backup-Server:"
+    echo ""
+    
+    # Liste alle Verzeichnisse unter /backups/ auf
+    local ssh_cmd=(
+        ssh
+        -i "${SSH_KEY}"
+        -o "StrictHostKeyChecking=accept-new"
+        -o "UserKnownHostsFile=/srv/umap/.ssh/known_hosts"
+        -p "{{ umap__backup_remote_port }}"
+        "{{ umap__backup_remote_user }}@{{ umap__backup_remote_host }}"
+        "ls backups/ 2>/dev/null"
+    )
+    hosts=$(run_as_umap "${ssh_cmd[@]}" | grep -v '^$' | tr '\n' ' ' || echo "")
+    
+    if [ -z "$hosts" ]; then
+        echo "  (keine Hosts gefunden)"
+        return 1
+    fi
+    
+    # Zeige "Hostnamen"
+    for host in $hosts; do
+        if [ "$host" = "$CURRENT_HOST" ]; then
+            echo "  * ${host} (aktueller Host)"
+        else
+            echo "    ${host}"
+        fi
+    done
+    
+    echo ""
+    echo "Verwende 'sudo $0 restore-prepare --host <hostname>' um Backups von einem anderen Host wiederherzustellen."
+}
+
+# Hilfsfunktion: Finde neuestes Archiv in einem Repository
+find_latest_archive() {
+    local repo_url="$1"
+    local pattern="$2"
+    run_as_umap "${BORG_CMD}" list "$repo_url" --glob-archives="$pattern" --last 1 --format '{archive}{NL}' | head -n1
+}
+
+# Hilfsfunktion: Formatiere Bytes in lesbare Größe (kompakt)
+# Parameter: bytes
+# Gibt formatierte Größe zurück (z.B. "123 MB" oder "1.5 GB")
+format_size_compact() {
+    local bytes="$1"
+    local mb=$((bytes / 1024 / 1024))
+    local gb=$((mb / 1024))
+    
+    if [ "$gb" -gt 0 ]; then
+        local gb_decimal=$((bytes * 10 / 1024 / 1024 / 1024))
+        printf "%d.%d GB" "$gb" "$((gb_decimal % 10))"
+    else
+        printf "%d MB" "$mb"
+    fi
+}
+
+# Hilfsfunktion: Formatiere Geschwindigkeit (MB/s oder GB/s)
+# Parameter: bytes, seconds
+# Gibt formatierte Geschwindigkeit zurück (z.B. "53.2 MB/s" oder "1.2 GB/s")
+format_speed() {
+    local bytes="$1"
+    local seconds="$2"
+    
+    if [ "$seconds" -eq 0 ]; then
+        echo "0 MB/s"
+        return
+    fi
+    
+    # Berechne Bytes pro Sekunde
+    local bytes_per_sec=$((bytes / seconds))
+    local mb_per_sec=$((bytes_per_sec / 1024 / 1024))
+    local gb_per_sec=$((mb_per_sec / 1024))
+    
+    if [ "$gb_per_sec" -gt 0 ]; then
+        # GB/s mit einer Dezimalstelle
+        local gb_decimal=$((bytes_per_sec * 10 / 1024 / 1024 / 1024))
+        printf "%d.%d GB/s" "$gb_per_sec" "$((gb_decimal % 10))"
+    else
+        # MB/s mit einer Dezimalstelle
+        local mb_decimal=$((bytes_per_sec * 10 / 1024 / 1024))
+        printf "%d.%d MB/s" "$mb_per_sec" "$((mb_decimal % 10))"
+    fi
+}
+
+# Hilfsfunktion: Ermittle Größe eines Archivs in Bytes
+# Parameter: repo_url, archive_name
+# Gibt Größe in Bytes zurück oder 0 bei Fehler
+get_archive_size() {
+    local repo_url="$1"
+    local archive="$2"
+    local size
+    
+    # Verwende JSON-Ausgabe (robuster als Text-Parsing)
+    size=$(run_as_umap "${BORG_CMD}" info --json "${repo_url}::${archive}" 2>/dev/null | jq -r '.archives[0].stats.original_size // .stats.original_size // 0' 2>/dev/null)
+    [ -n "$size" ] && [ "$size" != "null" ] && [ "$size" -gt 0 ] && echo "$size" || echo "0"
+}
+
+# Hilfsfunktion: Prüfe verfügbaren Speicherplatz für ein Verzeichnis
+# Parameter: directory_path, required_bytes
+# Gibt 0 zurück wenn genug Platz vorhanden, 1 wenn nicht
+check_disk_space() {
+    local dir="$1"
+    local required="$2"
+    local available
+    
+    # Ermittle verfügbaren Speicherplatz in Bytes (df -B1 gibt Bytes aus)
+    available=$(df -B1 "$dir" 2>/dev/null | awk 'NR==2 {print $4}')
+    [ -z "$available" ] && { log_error "Konnte verfügbaren Speicherplatz nicht ermitteln"; return 1; }
+    
+    # Prüfe ob genug Platz vorhanden ist
+    if [ "$available" -lt "$required" ]; then
+        return 1
+    fi
+    return 0
+}
+
+# Prüfe ob genug Speicherplatz für Backups vorhanden ist
+# Parameter: db_repo, db_archive, data_repo, data_archive, target_dir
+check_space_for_backups() {
+    local db_repo="$1"
+    local db_archive="$2"
+    local data_repo="$3"
+    local data_archive="$4"
+    local target_dir="$5"
+    local total_size=0
+    local db_size=0
+    local data_size=0
+    
+    # Ermittle Größe der Backups
+    if [ -n "$db_archive" ]; then
+        db_size=$(get_archive_size "$db_repo" "$db_archive")
+        [ "$db_size" = "0" ] && { log_error "Konnte Größe des DB-Backups nicht ermitteln"; return 1; }
+        total_size=$((total_size + db_size))
+    fi
+    
+    if [ -n "$data_archive" ]; then
+        data_size=$(get_archive_size "$data_repo" "$data_archive")
+        [ "$data_size" = "0" ] && { log_error "Konnte Größe des Data-Backups nicht ermitteln"; return 1; }
+        total_size=$((total_size + data_size))
+    fi
+    
+    [ "$total_size" -eq 0 ] && return 0  # Keine Backups zum Download
+    
+    # Ermittle verfügbaren Speicherplatz
+    local available_bytes
+    available_bytes=$(df -B1 "$target_dir" 2>/dev/null | awk 'NR==2 {print $4}')
+    [ -z "$available_bytes" ] && { log_error "Konnte verfügbaren Speicherplatz nicht ermitteln"; return 1; }
+    
+    # Zeige Größen kompakt an
+    local size_info=""
+    [ -n "$db_archive" ] && size_info="DB: $(format_size_compact "$db_size")"
+    [ -n "$data_archive" ] && {
+        [ -n "$size_info" ] && size_info="${size_info}  "
+        size_info="${size_info}Data: $(format_size_compact "$data_size")"
+    }
+    [ -n "$size_info" ] && echo "${size_info}  Gesamt: $(format_size_compact "$total_size")  Verfügbar: $(format_size_compact "$available_bytes")"
+    
+    # Prüfe verfügbaren Speicherplatz
+    if ! check_disk_space "$target_dir" "$total_size"; then
+        log_error "Nicht genug Speicherplatz verfügbar!"
+        echo "  Benötigt: $(format_size_compact "$total_size")"
+        echo ""
+        echo "Bitte räume Speicherplatz frei oder wähle ein anderes Ziel-Verzeichnis."
+        return 1
+    fi
+    return 0
+}
+
+# Hilfsfunktion: Extrahiere DB-Backup
+extract_db_backup() {
+    local repo_url="$1"
+    local archive="$2"
+    local target_file="$3"
+    local start_time=$(date +%s)
+    local duration
+    
+    # Cleanup bei Abbruch: Lösche teilweise geschriebene SQL-Datei
+    trap 'rm -f "${target_file:-}" 2>/dev/null || true' INT TERM
+    
+    echo "Extrahiere DB-Backup als SQL-Datei..." >&2
+    if run_as_umap "${BORG_CMD}" extract --stdout "${repo_url}::${archive}" > "$target_file" 2>/dev/null; then
+        trap - INT TERM  # Entferne Trap nach erfolgreichem Abschluss
+        chown {{ umap__user }}:docker "$target_file" >/dev/null 2>&1 || true
+        duration=$(($(date +%s) - start_time))
+        echo "$duration"
+        return 0
+    fi
+    trap - INT TERM  # Entferne Trap auch bei Fehler
+    rm -f "$target_file" 2>/dev/null || true  # Lösche teilweise Datei bei Fehler
+    return 1
+}
+
+# Hilfsfunktion: Extrahiere Data-Backup
+extract_data_backup() {
+    local repo_url="$1"
+    local archive="$2"
+    local target_dir="$3"
+    local start_time=$(date +%s)
+    local temp_dir
+    local duration
+    
+    temp_dir=$(mktemp -d -p "$(dirname "$target_dir")" ".tmp.XXXXXX") || { log_error "Konnte temporäres Verzeichnis nicht erstellen" >&2; return 1; }
+    chown {{ umap__user }}:docker "$temp_dir" >/dev/null 2>&1 || { log_error "Konnte Berechtigungen nicht setzen" >&2; rm -rf "$temp_dir"; return 1; }
+    
+    trap 'rm -rf "${temp_dir:-}" 2>/dev/null || true' EXIT INT TERM
+    
+    echo "Extrahiere Data-Backup..." >&2
+    if run_as_umap sh -c "cd $(printf '%q' "$temp_dir") && ${BORG_CMD} extract $(printf '%q' "${repo_url}::${archive}")" >/dev/null 2>&1; then
+        if [ -d "$temp_dir/srv/umap/umapdata" ]; then
+            mkdir -p "$target_dir" >/dev/null 2>&1 && chown {{ umap__user }}:docker "$target_dir" >/dev/null 2>&1 || { log_error "Konnte Ziel-Verzeichnis nicht erstellen" >&2; return 1; }
+            find "$temp_dir/srv/umap/umapdata" -mindepth 1 -maxdepth 1 -print0 | xargs -0 -I {} mv {} "$target_dir/" >/dev/null 2>&1 || { log_error "Fehler beim Verschieben" >&2; return 1; }
+            duration=$(($(date +%s) - start_time))
+            echo "$duration"
+        else
+            log_warning "Unerwartete Struktur im extrahierten Backup" >&2
+            duration=$(($(date +%s) - start_time))
+            echo "$duration"
+        fi
+    else
+        log_error "Fehler beim Extrahieren des Data-Backups" >&2
+        return 1
+    fi
+    
+    trap - EXIT INT TERM
+    rm -rf "$temp_dir" 2>/dev/null || true
+    return 0
+}
+
+# Halb-Restore: Backups vom Remote-Server in lokales Verzeichnis kopieren
+restore_prepare() {
+    local source_host="${CURRENT_HOST}"
+    local db_archive=""
+    local data_archive=""
+    local restore_type=""
+    
+    # Zeige Start-Zeit
+    echo "=== Restore-Prepare gestartet: $(date '+%Y-%m-%d %H:%M:%S') ==="
+    echo ""
+    
+    # Teste SSH-Verbindung
+    test_ssh_connection || return 1
+    
+    # Initialisiere RESTORE_DIR mit Standard-Wert
+    RESTORE_DIR="${RESTORE_DIR_DEFAULT}"
+    
+    # Parse --restore-dir Parameter zuerst
+    local remaining_args
+    remaining_args=$(parse_restore_dir "$@")
+    if [ $? -ne 0 ]; then
+        echo "Verwendung: sudo $0 restore-prepare [--restore-dir <dir>] [--host <hostname>] [umapdb|umapdata] [db-archiv] [data-archiv]" >&2
+        return 1
+    fi
+    
+    # Parse --host Parameter aus verbleibenden Argumenten
+    # Konvertiere String zurück zu Array
+    eval "local args_array=($remaining_args)"
+    
+    # Finde --host Parameter an beliebiger Position
+    local host_found=false
+    local host_index=-1
+    {% raw %}local array_len=${#args_array[@]}{% endraw %}
+    local i=0
+    while [ $i -lt $array_len ]; do
+        if [ "${args_array[$i]}" = "--host" ] || [ "${args_array[$i]}" = "-h" ]; then
+            host_found=true
+            host_index=$i
+            if [ $((i+1)) -lt $array_len ]; then
+                source_host="${args_array[$((i+1))]}"
+            else
+                log_error "Hostname fehlt nach --host"
+                echo "Verwendung: sudo $0 restore-prepare [--restore-dir <dir>] [--host <hostname>] [umapdb|umapdata] [db-archiv] [data-archiv]" >&2
+                return 1
+            fi
+            break
+        fi
+        i=$((i+1))
+    done
+    
+    # Sammle alle Parameter außer --host und hostname
+    local other_args=()
+    i=0
+    while [ $i -lt $array_len ]; do
+        if [ "$host_found" = true ] && ([ $i -eq $host_index ] || [ $i -eq $((host_index+1)) ]); then
+            # Überspringe --host und hostname
+            i=$((i+1))
+            continue
+        fi
+        other_args+=("${args_array[$i]}")
+        i=$((i+1))
+    done
+    
+    # Bestimme restore_type und Archive aus verbleibenden Parametern
+    local param1="${other_args[0]:-}"
+    local param2="${other_args[1]:-}"
+    
+    # Prüfe ob erster Parameter ein Typ ist (umapdb/umapdata)
+    [ "$param1" = "umapdb" ] && { restore_type="umapdb"; db_archive="$param2"; }
+    [ "$param1" = "umapdata" ] && { restore_type="umapdata"; data_archive="$param2"; }
+    [ -z "$restore_type" ] && { db_archive="$param1"; data_archive="$param2"; }
+    
+    # Setze Repository-URLs basierend auf source_host
+    local repo_urls
+    repo_urls=$(get_repo_urls "$source_host")
+    local source_data_repo="${repo_urls%%|*}"
+    local source_db_repo="${repo_urls##*|}"
+    
+    # Finde fehlende Archive
+    [ -z "$db_archive" ] && [ "$restore_type" != "umapdata" ] && db_archive=$(find_latest_archive "$source_db_repo" "umapdb-*")
+    [ -z "$data_archive" ] && [ "$restore_type" != "umapdb" ] && data_archive=$(find_latest_archive "$source_data_repo" "umapdata-*")
+    [ "$restore_type" = "umapdb" ] && [ -z "$db_archive" ] && { log_error "Kein DB-Backup gefunden"; return 1; }
+    [ "$restore_type" = "umapdata" ] && [ -z "$data_archive" ] && { log_error "Kein Data-Backup gefunden"; return 1; }
+    [ -z "$restore_type" ] && [ -z "$db_archive" ] && log_warning "Kein DB-Backup gefunden"
+    [ -z "$restore_type" ] && [ -z "$data_archive" ] && log_warning "Kein Data-Backup gefunden"
+    
+    # Extrahiere Zeitstempel aus Backup-Namen (verwende den neueren, wenn beide vorhanden)
+    local restore_timestamp
+    restore_timestamp=$(extract_timestamp_from_archive "${db_archive:-${data_archive}}")
+    [ -n "$db_archive" ] && [ -n "$data_archive" ] && {
+        local db_ts=$(extract_timestamp_from_archive "$db_archive")
+        local data_ts=$(extract_timestamp_from_archive "$data_archive")
+        restore_timestamp=$([ "$db_ts" -gt "$data_ts" ] && echo "$db_ts" || echo "$data_ts")
+    }
+    [ -z "$restore_timestamp" ] && { log_error "Konnte Zeitstempel aus Backup-Namen nicht extrahieren!"; [ -n "$db_archive" ] && echo "  DB-Archiv: $db_archive" >&2; [ -n "$data_archive" ] && echo "  Data-Archiv: $data_archive" >&2; return 1; }
+    
+    local restore_path="${RESTORE_DIR}/${restore_timestamp}"
+    
+    # Prüfe ob Backups bereits vorhanden sind
+    local db_exists=false
+    local data_exists=false
+    [ -n "$db_archive" ] && [ -f "${restore_path}/umapdb/${db_archive}.sql" ] && db_exists=true
+    [ -n "$data_archive" ] && [ -d "${restore_path}/umapdata" ] && [ -n "$(ls -A ${restore_path}/umapdata 2>/dev/null)" ] && data_exists=true
+    
+    [ "$db_exists" = true ] && [ "$data_exists" = true ] && {
+        log_warning "Beide Backups wurden bereits heruntergeladen: $restore_path"
+        echo ""
+        echo "Die Backups sind bereits vorhanden. Du kannst:"
+        echo "  - Die vorhandenen Backups für einen Restore verwenden"
+        echo "  - Das Verzeichnis leeren, um die Backups erneut herunterzuladen:"
+        echo "    sudo rm -rf $restore_path"
+        echo ""
+        return 1
+    }
+    
+    # Ausgabe
+    [ "$source_host" != "$CURRENT_HOST" ] && {
+        echo "=== Restore von anderem Host ==="
+        echo "Quell-Host: ${source_host} → Ziel-Host: ${CURRENT_HOST}"
+        echo ""
+    }
+    
+    echo "Restore-Verzeichnis: $RESTORE_DIR"
+    echo ""
+    echo "Backups:"
+    [ -n "$db_archive" ] && {
+        local db_status="$([ "$db_exists" = true ] && echo "[bereits vorhanden]" || echo "[wird heruntergeladen]")"
+        local db_date_info
+        db_date_info=$(format_backup_date "$db_archive" 2>/dev/null)
+        echo "  DB:   $db_archive${db_date_info:+ ($db_date_info)} $db_status"
+    }
+    [ -n "$data_archive" ] && {
+        local data_status="$([ "$data_exists" = true ] && echo "[bereits vorhanden]" || echo "[wird heruntergeladen]")"
+        local data_date_info
+        data_date_info=$(format_backup_date "$data_archive" 2>/dev/null)
+        echo "  Data: $data_archive${data_date_info:+ ($data_date_info)} $data_status"
+    }
+    echo ""
+    echo "Restore-Verzeichnis: $restore_path"
+    echo ""
+    
+    # Erstelle Restore-Verzeichnis mit Backup-Zeitstempel (falls nicht vorhanden)
+    if [ ! -d "$restore_path" ]; then
+        if ! mkdir -p "${restore_path}/umapdb" "${restore_path}/umapdata"; then
+            log_error "Konnte Restore-Verzeichnis nicht erstellen: $restore_path"
+            return 1
+        fi
+        if ! chown -R {{ umap__user }}:docker "$restore_path"; then
+            log_error "Konnte Berechtigungen für Restore-Verzeichnis nicht setzen"
+            return 1
+        fi
+    fi
+    
+    # Prüfe Speicherplatz für Backups, die noch heruntergeladen werden müssen
+    local db_to_download=""
+    local data_to_download=""
+    [ -n "$db_archive" ] && [ "$db_exists" = false ] && db_to_download="$db_archive"
+    [ -n "$data_archive" ] && [ "$data_exists" = false ] && data_to_download="$data_archive"
+    
+    if [ -n "$db_to_download" ] || [ -n "$data_to_download" ]; then
+        echo "=== Speicherplatzprüfung ==="
+        if ! check_space_for_backups "$source_db_repo" "$db_to_download" "$source_data_repo" "$data_to_download" "$restore_path"; then
+            return 1
+        fi
+    fi
+    
+    local db_duration=0
+    local data_duration=0
+    local db_size=0
+    local data_size=0
+    
+    # DB-Backup kopieren
+    [ -n "$db_archive" ] && [ "$db_exists" = false ] && {
+        local sql_file="${restore_path}/umapdb/${db_archive}.sql"
+        echo "--- DB-Backup ---"
+        echo "Kopiere: $db_archive -> ${restore_path}/umapdb/"
+        run_as_umap "${BORG_CMD}" info "${source_db_repo}::${db_archive}" >/dev/null 2>&1 || {
+            log_error "DB-Backup-Archiv '$db_archive' existiert nicht auf Host '$source_host'!"
+            echo "Verfügbare Archive:"; run_as_umap "${BORG_CMD}" list "${source_db_repo}" --glob-archives=umapdb-*; return 1
+        }
+        # Ermittle Größe vor dem Download
+        db_size=$(get_archive_size "$source_db_repo" "$db_archive")
+        db_duration=$(extract_db_backup "$source_db_repo" "$db_archive" "$sql_file") || { rm -f "$sql_file"; return 1; }
+        echo "DB-Backup erfolgreich kopiert"
+        echo ""
+    }
+    
+    # Data-Backup kopieren
+    [ -n "$data_archive" ] && [ "$data_exists" = false ] && {
+        echo "--- Data-Backup ---"
+        echo "Kopiere: $data_archive -> ${restore_path}/umapdata/"
+        run_as_umap "${BORG_CMD}" info "${source_data_repo}::${data_archive}" >/dev/null 2>&1 || {
+            log_error "Data-Backup-Archiv '$data_archive' existiert nicht auf Host '$source_host'!"
+            echo "Verfügbare Archive:"; run_as_umap "${BORG_CMD}" list "${source_data_repo}" --glob-archives=umapdata-*; return 1
+        }
+        # Ermittle Größe vor dem Download
+        data_size=$(get_archive_size "$source_data_repo" "$data_archive")
+        data_duration=$(extract_data_backup "$source_data_repo" "$data_archive" "${restore_path}/umapdata") || return 1
+        echo "Data-Backup erfolgreich verschoben"
+        echo ""
+    }
+    
+    echo "=== Halb-Restore abgeschlossen ==="
+    echo "Backups befinden sich in: $restore_path"
+    echo ""
+    
+    # Zeige Übertragungszeiten und Geschwindigkeiten
+    if ([ -n "$db_archive" ] && [ "$db_duration" -gt 0 ]) || ([ -n "$data_archive" ] && [ "$data_duration" -gt 0 ]); then
+        echo "Übertragungszeiten:"
+        [ -n "$db_archive" ] && [ "$db_duration" -gt 0 ] && {
+            local db_duration_str
+            local db_speed_str
+            db_duration_str=$(format_duration "$db_duration")
+            if [ "$db_size" -gt 0 ]; then
+                db_speed_str=$(format_speed "$db_size" "$db_duration")
+                echo "  DB:   $db_duration_str ($db_speed_str)"
+            else
+                echo "  DB:   $db_duration_str"
+            fi
+        }
+        [ -n "$data_archive" ] && [ "$data_duration" -gt 0 ] && {
+            local data_duration_str
+            local data_speed_str
+            data_duration_str=$(format_duration "$data_duration")
+            if [ "$data_size" -gt 0 ]; then
+                data_speed_str=$(format_speed "$data_size" "$data_duration")
+                echo "  Data: $data_duration_str ($data_speed_str)"
+            else
+                echo "  Data: $data_duration_str"
+            fi
+        }
+        echo ""
+    fi
+    
+    echo "=== Wiederherstellung ==="
+    echo ""
+    
+    # Zeige einzelne Restore-Befehle
+    if [ -n "$db_archive" ] || [ -n "$data_archive" ]; then
+        echo "Einzelne Restores:"
+        [ -n "$db_archive" ] && {
+            echo "  DB:   sudo $0 restore umapdb ${restore_path}/umapdb/${db_archive}.sql"
+        }
+        [ -n "$data_archive" ] && {
+            echo "  Data: sudo $0 restore umapdata ${restore_path}/umapdata"
+        }
+        echo ""
+    fi
+    
+    # Zeige gemeinsamen Restore-Befehl, wenn beide Backups vorhanden
+    [ -n "$db_archive" ] && [ -n "$data_archive" ] && {
+        echo "Vollständiger Restore (DB + Data):"
+        echo "  sudo $0 restore all"
+    }
+}
+
+# Löse Restore-Pfad auf (SQL-Datei oder Data-Verzeichnis)
+# Parameter: $1 = Typ ("sql" oder "data"), $2 = Pfad (optional)
+resolve_restore_path() {
+    local path_type="${1:-}"
+    local restore_source="${2:-}"
+    
+    case "$path_type" in
+        sql)
+            # Wenn keine SQL-Datei angegeben, suche in allen Restore-Verzeichnissen nach der neuesten
+            if [ -z "$restore_source" ]; then
+                echo "Keine SQL-Datei angegeben, suche neueste..." >&2
+                local sql_file
+                sql_file=$(find "${RESTORE_DIR}" -type f -name "*.sql" -path "*/umapdb/*" -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -n1 | cut -d' ' -f2-)
+                if [ -z "$sql_file" ]; then
+                    log_error "Keine SQL-Datei in ${RESTORE_DIR}/*/umapdb/ gefunden!"
+                    echo "Führe zuerst 'sudo $0 restore-prepare' aus." >&2
+                    return 1
+                fi
+                echo "Verwende neueste SQL-Datei: $sql_file" >&2
+                echo "$sql_file"
+                return 0
+            fi
+            
+            local sql_file="$restore_source"
+            # Prüfe ob ein Pfad angegeben wurde (absolut oder relativ)
+            # Wenn kein Pfad-Separator enthalten ist, ist es nur ein Dateiname
+            if [[ "$sql_file" != */* ]]; then
+                # Nur Dateiname - suche in allen Restore-Verzeichnissen
+                sql_file=$(find "${RESTORE_DIR}" -type f -name "$sql_file" -path "*/umapdb/*" 2>/dev/null | head -n1)
+                if [ -z "$sql_file" ]; then
+                    log_error "SQL-Datei '$restore_source' nicht gefunden in ${RESTORE_DIR}/*/umapdb/"
+                    return 1
+                fi
+            elif [[ "$sql_file" != /* ]]; then
+                # Relativer Pfad - mache absolut relativ zum RESTORE_DIR
+                sql_file="${RESTORE_DIR}/${sql_file}"
+            fi
+            # Absoluter Pfad bleibt unverändert
+            echo "$sql_file"
+            ;;
+        data)
+            # Wenn kein Verzeichnis angegeben, suche das neueste Restore-Verzeichnis
+            if [ -z "$restore_source" ]; then
+                echo "Kein Verzeichnis angegeben, verwende neuestes..." >&2
+                local data_restore_dir
+                data_restore_dir=$(find "${RESTORE_DIR}" -type d -name "umapdata" -path "*/[0-9]*/umapdata" -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -n1 | cut -d' ' -f2-)
+                if [ -z "$data_restore_dir" ]; then
+                    log_error "Keine Data-Backups in ${RESTORE_DIR}/*/umapdata/ gefunden!"
+                    echo "Führe zuerst 'sudo $0 restore-prepare' aus." >&2
+                    return 1
+                fi
+                echo "Verwende neuestes Data-Verzeichnis: $data_restore_dir" >&2
+                echo "$data_restore_dir"
+                return 0
+            fi
+            
+            local data_restore_dir="$restore_source"
+            # Prüfe ob ein Pfad angegeben wurde (absolut oder relativ)
+            # Wenn kein Pfad-Separator enthalten ist, ist es nur ein Verzeichnisname
+            if [[ "$data_restore_dir" != */* ]]; then
+                # Nur Verzeichnisname - suche in allen Restore-Verzeichnissen
+                data_restore_dir=$(find "${RESTORE_DIR}" -type d -name "$data_restore_dir" -path "*/[0-9]*/umapdata" 2>/dev/null | head -n1)
+                if [ -z "$data_restore_dir" ]; then
+                    log_error "Data-Backup-Verzeichnis '$restore_source' nicht gefunden in ${RESTORE_DIR}/*/umapdata/"
+                    return 1
+                fi
+            elif [[ "$data_restore_dir" != /* ]]; then
+                # Relativer Pfad - mache absolut relativ zum RESTORE_DIR
+                data_restore_dir="${RESTORE_DIR}/${data_restore_dir}"
+            fi
+            # Absoluter Pfad bleibt unverändert
+            echo "$data_restore_dir"
+            ;;
+        *)
+            log_error "Ungültiger Pfad-Typ: $path_type (erwartet 'sql' oder 'data')"
+            return 1
+            ;;
+    esac
+}
+
+# Führe DB-Restore aus
+# Parameter: $1 = SQL-Datei
+restore_database() {
+    local sql_file="${1:-}"
+    
+    # Prüfe ob SQL-Datei existiert
+    if [ ! -f "$sql_file" ]; then
+        log_error "SQL-Datei $sql_file existiert nicht!"
+        echo "Verfügbare Restore-Verzeichnisse:" >&2
+        ls -1d "${RESTORE_DIR}"/*/umapdb/ 2>/dev/null | sed 's|.*/|  |' || echo "  (keine gefunden)" >&2
+        return 1
+    fi
+    
+    echo "=== Vollständiger DB-Restore ==="
+    echo "SQL-Datei: $sql_file"
+    echo ""
+    
+    # Liste der betroffenen Container ausgeben
+    echo "Folgende Container und ihre zugehörigen Volumeswerden gestoppt und entfernt:"
+    local running_containers
+    running_containers=$(docker compose -f "$COMPOSE_FILE" ps --format "table {% raw %}{{.Name}}{% endraw %}\t{% raw %}{{.Status}}{% endraw %}" 2>/dev/null | grep -E "^umap_" || echo "")
+    if [ -n "$running_containers" ]; then
+        echo "$running_containers" | sed 's/^/  /'
+    else
+        echo "  (keine laufenden Container gefunden)"
+    fi
+    echo ""
+
+    if ! confirm_action "Fortfahren"; then
+        return 1
+    fi
+    
+    # Wechsle ins uMap-Verzeichnis
+    cd "$UMAP_BASEDIR" || return 1
+    
+    # Alle Container stoppen und entfernen sowie alle Volumes löschen
+    echo ""
+    echo "1. Stoppe alle Container und lösche alle Volumes..."
+    docker compose -f "$COMPOSE_FILE" down -v || {
+        log_error "Fehler beim Stoppen der Container oder Löschen der Volumes"
+        return 1
+    }
+    
+    # Nur DB-Container starten
+    echo ""
+    echo "2. Starte nur DB-Container..."
+    docker compose -f "$COMPOSE_FILE" up -d db || {
+        log_error "Fehler beim Starten des DB-Containers"
+        return 1
+    }
+    
+    # Warte bis DB bereit ist
+    echo ""
+    echo "3. Warte auf DB-Bereitschaft..."
+    local db_ready=false
+    for i in $(seq 1 $DB_READY_RETRIES); do
+        if docker compose -f "$COMPOSE_FILE" exec -T db pg_isready -U {{ umap__database_user }} >/dev/null 2>&1; then
+            echo "DB ist bereit."
+            db_ready=true
+            break
+        fi
+        sleep 1
+    done
+    if [ "$db_ready" != "true" ]; then
+        log_error "DB ist nach ${DB_READY_TIMEOUT} Sekunden nicht bereit"
+        return 1
+    fi
+    
+    # Zusätzliche Wartezeit, um sicherzustellen, dass die DB vollständig initialisiert ist
+    echo "Warte 5 Sekunden, damit die DB vollständig initialisiert ist..."
+    sleep 5
+    
+    # SQL-Datei in Container kopieren
+    echo ""
+    echo "4. Kopiere SQL-Datei in DB-Container..."
+    docker compose -f "$COMPOSE_FILE" cp "$sql_file" db:/tmp/restore.sql || {
+        log_error "Fehler beim Kopieren der SQL-Datei"
+        return 1
+    }
+    
+    # SQL-Datei in DB einspielen
+    echo ""
+    echo "5. Spiele SQL-Datei in DB ein..."
+    local psql_output
+    local psql_exit_code
+    psql_output=$(docker compose -f "$COMPOSE_FILE" exec -T db psql -U {{ umap__database_user }} -d {{ umap__database_name }} -f /tmp/restore.sql 2>&1)
+    psql_exit_code=$?
+    
+    echo "$psql_output"
+    
+    # Prüfe Exit-Code
+    if [ $psql_exit_code -ne 0 ]; then
+        echo ""
+        log_error "Fehler beim Einspielen der SQL-Datei (Exit-Code: $psql_exit_code)"
+        echo "Bitte prüfe die Ausgabe oben auf Fehlermeldungen." >&2
+        return 1
+    fi
+    
+    # Temporäre Datei im Container löschen
+    docker compose -f "$COMPOSE_FILE" exec -T db rm /tmp/restore.sql || {
+        log_warning "Konnte temporäre SQL-Datei im Container nicht löschen"
+    }
+    
+    echo ""
+    echo "DB-Restore erfolgreich abgeschlossen!"
+    echo "Nächster Schritt: Starte alle Container mit 'docker compose -f $COMPOSE_FILE up -d'"
+}
+
+# Führe Data-Restore aus
+# Parameter: $1 = Data-Verzeichnis
+restore_data() {
+    local data_restore_dir="${1:-}"
+    
+    # Prüfe ob Verzeichnis existiert und nicht leer ist
+    if [ ! -d "$data_restore_dir" ] || [ -z "$(ls -A "$data_restore_dir" 2>/dev/null)" ]; then
+        log_error "Keine Data-Backups in $data_restore_dir gefunden!"
+        return 1
+    fi
+    
+    echo "=== Vollständiger Data-Restore ==="
+    echo "Quelle: $data_restore_dir"
+    echo "Ziel: ${UMAP_BASEDIR}/umapdata/"
+    echo ""
+    log_warning "Der gesamte Inhalt von ${UMAP_BASEDIR}/umapdata/ wird gelöscht!"
+    echo ""
+    if ! confirm_action "Fortfahren"; then
+        return 1
+    fi
+    
+    # Inhalt von umapdata löschen
+    echo ""
+    echo "1. Lösche Inhalt von ${UMAP_BASEDIR}/umapdata/..."
+    find "${UMAP_BASEDIR}/umapdata" -mindepth 1 -maxdepth 1 -exec rm -rf {} \; || {
+        log_error "Fehler beim Löschen des Verzeichnisses: ${UMAP_BASEDIR}/umapdata"
+        return 1
+    }
+    
+    # Dateien aus restoredata verschieben
+    echo ""
+    echo "2. Verschiebe Dateien aus $data_restore_dir nach ${UMAP_BASEDIR}/umapdata/..."
+    mv "$data_restore_dir"/* "${UMAP_BASEDIR}/umapdata/" || {
+        log_error "Fehler beim Verschieben der Dateien von $data_restore_dir nach ${UMAP_BASEDIR}/umapdata"
+        return 1
+    }
+    
+    # Berechtigungen setzen
+    echo ""
+    echo "3. Setze Berechtigungen..."
+    chown -R {{ umap__user }}:docker "${UMAP_BASEDIR}/umapdata" || {
+        log_error "Fehler beim Setzen der Berechtigungen für ${UMAP_BASEDIR}/umapdata"
+        return 1
+    }
+    
+    echo ""
+    echo "Data-Restore erfolgreich abgeschlossen!"
+}
+
+# Vollständiger Restore
+restore_full() {
+    # Initialisiere RESTORE_DIR mit Standard-Wert
+    RESTORE_DIR="${RESTORE_DIR_DEFAULT}"
+    
+    # Parse --restore-dir Parameter zuerst
+    local remaining_args
+    remaining_args=$(parse_restore_dir "$@")
+    if [ $? -ne 0 ]; then
+        echo "Verwendung: sudo $0 restore [--restore-dir <dir>] [umapdb|umapdata|all] [sql-file|data-dir]" >&2
+        return 1
+    fi
+    
+    # Konvertiere String zurück zu Array
+    eval "local args_array=($remaining_args)"
+    local restore_type="${args_array[0]:-}"
+    local restore_source="${args_array[1]:-}"
+    
+    case "$restore_type" in
+        umapdb)
+            local sql_file
+            sql_file=$(resolve_restore_path "sql" "$restore_source") || return 1
+            restore_database "$sql_file"
+            ;;
+        umapdata)
+            local data_restore_dir
+            data_restore_dir=$(resolve_restore_path "data" "$restore_source") || return 1
+            restore_data "$data_restore_dir"
+            ;;
+        all)
+            echo "=== Vollständiger Restore (DB + Data) ==="
+            echo ""
+            
+            # Verwende resolve_restore_path für beide Pfade (ohne Quelle = neueste)
+            local sql_file
+            local data_restore_dir
+            sql_file=$(resolve_restore_path "sql" "") || return 1
+            data_restore_dir=$(resolve_restore_path "data" "") || return 1
+            
+            echo "Verwende SQL-Datei: $sql_file"
+            echo ""
+            
+            # DB-Restore
+            restore_database "$sql_file" || return 1
+            
+            # Data-Restore
+            restore_data "$data_restore_dir" || return 1
+            
+            echo ""
+            echo "=== Vollständiger Restore abgeschlossen! ==="
+            echo "Starte alle Container mit: cd ${UMAP_BASEDIR} && docker compose -f $COMPOSE_FILE up -d"
+            ;;
+        *)
+            log_error "Ungültiger Restore-Typ: $restore_type"
+            echo "Verwendung: sudo $0 restore [umapdb|umapdata|all] [sql-file|data-dir]"
+            return 1
+            ;;
+    esac
+}
+
+# Führe Repository-Command aus (list oder info)
+# Parameter: $1 = Command ("list" oder "info"), $2 = Repository-Parameter, $3 = weiterer Parameter, $4 = weiterer Parameter
+handle_repo_command() {
+    local command="${1:-}"
+    local repo_param="${2:-}"
+    local param3="${3:-}"
+    local param4="${4:-}"
+    
+    # Parse Parameter: --host <hostname> oder direktes Repository
+    local host_and_repo
+    host_and_repo=$(parse_host_and_repo "$repo_param" "$param3" "$param4")
+    if [ $? -ne 0 ]; then
+        echo "Verwendung: sudo $0 $command --host <hostname> [umapdata|umapdb]" >&2
+        return 1
+    fi
+    
+    local host="${host_and_repo%%|*}"
+    local repo="${host_and_repo##*|}"
+    
+    # Prüfe ob Repository-Argument gültig ist
+    if [ -n "$repo" ] && [ "$repo" != "umapdata" ] && [ "$repo" != "umapdb" ]; then
+        log_error "Ungültiges Repository: $repo"
+        echo "Verwende 'umapdata' oder 'umapdb'" >&2
+        return 1
+    fi
+    
+    # Teste SSH-Verbindung
+    if ! test_ssh_connection; then
+        log_warning "SSH-Verbindungstest fehlgeschlagen, versuche trotzdem fortzufahren..."
+        echo ""
+    fi
+    
+    # Setze Repository-URLs basierend auf host
+    local repo_urls
+    repo_urls=$(get_repo_urls "$host")
+    local data_repo="${repo_urls%%|*}"
+    local db_repo="${repo_urls##*|}"
+    
+    # Zeige Host-Information (wenn anderer Host)
+    if [ "$host" != "$CURRENT_HOST" ]; then
+        case "$command" in
+            list)
+                echo "Backups von Host: ${host}"
+                ;;
+            info)
+                echo "Repository-Informationen von Host: ${host}"
+                ;;
+        esac
+        echo ""
+    else
+        case "$command" in
+            list)
+                echo "Auflisten der Backups..."
+                ;;
+            info)
+                echo "Repository-Informationen..."
+                ;;
+        esac
+        echo ""
+    fi
+    
+    local exit_code=0
+    
+    # Führe Command für data/db aus
+    case "$command" in
+        list)
+            if [ -z "$repo" ] || [ "$repo" = "umapdata" ]; then
+                if ! check_repo data "${BORG_CMD}" list "${data_repo}" --glob-archives=umapdata-*; then
+                    exit_code=1
+                fi
+                echo ""
+            fi
+            
+            if [ -z "$repo" ] || [ "$repo" = "umapdb" ]; then
+                if ! check_repo db "${BORG_CMD}" list "${db_repo}" --glob-archives=umapdb-*; then
+                    exit_code=1
+                fi
+            fi
+            ;;
+        info)
+            if [ -z "$repo" ] || [ "$repo" = "umapdata" ]; then
+                if ! check_repo data "${BORG_CMD}" info "${data_repo}"; then
+                    exit_code=1
+                fi
+                echo ""
+            fi
+            
+            if [ -z "$repo" ] || [ "$repo" = "umapdb" ]; then
+                if ! check_repo db "${BORG_CMD}" info "${db_repo}"; then
+                    exit_code=1
+                fi
+            fi
+            ;;
+        *)
+            log_error "Ungültiger Command: $command (erwartet 'list' oder 'info')"
+            return 1
+            ;;
+    esac
+    
+    return $exit_code
+}
+
+# Hauptlogik
+ACTION="${1:-help}"
+REPO="${2:-}"
+
+case "$ACTION" in
+    list|ls)
+        handle_repo_command "list" "${REPO}" "${3:-}" "${4:-}"
+        exit $?
+        ;;
+    info)
+        handle_repo_command "info" "${REPO}" "${3:-}" "${4:-}"
+        exit $?
+        ;;
+    test)
+        echo "Test der Backup-Verbindung..."
+        echo ""
+        
+        if test_ssh_connection; then
+            echo "SSH-Verbindung zum Backup-Server: OK"
+            exit 0
+        else
+            echo "SSH-Verbindung zum Backup-Server: FEHLGESCHLAGEN"
+            exit 1
+        fi
+        ;;
+    backup)
+        backup_type="${2:-}"
+        if [ -z "$backup_type" ]; then
+            log_error "Backup-Typ fehlt"
+            echo "Verwendung: sudo $0 backup [umapdata|umapdb|all]"
+            exit 1
+        fi
+        start_backup "$backup_type"
+        ;;
+    list-hosts|hosts)
+        list_hosts
+        ;;
+    restore-prepare)
+        restore_prepare "${@:2}"
+        ;;
+    restore)
+        if [ $# -lt 2 ]; then
+            log_error "Restore-Typ fehlt"
+            echo "Verwendung: sudo $0 restore [--restore-dir <dir>] [umapdb|umapdata|all] [sql-file|data-dir]"
+            echo "           (sql-file ist optional für 'umapdb', verwendet dann neueste)"
+            echo "           (data-dir ist optional für 'umapdata', verwendet dann neueste)"
+            exit 1
+        fi
+        restore_full "${@:2}"
+        ;;
+    help|--help|-h)
+        echo "uMap Backup Management Tool"
+        echo ""
+        echo "Verwendung: sudo $0 [command] [options]"
+        echo ""
+        echo "COMMANDS:"
+        echo ""
+        echo "  list-hosts"
+        echo "    Listet alle Hosts auf dem Backup-Server auf"
+        echo ""
+        echo "  list [--host <hostname>] [umapdata|umapdb]"
+        echo "    Listet alle Backups auf"
+        echo "    Optionen:"
+        echo "      --host <hostname>    Backups von anderem Host anzeigen"
+        echo "      umapdata|umapdb      Nur bestimmtes Repository anzeigen (optional)"
+        echo ""
+        echo "  info [--host <hostname>] [umapdata|umapdb]"
+        echo "    Zeigt Repository-Informationen"
+        echo "    Optionen:"
+        echo "      --host <hostname>    Info von anderem Host anzeigen"
+        echo "      umapdata|umapdb      Nur bestimmtes Repository anzeigen (optional)"
+        echo ""
+        echo "  test"
+        echo "    Testet die SSH-Verbindung zum Backup-Server"
+        echo ""
+        echo "  backup [umapdata|umapdb|all]"
+        echo "    Startet manuell ein Backup"
+        echo "    Optionen:"
+        echo "      umapdata    Nur Daten-Backup"
+        echo "      umapdb      Nur Datenbank-Backup"
+        echo "      all         Beide Backups (Standard)"
+        echo ""
+        echo "  restore-prepare [--restore-dir <dir>] [--host <hostname>] [umapdb|umapdata] [db-archiv] [data-archiv]"
+        echo "    Kopiert Backups vom Remote-Server in lokales Verzeichnis"
+        echo "    Optionen:"
+        echo "      --restore-dir <dir>  Alternatives Verzeichnis (Standard: ${RESTORE_DIR_DEFAULT})"
+        echo "      --host <hostname>    Backup von anderem Host wiederherstellen"
+        echo "      umapdb|umapdata      Nur DB oder nur Data holen (optional)"
+        echo "      [db-archiv]          Spezifisches DB-Archiv (optional, sonst neuestes)"
+        echo "      [data-archiv]        Spezifisches Data-Archiv (optional, sonst neuestes)"
+        echo ""
+        echo "  restore [--restore-dir <dir>] [umapdb|umapdata|all] [sql-file|data-dir]"
+        echo "    Vollständiger Restore in Produktionsverzeichnisse"
+        echo "    Optionen:"
+        echo "      --restore-dir <dir>  Alternatives Verzeichnis für Restore-Daten"
+        echo ""
+        echo "    Restore-Typen:"
+        echo "      umapdb [sql-file]"
+        echo "        Stoppt Container, löscht Volumes, startet DB, spielt SQL ein"
+        echo "        sql-file: Dateiname oder Pfad (optional, sonst neueste)"
+        echo ""
+        echo "      umapdata [data-dir]"
+        echo "        Löscht /srv/umap/umapdata/, verschiebt Dateien aus restoredata/"
+        echo "        data-dir: Verzeichnisname oder Pfad (optional, sonst neuestes)"
+        echo ""
+        echo "      all"
+        echo "        Führt umapdb und umapdata Restore aus"
+        echo ""
+        echo "Weitere Informationen und Beispiele finden sich in der Dokumentation:"
+        echo "  roles/umap/docs/README_BACKUP.md"
+        exit 0
+        ;;
+    *)
+        log_error "Unbekannter Befehl: $ACTION"
+        echo "Verwendung: sudo $0 [command] [options]"
+        echo "Verwende '$0 help' für Hilfe"
+        exit 1
+        ;;
+esac
+

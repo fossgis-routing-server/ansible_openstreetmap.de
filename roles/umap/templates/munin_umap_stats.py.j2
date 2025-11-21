@@ -1,0 +1,205 @@
+#!/usr/bin/env python3
+
+import sys
+import json
+import urllib.request
+import urllib.error
+
+# URL zur uMap Stats API - lokal auf localhost, da das Plugin auf demselben Server läuft
+STATS_URL = "http://127.0.0.1:{{ umap__proxy_port }}/stats/"
+# Host-Header muss auf die Server-URL gesetzt werden, damit Django ALLOWED_HOSTS akzeptiert
+STATS_HOST = "{{ umap__server_url }}"
+
+# Für Munin: Konfiguration der Graphen anzeigen (Multigraph)
+if len(sys.argv) > 1 and sys.argv[1] == "config":
+    # Graph 1: Active Sessions - sehr dynamische Metrik, separat
+    print("multigraph umap_stats_sessions")
+    print("graph_title uMap Active Sessions")
+    print("graph_vlabel sessions")
+    print("graph_category umap")
+    print("graph_info Current active user sessions")
+    print("active_sessions.label Active Sessions")
+    print("active_sessions.type GAUGE")
+    print("active_sessions.min 0")
+    print("")
+    
+    # Graph 2: Activity - wöchentliche Aktivität
+    print("multigraph umap_stats_activity")
+    print("graph_title uMap Weekly Activity")
+    print("graph_vlabel count")
+    print("graph_category umap")
+    print("graph_info Activity metrics from last week")
+    print("maps_active_last_week.label Maps Active Last Week")
+    print("maps_active_last_week.type GAUGE")
+    print("maps_active_last_week.min 0")
+    print("users_active_last_week.label Users Active Last Week")
+    print("users_active_last_week.type GAUGE")
+    print("users_active_last_week.min 0")
+    print("")
+    
+    # Graph 3: Total Maps - separat wegen sehr großer Skala
+    print("multigraph umap_stats_maps")
+    print("graph_title uMap Total Maps")
+    print("graph_vlabel count")
+    print("graph_category umap")
+    print("graph_info Total number of maps (cumulative, shows growth trend)")
+    print("maps_count.label Total Maps")
+    print("maps_count.type GAUGE")
+    print("maps_count.min 0")
+    print("")
+    
+    # Graph 4: Total Users - separat wegen unterschiedlicher Skala zu Maps
+    print("multigraph umap_stats_users")
+    print("graph_title uMap Total Users")
+    print("graph_vlabel count")
+    print("graph_category umap")
+    print("graph_info Total number of users (cumulative, shows growth trend)")
+    print("users_count.label Total Users")
+    print("users_count.type GAUGE")
+    print("users_count.min 0")
+    print("")
+    
+    # Graph 5: Teams - separate wegen sehr kleiner Skala
+    print("multigraph umap_stats_teams")
+    print("graph_title uMap Teams")
+    print("graph_vlabel count")
+    print("graph_category umap")
+    print("graph_info Total number of teams (cumulative, shows growth trend)")
+    print("teams_count.label Teams")
+    print("teams_count.type GAUGE")
+    print("teams_count.min 0")
+    print("")
+    
+    # Graph 6: Roles - Hauptrollen (größere Zahlen)
+    print("multigraph umap_stats_roles_main")
+    print("graph_title uMap Roles (Main)")
+    print("graph_vlabel count")
+    print("graph_category umap")
+    print("graph_info Main user roles (owners and orphans)")
+    print("owners_count.label Owners")
+    print("owners_count.type GAUGE")
+    print("owners_count.min 0")
+    print("orphans_count.label Orphans")
+    print("orphans_count.type GAUGE")
+    print("orphans_count.min 0")
+    print("")
+    
+    # Graph 6: Roles - Team-Rollen (kleinere Zahlen)
+    print("multigraph umap_stats_roles_team")
+    print("graph_title uMap Roles (Team)")
+    print("graph_vlabel count")
+    print("graph_category umap")
+    print("graph_info Team-related user roles")
+    print("editors_count.label Editors")
+    print("editors_count.type GAUGE")
+    print("editors_count.min 0")
+    print("members_count.label Members")
+    print("members_count.type GAUGE")
+    print("members_count.min 0")
+    sys.exit(0)
+
+# Hilfsfunktion zum sicheren Ausgeben von Werten
+def safe_value(value):
+    """Konvertiert einen Wert zu einem String für Munin, behandelt None als 0"""
+    if value is None:
+        return "0"
+    try:
+        # Stelle sicher, dass es eine Zahl ist
+        num = int(value)
+        return str(num)
+    except (ValueError, TypeError):
+        return "U"
+
+# Werte von der API abrufen und ausgeben
+try:
+    req = urllib.request.Request(STATS_URL, headers={
+        "User-Agent": "Munin-umap-stats/1.0",
+        "Host": STATS_HOST
+    })
+    with urllib.request.urlopen(req, timeout=10) as response:
+        if response.getcode() != 200:
+            raise Exception(f"HTTP {response.getcode()}")
+        
+        content = response.read().decode('utf-8')
+        if not content:
+            raise Exception("Empty response")
+        
+        data = json.loads(content)
+        
+        if not isinstance(data, dict):
+            raise Exception("Invalid JSON response")
+        
+        # Graph 1: Active Sessions - sehr dynamische Metrik
+        print("multigraph umap_stats_sessions")
+        print(f"active_sessions.value {safe_value(data.get('active_sessions'))}")
+        
+        # Graph 2: Activity - wöchentliche Aktivität
+        print("multigraph umap_stats_activity")
+        print(f"maps_active_last_week.value {safe_value(data.get('maps_active_last_week_count'))}")
+        print(f"users_active_last_week.value {safe_value(data.get('users_active_last_week_count'))}")
+        
+        # Graph 3: Total Maps - separat wegen sehr großer Skala
+        print("multigraph umap_stats_maps")
+        print(f"maps_count.value {safe_value(data.get('maps_count'))}")
+        
+        # Graph 4: Total Users - separat wegen unterschiedlicher Skala zu Maps
+        print("multigraph umap_stats_users")
+        print(f"users_count.value {safe_value(data.get('users_count'))}")
+        
+        # Graph 5: Teams separat (wegen kleiner Skala)
+        print("multigraph umap_stats_teams")
+        print(f"teams_count.value {safe_value(data.get('teams_count'))}")
+        
+        # Graph 6: Roles - Hauptrollen (größere Zahlen)
+        print("multigraph umap_stats_roles_main")
+        print(f"owners_count.value {safe_value(data.get('owners_count'))}")
+        print(f"orphans_count.value {safe_value(data.get('orphans_count'))}")
+        
+        # Graph 7: Roles - Team-Rollen (kleinere Zahlen)
+        print("multigraph umap_stats_roles_team")
+        print(f"editors_count.value {safe_value(data.get('editors_count'))}")
+        print(f"members_count.value {safe_value(data.get('members_count'))}")
+        
+        sys.exit(0)
+        
+except urllib.error.URLError as e:
+    # Bei Fehler "U" (unknown) für alle Werte ausgeben
+    print("multigraph umap_stats_sessions")
+    print("active_sessions.value U")
+    print("multigraph umap_stats_activity")
+    print("maps_active_last_week.value U")
+    print("users_active_last_week.value U")
+    print("multigraph umap_stats_maps")
+    print("maps_count.value U")
+    print("multigraph umap_stats_users")
+    print("users_count.value U")
+    print("multigraph umap_stats_teams")
+    print("teams_count.value U")
+    print("multigraph umap_stats_roles_main")
+    print("owners_count.value U")
+    print("orphans_count.value U")
+    print("multigraph umap_stats_roles_team")
+    print("editors_count.value U")
+    print("members_count.value U")
+    sys.exit(1)
+except Exception as e:
+    # Bei anderen Fehlern ebenfalls "U" ausgeben
+    print("multigraph umap_stats_sessions")
+    print("active_sessions.value U")
+    print("multigraph umap_stats_activity")
+    print("maps_active_last_week.value U")
+    print("users_active_last_week.value U")
+    print("multigraph umap_stats_maps")
+    print("maps_count.value U")
+    print("multigraph umap_stats_users")
+    print("users_count.value U")
+    print("multigraph umap_stats_teams")
+    print("teams_count.value U")
+    print("multigraph umap_stats_roles_main")
+    print("owners_count.value U")
+    print("orphans_count.value U")
+    print("multigraph umap_stats_roles_team")
+    print("editors_count.value U")
+    print("members_count.value U")
+    sys.exit(1)
+
