@@ -18,6 +18,14 @@
     name: "{{ tile__user }}"
     home: "{{ tile__basedir }}"
 
+- name: Set permissions so that _tirex can read files inside
+  file:
+    path: "{{ tile__basedir }}"
+    state: directory
+    owner: "{{ tile__user }}"
+    group: "{{ tile__user }}"
+    mode: '0755'
+
 - name: Create _tirex system account
   system_account:
     name: "_tirex"
@@ -56,7 +64,7 @@
 # osm2pgsql
 - name: Ensure backports repository is enabled
   apt_repository:
-    repo: "deb http://deb.debian.org/debian bookworm-backports main"
+    repo: "deb http://deb.debian.org/debian {{ ansible_distribution_release }}-backports main"
     state: present
 
 - name: Update apt cache
@@ -66,7 +74,7 @@
 - name: Install osm2pgsql from backports
   apt:
     name: osm2pgsql
-    default_release: bookworm-backports
+    default_release: "{{ ansible_distribution_release }}-backports"
     state: latest
 
 - name: Install pyosmium with apt
@@ -233,7 +241,7 @@
 
 - name: Copy osml10n service
   shell:
-    cmd: "make systemd-service PYTARGET={{ tile__basedir }}/venv"
+    cmd: "make systemd-service PYTARGET={{ tile__basedir }}/venv NOBODY={{ tile__user }} NOGROUP={{ tile__user }}"
     chdir: "{{ tile__basedir }}/sources/osml10n/"
 
 - name: Systemd daemon reload and start osml10n service
@@ -311,6 +319,9 @@
   template:
     dest: "/etc/tirex/renderer/mapnik/{{ item.name }}.conf"
     src: tirex_style_conf.j2
+    owner: '{{ tile__user }}'
+    group: '{{ tile__user  }}'
+    mode: 0644
   vars:
     name: "{{ item.name }}"
     mapfile: "{{ item.xml }}"
@@ -333,11 +344,31 @@
   ignore_errors: yes
   become: yes
 
-- name: Make sure tirex-backend-manager is running
-  ansible.builtin.systemd:
-    state: started
-    enabled: true
-    name: tirex-backend-manager
+- name: Create Apache Logrotate (/etc/logrotate.d/apache-tirex-log)
+  common_action_plugin_logrotate:
+    name: apache-tirex-log
+    content:
+      - dest: "/var/cache/tirex/logs/*.log"
+        settings:
+          - daily
+          - rotate 7
+          - compress
+          - delaycompress
+          - missingok
+          - notifempty
+          - create 0640 root root
+
+- name: Start tirex-backend-manager
+  block:
+    - name: Make sure tirex-backend-manager is running
+      ansible.builtin.systemd:
+        name: tirex-backend-manager
+        state: started
+        enabled: true
+  rescue:
+    - name: Log error for tirex-backend-manager
+      ansible.builtin.debug:
+        msg: "Failed to start tirex-backend-manager. This is normal on the first run because the fonts are not yet installed. After copying the fonts, the service will be restarted, so this error can be safely ignored."
 
 - name: Make sure tirex-master is running
   ansible.builtin.systemd:
@@ -536,7 +567,7 @@
       </li>"
   loop: "{{ groups.tile }}"
 
-- name: list localhost for if tile__small is set (vagrant use case)
+- name: list localhost for if tile__small is set (vm use case)
   set_fact:
     tile__server_html_list: "
       <li>
@@ -555,7 +586,7 @@
   set_fact:
     tile__hostname: "{{ inventory_hostname }}.openstreetmap.de"
 
-- name: set vite_hostname if tile__small is set (vagrant use case)
+- name: set vite_hostname if tile__small is set (vm use case)
   set_fact:
     tile__hostname: "localhost:8443"
   when: tile__small
