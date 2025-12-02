@@ -18,6 +18,14 @@
     name: "{{ tile__user }}"
     home: "{{ tile__basedir }}"
 
+- name: Set permissions so that _tirex can read files inside
+  file:
+    path: "{{ tile__basedir }}"
+    state: directory
+    owner: "{{ tile__user }}"
+    group: "{{ tile__user }}"
+    mode: '0755'
+
 - name: Create _tirex system account
   system_account:
     name: "_tirex"
@@ -56,7 +64,7 @@
 # osm2pgsql
 - name: Ensure backports repository is enabled
   apt_repository:
-    repo: "deb http://deb.debian.org/debian bookworm-backports main"
+    repo: "deb http://deb.debian.org/debian trixie-backports main"
     state: present
 
 - name: Update apt cache
@@ -66,7 +74,7 @@
 - name: Install osm2pgsql from backports
   apt:
     name: osm2pgsql
-    default_release: bookworm-backports
+    default_release: trixie-backports
     state: latest
 
 - name: Install pyosmium with apt
@@ -236,6 +244,16 @@
     cmd: "make systemd-service PYTARGET={{ tile__basedir }}/venv"
     chdir: "{{ tile__basedir }}/sources/osml10n/"
 
+# https://github.com/giggls/osml10n/commit/eff0ed53a4ce1bcdba1f2a1ed215896d629685e6 but we use a different folder
+# todo: Use var for user and group like PYTARGET 3 lines above in the task "Copy osml10n service"?
+- name: Patch osml10n service permisions for Trixie
+  ansible.builtin.replace:
+    path: /etc/systemd/system/osml10n.service
+    regexp: '^(User|Group)=.*'
+    replace: |
+      User={{ tile__user }}
+      Group={{ tile__user }}
+
 - name: Systemd daemon reload and start osml10n service
   ansible.builtin.systemd:
     daemon_reload: true
@@ -332,6 +350,20 @@
     mode: 0755
   ignore_errors: yes
   become: yes
+
+- name: Create Apache Logrotate (/etc/logrotate.d/apache-tirex-log)
+  common_action_plugin_logrotate:
+    name: apache-tirex-log
+    content:
+      - dest: "/var/cache/tirex/logs/*.log"
+        settings:
+          - daily
+          - rotate 7
+          - compress
+          - delaycompress
+          - missingok
+          - notifempty
+          - create 0640 root root
 
 - name: Make sure tirex-backend-manager is running
   ansible.builtin.systemd:
@@ -536,7 +568,7 @@
       </li>"
   loop: "{{ groups.tile }}"
 
-- name: list localhost for if tile__small is set (vagrant use case)
+- name: list localhost for if tile__small is set (vm use case)
   set_fact:
     tile__server_html_list: "
       <li>
@@ -555,7 +587,7 @@
   set_fact:
     tile__hostname: "{{ inventory_hostname }}.openstreetmap.de"
 
-- name: set vite_hostname if tile__small is set (vagrant use case)
+- name: set vite_hostname if tile__small is set (vm use case)
   set_fact:
     tile__hostname: "localhost:8443"
   when: tile__small
