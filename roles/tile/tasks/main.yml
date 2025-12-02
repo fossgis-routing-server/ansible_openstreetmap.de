@@ -64,7 +64,7 @@
 # osm2pgsql
 - name: Ensure backports repository is enabled
   apt_repository:
-    repo: "deb http://deb.debian.org/debian trixie-backports main"
+    repo: "deb http://deb.debian.org/debian {{ ansible_distribution_release }}-backports main"
     state: present
 
 - name: Update apt cache
@@ -74,7 +74,7 @@
 - name: Install osm2pgsql from backports
   apt:
     name: osm2pgsql
-    default_release: trixie-backports
+    default_release: "{{ ansible_distribution_release }}-backports"
     state: latest
 
 - name: Install pyosmium with apt
