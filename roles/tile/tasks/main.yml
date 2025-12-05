@@ -241,18 +241,8 @@
 
 - name: Copy osml10n service
   shell:
-    cmd: "make systemd-service PYTARGET={{ tile__basedir }}/venv"
+    cmd: "make systemd-service PYTARGET={{ tile__basedir }}/venv NOBODY={{ tile__user }} NOGROUP={{ tile__user }}"
     chdir: "{{ tile__basedir }}/sources/osml10n/"
-
-# https://github.com/giggls/osml10n/commit/eff0ed53a4ce1bcdba1f2a1ed215896d629685e6 but we use a different folder
-# todo: Use var for user and group like PYTARGET 3 lines above in the task "Copy osml10n service"?
-- name: Patch osml10n service permisions for Trixie
-  ansible.builtin.replace:
-    path: /etc/systemd/system/osml10n.service
-    regexp: '^(User|Group)=.*'
-    replace: |
-      User={{ tile__user }}
-      Group={{ tile__user }}
 
 - name: Systemd daemon reload and start osml10n service
   ansible.builtin.systemd:
