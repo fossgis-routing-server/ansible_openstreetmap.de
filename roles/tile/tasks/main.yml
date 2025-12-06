@@ -121,7 +121,8 @@
     repo: https://github.com/giggls/openstreetmap-carto-de.git
     dest: "{{ tile__basedir }}/openstreetmap-carto-de"
     version: "{{ tile__style_version }}"
-    depth: 1
+    refspec: "+refs/pull/76/head:refs/heads/pr-76"
+    #depth: 1
   register: tile_mapnik_git
   become: yes
   become_user: "{{ tile__user }}"
@@ -319,6 +320,9 @@
   template:
     dest: "/etc/tirex/renderer/mapnik/{{ item.name }}.conf"
     src: tirex_style_conf.j2
+    owner: '{{ tile__user }}'
+    group: '{{ tile__user  }}'
+    mode: 0644
   vars:
     name: "{{ item.name }}"
     mapfile: "{{ item.xml }}"

@@ -1,8 +1,8 @@
 tile__basedir: /srv/tile
 tile__user: tile
 
-tile__style_version: v5.9.0-de7
-tile__osml10n_version: v1.3.1
+tile__style_version: d034dc6b30a189158359d4c859d384f023428fc1
+tile__osml10n_version: 564311dc047a9e4447af976df7bc14656dfac3a7
 tile__map_hrb_version: b8ef04af103e86ab47449f2d65a2fb21c8ac49fd
 
 tile__dbname: gis
