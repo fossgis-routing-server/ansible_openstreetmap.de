@@ -3,7 +3,10 @@ phpfpm__enabled: false
 phpfpm__phpversion: "{{ phpfpm__phposversion }}"
 phpfpm__phpbase: "/etc/php/{{ phpfpm__phpversion }}"
 phpfpm__fpmconfigfile: "{{ phpfpm__phpbase }}/fpm/php-fpm.conf"
+phpfpm__phpconfigfile: "{{ phpfpm__phpbase }}/fpm/php.ini"
 phpfpm__poolconfdir: "{{ phpfpm__phpbase }}/fpm/pool.d"
+phpfpm__fpmconfig: []
+phpfpm__phpconfig: []
 phpfpm__poolconfig: []
 phpfpm__config: []
 phpfpm__packages:

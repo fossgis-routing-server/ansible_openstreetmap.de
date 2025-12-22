@@ -33,3 +33,13 @@
       with_items: "{{ phpfpm__config }}"
       notify:
         - Restart php-fpm
+
+    - name: Configure php for php-fpm
+      ini_file:
+        section: "{{ item.section }}"
+        option: "{{ item.option }}"
+        value: "{{ item.value }}"
+        dest: "{{ phpfpm__phpconfigfile }}"
+      with_items: "{{ phpfpm__phpconfig }}"
+      notify:
+        - Restart php-fpm
