@@ -14,6 +14,7 @@ mail:
     root: osm-server-ag-admins@fossgis.de
   relay: true
 
+wordpress__phpversion: "8.2"
 wordpress_plugins:
   - name: autoptimize
     version: 3.1.13
@@ -94,6 +95,7 @@ phpfpm__poolconfig:
     option: "request_slowlog_timeout"
     value: "20"
 
+# prefork
 apache__mpm_config:
   - setting: "StartServers"
     value: "10"
