@@ -1,3 +1,4 @@
+---
 - name: Check for nginx
   fail:
     msg: nginx and apache cannot be run together.
@@ -34,7 +35,9 @@
     group: 'www-data'
   notify: reload apache2
 
-- name: Enable Apache modules needed for HTTPS
-  shell:
-    cmd: 'a2enmod ssl rewrite'
-  notify: reload apache2
+- name: Enable Apache modules
+  community.general.apache2_module:
+    name: "{{ item }}"
+  with_items: "{{ apache__modules }}"
+  notify:
+    - Restart apache2
