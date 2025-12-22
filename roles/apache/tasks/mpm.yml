@@ -1,0 +1,36 @@
+---
+- name: Disable mpm
+  community.general.apache2_module:
+    name: "mpm_{{ item }}"
+    warn_mpm_absent: false
+    ignore_configcheck: true
+    state: absent
+  with_items: "{{ apache__mpm_available | difference([apache__mpm]) }}"
+  tags:
+    - apache
+  notify:
+    - Restart apache
+
+- name: Enable mpm
+  community.general.apache2_module:
+    name: "mpm_{{ apache__mpm }}"
+    warn_mpm_absent: false
+    ignore_configcheck: true
+  tags:
+    - apache
+
+- name: Configure mpm
+  ansible.builtin.lineinfile:
+    path: "/etc/apache2/mods-available/mpm_{{ apache__mpm }}.conf"
+    regex: "^{{ item.setting }}"
+    line: "{{ item.setting }} {{ item.value }}"
+  with_items: "{{ apache__mpm_config }}"
+  notify:
+    - Restart apache
+  tags:
+    - apache
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+  tags:
+    - apache

@@ -12,6 +12,9 @@
   apt:
     name: apache2
 
+- name: Switch to correct mpm
+  ansible.builtin.include_tasks: mpm.yml
+
 - name: Disable default site
   apache_site:
     site: 000-default
