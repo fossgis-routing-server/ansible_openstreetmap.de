@@ -53,18 +53,17 @@ wordpress_themes:
   - name: ephemeris
     version: 1.5.3
 
-phpfpm__enabled: true
+apache__mpm_modify: true
 apache__mpm: "worker"
-
 # Disable modphp - we switch to fpm
 apache__modules_disable:
   - php8.2
-
 apache__modules_addon:
   - http2
   - proxy_fcgi
   - setenvif
 
+phpfpm__enabled: true
 phpfpm__phpopcache_enable: true
 phpfpm__phpopcache_memory: 256
 phpfpm__phpopcache_stringbuffer: 64

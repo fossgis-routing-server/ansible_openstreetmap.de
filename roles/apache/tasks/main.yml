@@ -31,6 +31,7 @@
 
 - name: Switch to correct mpm
   ansible.builtin.include_tasks: mpm.yml
+  when: apache__mpm_modify
   tags:
     - apache
 
