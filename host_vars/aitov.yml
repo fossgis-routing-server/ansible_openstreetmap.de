@@ -55,6 +55,11 @@ wordpress_themes:
 
 phpfpm__enabled: true
 apache__mpm: "worker"
+
+# Disable modphp - we switch to fpm
+apache__modules_disable:
+  - php8.2
+
 apache__modules_addon:
   - http2
   - proxy_fcgi
@@ -94,16 +99,3 @@ phpfpm__poolconfig:
     section: "www"
     option: "request_slowlog_timeout"
     value: "20"
-
-# prefork
-apache__mpm_config:
-  - setting: "StartServers"
-    value: "10"
-  - setting: "MinSpareServers"
-    value: "20"
-  - setting: "MaxSpareServers"
-    value: "30"
-  - setting: "MaxRequestWorkers"
-    value: "200"
-  - setting: "MaxConnectionsPerChild"
-    value: "100"
