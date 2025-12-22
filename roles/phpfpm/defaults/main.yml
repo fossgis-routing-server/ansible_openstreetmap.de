@@ -2,7 +2,9 @@
 phpfpm__enabled: false
 phpfpm__phpversion: "{{ phpfpm__phposversion }}"
 phpfpm__phpbase: "/etc/php/{{ phpfpm__phpversion }}"
+phpfpm__fpmconfigfile: "{{ phpfpm__phpbase }}/fpm/php-fpm.conf"
 phpfpm__poolconfdir: "{{ phpfpm__phpbase }}/fpm/pool.d"
+phpfpm__poolconfig: []
 phpfpm__config: []
 phpfpm__packages:
   - php-fpm

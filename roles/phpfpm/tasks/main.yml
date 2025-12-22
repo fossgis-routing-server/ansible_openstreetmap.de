@@ -20,6 +20,16 @@
         option: "{{ item.option }}"
         value: "{{ item.value }}"
         dest: "{{ phpfpm__poolconfdir }}/{{ item.pool }}.conf"
+      with_items: "{{ phpfpm__poolconfig }}"
+      notify:
+        - Restart php-fpm
+
+    - name: Configure php-fpm
+      ini_file:
+        section: "{{ item.section }}"
+        option: "{{ item.option }}"
+        value: "{{ item.value }}"
+        dest: "{{ phpfpm__fpmconfigfile }}"
       with_items: "{{ phpfpm__config }}"
       notify:
         - Restart php-fpm
