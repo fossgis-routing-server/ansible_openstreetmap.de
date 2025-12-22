@@ -68,7 +68,8 @@
   become: yes
   tags: wordpress
   roles:
-    - role: 'wordpress'
+    - role: phpfpm
+    - role: wordpress
 - hosts: osrm
   become: yes
   tags: osrm
