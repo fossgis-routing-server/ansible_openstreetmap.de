@@ -65,10 +65,10 @@ apache__modules_addon:
   - proxy_fcgi
   - setenvif
 
-phpfpm__opcache_enable: true
-phpfpm__opcache_memory: 256
-phpfpm__opcache_stringbuffer: 64
-phpfpm__opcache_revalidation: 60
+phpfpm__phpopcache_enable: true
+phpfpm__phpopcache_memory: 256
+phpfpm__phpopcache_stringbuffer: 64
+phpfpm__phpopcache_revalidation: 60
 
 phpfpm__fpmconfig:
   - section: "global"
