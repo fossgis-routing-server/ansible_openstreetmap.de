@@ -47,6 +47,19 @@ wordpress_plugins:
     version: 1.25.7
   - name: wordfence
     version: 8.1.0
+
 wordpress_themes:
   - name: ephemeris
     version: 1.5.3
+
+apache__mpm_config:
+  - setting: "StartServers"
+    value: "10"
+  - setting: "MinSpareServers"
+    value: "20"
+  - setting: "MaxSpareServers"
+    value: "30"
+  - setting: "MaxRequestWorkers"
+    value: "200"
+  - setting: "MaxConnectionsPerChild"
+    value: "100"
