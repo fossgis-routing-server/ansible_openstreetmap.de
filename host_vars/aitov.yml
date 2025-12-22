@@ -52,11 +52,47 @@ wordpress_themes:
   - name: ephemeris
     version: 1.5.3
 
+phpfpm__enabled: true
 apache__mpm: "worker"
 apache__modules_addon:
   - http2
   - proxy_fcgi
   - setenvif
+
+phpfpm__config:
+  - section: "global"
+    option: "error_log"
+    value: "syslog"
+
+phpfpm__poolconfig:
+  - pool: "www"
+    section: "www"
+    option: "pm.max_children"
+    value: "50"
+  - pool: "www"
+    section: "www"
+    option: "pm.min_spare_servers"
+    value: "10"
+  - pool: "www"
+    section: "www"
+    option: "pm.max_spare_servers"
+    value: "20"
+  - pool: "www"
+    section: "www"
+    option: "pm.start_servers"
+    value: "15"
+  - pool: "www"
+    section: "www"
+    option: "pm.max_requests"
+    value: "200"
+  - pool: "www"
+    section: "www"
+    option: "slowlog"
+    value: "syslog"
+  - pool: "www"
+    section: "www"
+    option: "request_slowlog_timeout"
+    value: "20"
 
 apache__mpm_config:
   - setting: "StartServers"
