@@ -1,4 +1,7 @@
 ---
+phpfpm__phpversion: "{{ phpfpm__phposversion }}"
+phpfpm__phpbase: "/etc/php/{{ phpfpm__phpversion }}"
+phpfpm__poolconfdir: "{{ phpfpm__phpbase }}/fpm/pool.d"
 phpfpm__enabled: false
 phpfpm__packages:
   - php-fpm

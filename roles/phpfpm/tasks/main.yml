@@ -4,7 +4,22 @@
   tags:
     - phpfpm
   block:
+    - name: Include OS version dependent config
+      ansible.builtin.include_vars: "{{ item }}"
+      with_first_found:
+        - "{{ ansible_distribution }}-{{ ansible_distribution_major_version }}.yml"
+
     - name: Install packages
       ansible.builtin.apt:
         name: "{{ phpfpm__packages }}"
         update_cache: true
+
+    - name: Configure php-fpm pool(s)
+      ini_file:
+        section: "{{ item.section }}"
+        option: "{{ item.option }}"
+        value: "{{ item.value }}"
+        dest: "{{ phpfpm__poolconfdir }}/{{ item.pool }}.conf"
+      with_items: "{{ phpfpm__config }}"
+      notify:
+        - Restart php-fpm
