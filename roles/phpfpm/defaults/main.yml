@@ -5,6 +5,29 @@ phpfpm__phpbase: "/etc/php/{{ phpfpm__phpversion }}"
 phpfpm__fpmconfigfile: "{{ phpfpm__phpbase }}/fpm/php-fpm.conf"
 phpfpm__phpconfigfile: "{{ phpfpm__phpbase }}/fpm/php.ini"
 phpfpm__poolconfdir: "{{ phpfpm__phpbase }}/fpm/pool.d"
+
+phpfpm__phpopcache_enable: false
+phpfpm__phpopcachedir: "/var/lib/php/opcache"
+phpfpm__phpconfig_opcache:
+  - section: "opcache"
+    option: "opcache.file_cache"
+    value: "{{ phpfpm__phpopcachedir }}"
+  - section: "opcache"
+    option: "opcache.enable"
+    value: "1"
+  - section: "opcache"
+    option: "opcache.enable_cli"
+    value: "1"
+  - section: "opcache"
+    option: "opcache.memory_consumption"
+    value: "{{ phpfpm__opcache_memory }}"
+  - section: "opcache"
+    option: "opcache.interned_strings_buffer"
+    value: "{{ phpfpm__opcache_stringbuffer "
+  - section: "opcache"
+    option: "opcache.revalidate_freq"
+    value: "{{ phpfpm__opcache_revalidation }}"
+
 phpfpm__fpmconfig: []
 phpfpm__phpconfig: []
 phpfpm__poolconfig: []

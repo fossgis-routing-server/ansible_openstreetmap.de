@@ -43,3 +43,26 @@
       with_items: "{{ phpfpm__phpconfig }}"
       notify:
         - Restart php-fpm
+
+- name: Install and configure php-fpm opcache
+  when: phpfpm__enabled and phpfpm__phpopcache_enable
+  tags:
+    - phpfpm
+  block:
+    - name: Create opcache directory
+      ansible.builtin.file:
+        path: "{{ phpfpm__phpopcachedir }}"
+        owner: www-data
+        group: www-data
+        mode: "0750"
+
+    - name: Configure php opcache for php-fpm
+      ini_file:
+        section: "{{ item.section }}"
+        option: "{{ item.option }}"
+        value: "{{ item.value }}"
+        dest: "{{ phpfpm__phpconfigfile }}"
+      with_items: "{{ phpfpm__phpconfig_opcache }}"
+      when: phpfpm__phpopcache_enable
+      notify:
+        - Restart php-fpm
