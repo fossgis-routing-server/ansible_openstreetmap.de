@@ -1,6 +1,4 @@
-# roles/wordpress/defaults/main.yml
 ---
-
 wordpress_directory: '/var/www/wordpress'
 
 wordpress_plugin_directory: "{{ wordpress_directory }}/wp-content/plugins"
@@ -9,15 +7,4 @@ wordpress_theme_directory: "{{ wordpress_directory }}/wp-content/themes"
 wordpress_plugins: []
 wordpress_themes: []
 
-# Using fpm this should be set to "fpm" to find the correct php.ini file
-wordpress__phpmode: "fpm"
-wordpress__phpfpm: true
-wordpress__phpfpmmaxchildren: 25
-wordpress__phpfpmconf: "{{ wordpress__phpbase }}/fpm/php-fpm.conf"
-wordpress__phpfpmpoolconf: "{{ wordpress__phpbase }}/fpm/pool.d/www.conf"
 wordpress__phpversion: "8.2"
-wordpress__fpmservice: "php{{ wordpress__phpversion }}-fpm"
-wordpress__phpopcache: true
-wordpress__phpopcachepath: "/var/lib/php/opcache"
-wordpress__phpbase: "/etc/php/{{ wordpress__phpversion }}"
-wordpress__phpini: "{{ wordpress__phpbase }}/{{ wordpress__phpmode }}/php.ini"
