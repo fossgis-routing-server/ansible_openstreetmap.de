@@ -3,22 +3,32 @@
   fail:
     msg: nginx and apache cannot be run together.
   when: "(webserver__in_use | default('apache2')) != 'apache2'"
+  tags:
+    - apache
 
 - name: Mark apache the hosts webserver
   set_fact:
     webserver__in_use: apache2
+  tags:
+    - apache
 
 - name: Install apache
-  apt:
+  ansible.builtin.apt:
     name: apache2
+  tags:
+    - apache
 
 - name: Switch to correct mpm
   ansible.builtin.include_tasks: mpm.yml
+  tags:
+    - apache
 
 - name: Disable default site
   apache_site:
     site: 000-default
     state: absent
+  tags:
+    - apache
 
 - name: localhost site for server-status
   template:
@@ -42,5 +52,7 @@
   community.general.apache2_module:
     name: "{{ item }}"
   with_items: "{{ apache__modules }}"
+  tags:
+    - apache
   notify:
     - Restart apache2

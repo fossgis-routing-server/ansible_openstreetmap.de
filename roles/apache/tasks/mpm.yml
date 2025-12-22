@@ -9,7 +9,7 @@
   tags:
     - apache
   notify:
-    - Restart apache
+    - Restart apache2
 
 - name: Enable mpm
   community.general.apache2_module:
@@ -22,11 +22,11 @@
 - name: Configure mpm
   ansible.builtin.lineinfile:
     path: "/etc/apache2/mods-available/mpm_{{ apache__mpm }}.conf"
-    regex: "^{{ item.setting }}"
-    line: "{{ item.setting }} {{ item.value }}"
+    regex: "^\\s*{{ item.setting }}"
+    line: "	{{ item.setting }} {{ item.value }}"
   with_items: "{{ apache__mpm_config }}"
   notify:
-    - Restart apache
+    - Restart apache2
   tags:
     - apache
 
