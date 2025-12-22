@@ -4,6 +4,8 @@ apache__modules_always:
   - ssl
 apache__modules: "{{ apache__modules_always + apache__modules_addon }}"
 
+apache__modules_disable: []
+
 apache__mpm_config: []
 apache__mpm: "prefork"
 apache__mpm_available:

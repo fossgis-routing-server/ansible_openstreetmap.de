@@ -18,6 +18,17 @@
   tags:
     - apache
 
+# Needs to run before mpm change
+- name: Disable Apache modules
+  community.general.apache2_module:
+    name: "{{ item }}"
+    state: absent
+  with_items: "{{ apache__modules_disable }}"
+  tags:
+    - apache
+  notify:
+    - Restart apache2
+
 - name: Switch to correct mpm
   ansible.builtin.include_tasks: mpm.yml
   tags:
