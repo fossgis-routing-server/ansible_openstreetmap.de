@@ -52,6 +52,12 @@ wordpress_themes:
   - name: ephemeris
     version: 1.5.3
 
+apache__mpm: "worker"
+apache__modules_addon:
+  - http2
+  - proxy_fcgi
+  - setenvif
+
 apache__mpm_config:
   - setting: "StartServers"
     value: "10"
