@@ -1,0 +1,4 @@
+---
+phpfpm__enabled: false
+phpfpm__packages:
+  - php-fpm

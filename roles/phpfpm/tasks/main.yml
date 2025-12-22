@@ -1,0 +1,10 @@
+---
+- name: Install and configure php-fpm
+  when: phpfpm__enabled
+  tags:
+    - phpfpm
+  block:
+    - name: Install packages
+      ansible.builtin.apt:
+        name: "{{ phpfpm__packages }}"
+        update_cache: true
