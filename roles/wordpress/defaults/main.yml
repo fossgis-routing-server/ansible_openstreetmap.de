@@ -16,13 +16,8 @@ wordpress__phpfpmmaxchildren: 25
 wordpress__phpfpmconf: "{{ wordpress__phpbase }}/fpm/php-fpm.conf"
 wordpress__phpfpmpoolconf: "{{ wordpress__phpbase }}/fpm/pool.d/www.conf"
 wordpress__phpversion: "8.2"
-wordpress__apache2phpfpmconf: "php{{ wordpress__phpversion }}-fpm"
 wordpress__fpmservice: "php{{ wordpress__phpversion }}-fpm"
 wordpress__phpopcache: true
 wordpress__phpopcachepath: "/var/lib/php/opcache"
 wordpress__phpbase: "/etc/php/{{ wordpress__phpversion }}"
 wordpress__phpini: "{{ wordpress__phpbase }}/{{ wordpress__phpmode }}/php.ini"
-
-wordpress__mpmworker_maxworkers: 250
-wordpress__mpmworker_startservers: 4
-wordpress__mpmworker_maxconnectionsperchild: 4000

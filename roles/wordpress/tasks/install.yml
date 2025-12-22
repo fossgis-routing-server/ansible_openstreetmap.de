@@ -4,40 +4,10 @@
   apt:
     name: [mariadb-server, php, php-mysql, php-curl, php-gd, php-imagick, php-mbstring, php-xml, php-xmlrpc, php-soap, php-intl, php-zip, php-opcache, python3-pymysql, tar, gzip, unzip]
 
-- name: Enable http2 in apache2
-  apache_module:
-    name: "{{ item }}"
-  with_items:
-    - http2
-  notify: apache2 restart
-
 - name: Install php-fpm
   apt:
     name:
       - php-fpm
-  when: wordpress__phpfpm
-
-- name: Enable apache2 modules for phpfpm
-  apache_module:
-    name: "{{ item }}"
-  with_items:
-    - proxy_fcgi
-    - setenvif
-  notify: apache2 restart
-  when: wordpress__phpfpm
-
-- name: Disable apache2 modules for phpfpm
-  apache_module:
-    name: "php{{ wordpress__phpversion }}"
-    state: absent
-  notify: apache2 restart
-  when: wordpress__phpfpm
-
-- name: Enable config for phpfpm
-  shell: "a2enconf {{ wordpress__apache2phpfpmconf }}"
-  args:
-    creates: "/etc/apache2/conf-enabled/{{ wordpress__apache2phpfpmconf }}.conf"
-  notify: apache2 restart
   when: wordpress__phpfpm
 
 - name: Create opcache directory
@@ -92,44 +62,6 @@
   when: wordpress__phpfpm
   notify:
     - phpfpm reload
-
-
-- name: Disable mpm_prefork, enable mpm_event and ignore warnings about missing mpm module
-  apache_module:
-    name: "{{ item.module }}"
-    state: "{{ item.state }}"
-    warn_mpm_absent: false
-    ignore_configcheck: true
-  loop:
-  - module: mpm_prefork
-    state: absent
-  - module: mpm_event
-    state: absent
-  - module: mpm_worker
-    state: present
-  notify:
-    - apache2 restart
-  when: wordpress__phpfpm
-
-- name: Configure mpm_worker
-  ansible.builtin.lineinfile:
-    path: /etc/apache2/mods-available/mpm_worker.conf
-    owner: "root"
-    group: "root"
-    mode: "0644"
-    regex: "{{ item.regexp }}"
-    line: "{{ item.line }}"
-  notify:
-    - apache2 restart
-  loop:
-    - regexp: '^\s*StartServers'
-      line: '     StartServers {{ wordpress__mpmworker_startservers }}'
-    - regexp: '^\s*MaxRequestWorkers'
-      line: '     MaxRequestWorkers {{ wordpress__mpmworker_maxworkers }}'
-    - regexp: '^\s*MaxConnectionsPerChild'
-      line: '     MaxConnectionsPerChild  {{ wordpress__mpmworker_maxconnectionsperchild }}'
-  tags:
-    - zzexperiment
 
 - name: "Create database for Wordpress"
   mysql_db:
