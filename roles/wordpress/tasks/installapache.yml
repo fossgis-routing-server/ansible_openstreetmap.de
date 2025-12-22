@@ -1,0 +1,30 @@
+---
+- name: 'Write Apache VirtualHost configuration'
+  apache_site:
+    site: weeklyosm.eu
+    src: 'weeklyosm.eu.conf'
+  notify:
+    - reload apache2
+  tags:
+    - apache
+
+- name: "Create directories in /etc/systemd/system/ for overrides"
+  file:
+    state: directory
+    path: '/etc/systemd/system/{{ item }}.service.d'
+    owner: root
+    group: root
+  loop:
+    - apache2
+  tags:
+    - apache
+
+- name: "ensure apache is always restarted if it dies"
+  copy:
+    dest: '/etc/systemd/system/apache2.service.d/override.conf'
+    content: |
+        [Service]
+        Restart=always
+        RestartSec=30s
+  tags:
+    - apache

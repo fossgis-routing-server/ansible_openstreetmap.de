@@ -1,5 +1,10 @@
 # SPDX-License-Identifier: MIT
 ---
+- name: Install apache site
+  include_tasks: installapache.yml
+  tags:
+    - wordpress
+    - apache
 
 - name: Install Wordpress
   include_tasks: install.yml

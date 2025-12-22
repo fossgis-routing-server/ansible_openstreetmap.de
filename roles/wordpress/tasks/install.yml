@@ -142,12 +142,6 @@
 #      shell:
 #        cmd: 'gzip -dc /root/packages/wpblog_dump.sql.gz | mysql --user root --database wpblog'
 
-- name: 'Write Apache VirtualHost configuration'
-  apache_site:
-    site: weeklyosm.eu
-    src: 'weeklyosm.eu.conf'
-  notify: reload apache2
-
 - name: "Create directories in /etc/systemd/system/ for overrides"
   file:
     state: directory
@@ -156,7 +150,6 @@
     group: root
   loop:
     - mariadb
-    - apache2
 
 - name: "set lower 'Out of memory adjust' score for database"
   copy:
@@ -164,11 +157,3 @@
     content: |
         [Service]
         OOMScoreAdjust=-600
-
-- name: "ensure apache is always restarted if it dies"
-  copy:
-    dest: '/etc/systemd/system/apache2.service.d/override.conf'
-    content: |
-        [Service]
-        Restart=always
-        RestartSec=30s
