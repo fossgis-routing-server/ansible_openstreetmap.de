@@ -4,7 +4,7 @@
     site: weeklyosm.eu
     src: 'weeklyosm.eu.conf'
   notify:
-    - reload apache2
+    - Reload apache2
   tags:
     - apache
 
