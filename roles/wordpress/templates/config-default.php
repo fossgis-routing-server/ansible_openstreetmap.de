@@ -15,9 +15,19 @@ define('SECURE_AUTH_SALT', '>iKIeouO-`WbvDdV}7>XE1YWK*`M20R*=Dg#XK@SOO^kPtjqr?,D
 define('LOGGED_IN_SALT', '7Txr&USt&-q]b9)|K/f=5<[&NX<x#9z0C-uU<BRAg[+p3dPVd8ZR$q>`RF{@9Jx.');
 define('NONCE_SALT', 'eq`%+m%+o7U{eIt-9*u#~MKXfADVH))Lm3vY|o^{8c<,BYi|{Hy|I]$ch#!0KZ$(');
 
+# Will be set in /var/www/wp-load.php to __DIR__
+# which includes wp-config.php which includes wp-config-default.php (this file)
+# So unconditionally setting this causes http error logging:
+#
+# Got error 'PHP message: PHP Warning:  Constant ABSPATH already
+#       defined in /etc/wordpress/config-default.php on line 20'
+#
+# So make this only set ABSPATH if its not already set
+# flo 20251229
+#
+if (!defined('ABSPATH'))
+	define('ABSPATH', '/var/www/wordpress/');
 
-
-define('ABSPATH', '/var/www/wordpress/');
 #define('WPCACHEHOME', ABSPATH.'wp-content/plugins/wp-super-cache/');
 #define('WP_CACHE', true);
 define('FS_METHOD', 'direct');
