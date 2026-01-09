@@ -1,0 +1,164 @@
+---
+
+cassini:/$ sudo cat installimage.conf 
+sudo: unable to resolve host cassini: Name or service not known
+
+ Hetzner Online GmbH - installimage
+
+ This file contains the configuration used to install this
+ system via installimage script. Comments have been removed.
+
+ More information about the installimage script and
+ automatic installations can be found in our wiki:
+
+ https://docs.hetzner.com/robot/dedicated-server/operating-systems/installimage/
+
+
+DRIVE1 /dev/nvme0n1
+DRIVE2 /dev/nvme2n1
+SWRAID 1
+SWRAIDLEVEL 1
+HOSTNAME ptolemy-neu
+USE_KERNEL_MODE_SETTING yes
+PART swap swap 4G
+PART /boot ext3 1024M
+PART / ext4 all
+IMAGE /root/.oldroot/nfs/install/../images/Debian-1300-trixie-amd64-base.tar.gz
+
+--- 
+
+cassini:/$ lsb_release -a
+No LSB modules are available.
+Distributor ID:	Debian
+Description:	Debian GNU/Linux 13 (trixie)
+Release:	13
+Codename:	trixie
+
+---
+
+$ mount
+sysfs on /sys type sysfs (rw,nosuid,nodev,noexec,relatime)
+proc on /proc type proc (rw,relatime)
+udev on /dev type devtmpfs (rw,nosuid,relatime,size=65874368k,nr_inodes=16468592,mode=755,inode64)
+devpts on /dev/pts type devpts (rw,nosuid,noexec,relatime,gid=5,mode=600,ptmxmode=000)
+tmpfs on /run type tmpfs (rw,nosuid,nodev,noexec,relatime,size=13180936k,mode=755,inode64)
+/dev/md2 on / type ext4 (rw,relatime)
+securityfs on /sys/kernel/security type securityfs (rw,nosuid,nodev,noexec,relatime)
+tmpfs on /dev/shm type tmpfs (rw,nosuid,nodev,inode64)
+cgroup2 on /sys/fs/cgroup type cgroup2 (rw,nosuid,nodev,noexec,relatime,nsdelegate,memory_recursiveprot)
+pstore on /sys/fs/pstore type pstore (rw,nosuid,nodev,noexec,relatime)
+bpf on /sys/fs/bpf type bpf (rw,nosuid,nodev,noexec,relatime,mode=700)
+systemd-1 on /proc/sys/fs/binfmt_misc type autofs (rw,relatime,fd=41,pgrp=1,timeout=0,minproto=5,maxproto=5,direct,pipe_ino=1463)
+hugetlbfs on /dev/hugepages type hugetlbfs (rw,nosuid,nodev,relatime,pagesize=2M)
+mqueue on /dev/mqueue type mqueue (rw,nosuid,nodev,noexec,relatime)
+tmpfs on /run/lock type tmpfs (rw,nosuid,nodev,noexec,relatime,size=5120k,inode64)
+debugfs on /sys/kernel/debug type debugfs (rw,nosuid,nodev,noexec,relatime)
+tracefs on /sys/kernel/tracing type tracefs (rw,nosuid,nodev,noexec,relatime)
+fusectl on /sys/fs/fuse/connections type fusectl (rw,nosuid,nodev,noexec,relatime)
+configfs on /sys/kernel/config type configfs (rw,nosuid,nodev,noexec,relatime)
+tmpfs on /tmp type tmpfs (rw,nosuid,nodev,nr_inodes=1048576,inode64)
+/dev/md1 on /boot type ext3 (rw,relatime)
+binfmt_misc on /proc/sys/fs/binfmt_misc type binfmt_misc (rw,nosuid,nodev,noexec,relatime)
+tmpfs on /run/credentials/getty@tty1.service type tmpfs (ro,nosuid,nodev,noexec,relatime,nosymfollow,size=1024k,nr_inodes=1024,mode=700,inode64,noswap)
+/dev/nvme0n1p1 on /var/cache/tirex type ext4 (rw,relatime)
+/dev/nvme0n1p1 on /var/cache/tirex type ext4 (rw,relatime)
+tmpfs on /run/credentials/systemd-journald.service type tmpfs (ro,nosuid,nodev,noexec,relatime,nosymfollow,size=1024k,nr_inodes=1024,mode=700,inode64,noswap)
+tmpfs on /run/user/1003 type tmpfs (rw,nosuid,nodev,relatime,size=13180932k,nr_inodes=3295233,mode=700,uid=1003,gid=1003,inode64)
+
+
+---
+
+cassini:/$ sudo fdisk -l /dev/md1
+sudo: unable to resolve host cassini: Name or service not known
+Disk /dev/md1: 1022 MiB, 1071644672 bytes, 2093056 sectors
+Units: sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+
+---
+
+cassini:/$ df -h
+Filesystem      Size  Used Avail Use% Mounted on
+udev             63G     0   63G   0% /dev
+tmpfs            13G  772K   13G   1% /run
+/dev/md2        1.8T  1.4G  1.7T   1% /
+tmpfs            63G     0   63G   0% /dev/shm
+tmpfs           5.0M     0  5.0M   0% /run/lock
+tmpfs            63G     0   63G   0% /tmp
+/dev/md1        989M  146M  793M  16% /boot
+tmpfs           1.0M     0  1.0M   0% /run/credentials/getty@tty1.service
+/dev/nvme0n1p1  3.5T  2.1M  3.5T   1% /var/cache/tirex
+tmpfs           1.0M     0  1.0M   0% /run/credentials/systemd-journald.service
+tmpfs            13G  8.0K   13G   1% /run/user/1003
+
+
+---
+
+cassini:/$ cat /proc/mdstat 
+Personalities : [raid1] [raid0] [raid6] [raid5] [raid4] [raid10] 
+md2 : active raid1 nvme2n1p3[1] nvme1n1p3[0]
+      1869997376 blocks super 1.2 [2/2] [UU]
+      bitmap: 0/14 pages [0KB], 65536KB chunk
+
+md1 : active raid1 nvme2n1p2[1] nvme1n1p2[0]
+      1046528 blocks super 1.2 [2/2] [UU]
+      
+md0 : active (auto-read-only) raid1 nvme1n1p1[0] nvme2n1p1[1]
+      4189184 blocks super 1.2 [2/2] [UU]
+      
+unused devices: <none>
+
+---
+
+cassini:/$ lsblk
+NAME        MAJ:MIN RM  SIZE RO TYPE  MOUNTPOINTS
+nvme1n1     259:0    0  1.7T  0 disk  
+├─nvme1n1p1 259:6    0    4G  0 part  
+│ └─md0       9:0    0    4G  0 raid1 [SWAP]
+├─nvme1n1p2 259:7    0    1G  0 part  
+│ └─md1       9:1    0 1022M  0 raid1 /boot
+└─nvme1n1p3 259:8    0  1.7T  0 part  
+  └─md2       9:2    0  1.7T  0 raid1 /
+nvme2n1     259:1    0  1.7T  0 disk  
+├─nvme2n1p1 259:3    0    4G  0 part  
+│ └─md0       9:0    0    4G  0 raid1 [SWAP]
+├─nvme2n1p2 259:4    0    1G  0 part  
+│ └─md1       9:1    0 1022M  0 raid1 /boot
+└─nvme2n1p3 259:5    0  1.7T  0 part  
+  └─md2       9:2    0  1.7T  0 raid1 /
+nvme0n1     259:2    0  3.5T  0 disk  
+└─nvme0n1p1 259:10   0  3.5T  0 part  /var/cache/tirex
+                                      /var/cache/tirex
+
+---
+
+cassini:/$ ip a
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet6 ::1/128 scope host noprefixroute 
+       valid_lft forever preferred_lft forever
+2: enp8s0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP group default qlen 1000
+    link/ether 7c:10:c9:9c:13:62 brd ff:ff:ff:ff:ff:ff
+    altname enx7c10c99c1362
+    inet 65.108.14.58/26 brd 65.108.14.63 scope global enp8s0
+       valid_lft forever preferred_lft forever
+    inet6 2a01:4f9:6a:49c3::2/64 scope global 
+       valid_lft forever preferred_lft forever
+    inet6 fe80::7e10:c9ff:fe9c:1362/64 scope link proto kernel_ll 
+       valid_lft forever preferred_lft forever
+
+---
+Installation
+
+1. `ansible-playbook -l cassini -i hosts.ini site.yml`
+
+
+2. Login via ssh und `sudo /usr/local/sbin/import-osm2pgsql`
+
+> Via `sudo screen` kann man zusammen eine Konsole ansehen. Man kann den screen verlassen mit `ctrl-a d` und wieder hervorholen mit `screen -r`. `screen -r xxxx` und `ctrl-a ` dann `k` zum `killen`.
+
+Überprüfung: `https://cassini.openstreetmap.de/0/0/0.png` sollte eine Tile laden.
+
+Mit dem Befehl tirex-status kann das Rendern verfolgt werden.
