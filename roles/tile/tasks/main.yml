@@ -156,6 +156,14 @@
   become: yes
   become_user: "{{ tile__user }}"
 
+- name: Add indexes for hrb
+  copy:
+    dest: "{{ tile__basedir }}/sources/map-hrb/indexes_hrb.sql"
+    src: "indexes_hrb.sql"
+    mode: 0664
+    owner: "{{ tile__user }}"
+    group: "{{ tile__user }}"
+
 - name: generate mapnik xml for hrb
   shell:
     cmd: "./gen-osm-hrb.sh {{ tile__basedir }}/openstreetmap-carto-de/osm-de.xml"
