@@ -1,4 +1,1 @@
 tile__small: false
-
-tile__flatnode: '/database/flatnode/flatnode'
-tile__planet:   '/var/cache/tirex/planet/planet.osm.pbf'
