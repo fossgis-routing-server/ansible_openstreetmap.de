@@ -9,7 +9,7 @@ tile__dbname: gis
 
 # tile__small = true will make it load only a small extract
 # tile__small = false will load the whole planet
-# This value may be overwritten with an entry in the host_vars (host_vars/ptolemy.yml or host_vars/bonne.yml)
+# This value may be overwritten with an entry in the host_vars (host_vars/cassini.yml or host_vars/bonne.yml)
 tile__small: true
 
 # location of flatnode file
