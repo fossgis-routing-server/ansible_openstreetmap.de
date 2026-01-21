@@ -52,6 +52,6 @@
   RewriteRule "^/osmhrb/(.*)$" "/tilesbw/osmde/$1" [R,L]
 
   LogFormat "%h %l %u %t \"%r\" %>s %b" common
-  CustomLog /var/cache/tirex/logs/apache_logs common
+  CustomLog /var/cache/tirex/logs/apache_logs.log common
   
 {% endcall %}
