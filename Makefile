@@ -10,9 +10,6 @@ miller:
 conic:
 	ansible-playbook -l conic -i hosts.ini site.yml
 
-ptolemy:
-	ansible-playbook -l ptolemy -i hosts.ini site.yml
-
 bonne:
 	ansible-playbook -l bonne -i hosts.ini site.yml
 
