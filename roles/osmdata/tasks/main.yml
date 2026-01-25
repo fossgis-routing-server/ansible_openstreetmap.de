@@ -1,3 +1,10 @@
+
+- name: Install osmcoastline from backports
+  ansible.builtin.apt:
+    pkg: osmcoastline
+    default_release: "{{ ansible_distribution_release }}-backports"
+    state: latest
+
 - name: Install used apt packages
   ansible.builtin.apt:
     pkg:
@@ -13,7 +20,6 @@
       - libosmium2-dev
       - libproj-dev
       - make
-      - osmcoastline
       - osmium-tool
       - python3-gdal
       - python3-pyosmium
