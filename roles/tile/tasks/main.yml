@@ -295,6 +295,115 @@
     enabled: false
     name: renderd
 
+
+
+
+
+
+# ------------------------------------------
+# mod_tile installieren und bauen start 
+# (https://github.com/openstreetmap/mod_tile/pull/479)
+# -------------------------------------------
+- name: Check version of mod_tile
+  ansible.builtin.shell: file /usr/lib/apache2/modules/mod_tile.so
+
+- name: install tirex dependencies with apt
+  apt:
+    name: [  apache2-dev, cmake, curl, g++, gcc, libcairo2-dev, libcurl4-openssl-dev, libglib2.0-dev,
+             libiniparser-dev, libmapnik-dev, libmemcached-dev, librados-dev]
+
+- name: Set parallel build level
+  ansible.builtin.shell: export CMAKE_BUILD_PARALLEL_LEVEL=$(nproc)
+
+- name: Remove old build directories if already there
+  file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /tmp/mod_tile_src
+    - /tmp/mod_tile_build
+
+- name: Create build directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - /tmp/mod_tile_src
+    - /tmp/mod_tile_build
+
+- name: Clone mod_tile repository
+  git:
+    repo: https://github.com/openstreetmap/mod_tile.git
+    dest: /tmp/mod_tile_src
+    depth: 1
+    update: yes
+
+- name: Run CMake to configure mod_tile
+  command: >
+    cmake -B /tmp/mod_tile_build
+          -S /tmp/mod_tile_src
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_INSTALL_PREFIX=/usr
+          -DCMAKE_INSTALL_RUNSTATEDIR=/run
+          -DCMAKE_INSTALL_LOCALSTATEDIR=/var
+          -DCMAKE_INSTALL_SYSCONFDIR=/etc
+          -DENABLE_TESTS=ON
+  args:
+    chdir: /tmp/mod_tile_build
+
+- name: Build mod_tile
+  command: cmake --build .
+  args:
+    chdir: /tmp/mod_tile_build
+
+- name: Run tests
+  command: ctest
+  args:
+    chdir: /tmp/mod_tile_build
+
+- name: Stop tirex-backend-manager
+  ansible.builtin.systemd:
+    name: tirex-backend-manager
+    state: stopped
+
+- name: Stop tirex-master
+  ansible.builtin.systemd:
+    name: tirex-master
+    state: stopped
+
+- name: Stop apache
+  ansible.builtin.systemd:
+    name: apache2
+    state: stopped
+
+- name: Install mod_tile
+  command: cmake --install . --strip
+  args:
+    chdir: /tmp/mod_tile_build
+  become: yes
+
+- name: Start apache
+  ansible.builtin.systemd:
+    name: apache2
+    state: started
+
+- name: Start tirex-backend-manager
+  ansible.builtin.systemd:
+    name: tirex-backend-manager
+    state: started
+
+- name: Start tirex-master
+  ansible.builtin.systemd:
+    name: tirex-master
+    state: started
+
+- name: Check version of mod_tile
+  ansible.builtin.shell: file /usr/lib/apache2/modules/mod_tile.so
+# ------------------------------------------
+# mod_tile installieren und bauen ende (file /usr/lib/apache2/modules/mod_tile.so)
+# ------------------------------------------
+
 - name: Install tirex with apt
   apt:
     name: tirex
@@ -365,6 +474,12 @@
           - missingok
           - notifempty
           - create 0640 root root
+          - sharedscripts
+          - postrotate
+          - "    if systemctl is-active --quiet apache2; then"
+          - "        systemctl reload apache2"
+          - "    fi"
+          - endscript
 
 - name: Start tirex-backend-manager
   block:
