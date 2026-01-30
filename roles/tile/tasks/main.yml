@@ -366,11 +366,13 @@
   ansible.builtin.systemd:
     name: tirex-backend-manager
     state: stopped
+  ignore_errors: yes
 
 - name: Stop tirex-master
   ansible.builtin.systemd:
     name: tirex-master
     state: stopped
+  ignore_errors: yes
 
 - name: Stop apache
   ansible.builtin.systemd:
@@ -392,11 +394,13 @@
   ansible.builtin.systemd:
     name: tirex-backend-manager
     state: started
+  ignore_errors: yes
 
 - name: Start tirex-master
   ansible.builtin.systemd:
     name: tirex-master
     state: started
+  ignore_errors: yes
 
 - name: Check version of mod_tile
   ansible.builtin.shell: file /usr/lib/apache2/modules/mod_tile.so
