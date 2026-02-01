@@ -365,6 +365,11 @@
           - missingok
           - notifempty
           - create 0640 root root
+          - postrotate
+          - "    if systemctl is-active --quiet apache2; then"
+          - "        systemctl reload apache2"
+          - "    fi"
+          - endscript
 
 - name: Start tirex-backend-manager
   block:
