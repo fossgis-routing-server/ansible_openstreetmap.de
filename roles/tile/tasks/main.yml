@@ -364,7 +364,7 @@
           - delaycompress
           - missingok
           - notifempty
-          - create 0640 root root
+          - create 0640 root adm
           - postrotate
           - "    if systemctl is-active --quiet apache2; then"
           - "        systemctl reload apache2"
