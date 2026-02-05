@@ -1,8 +1,13 @@
 # SPDX-License-Identifier: MIT
 ---
+- name: Install util-linux-extra needed for hwclock
+  apt:
+    name:
+      - util-linux-extra
+
 - name: Set time zone to UTC
   community.general.timezone:
-    name: UTC
+    name: Etc/UTC
   notify: restart cron
 
 - name: Set to generate locales
