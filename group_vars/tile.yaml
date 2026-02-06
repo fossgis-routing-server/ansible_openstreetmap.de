@@ -12,6 +12,9 @@ tile__dbname: gis
 # This value may be overwritten with an entry in the host_vars (host_vars/cassini.yml or host_vars/bonne.yml)
 tile__small: true
 
+# Override this value in host_vars if the server has more available resources
+tile__mapnik_procs: 10
+
 # location of flatnode file
 tile__flatnode: '{{ tile__basedir }}/flatnode'
 # storage for planet pbf file during import
