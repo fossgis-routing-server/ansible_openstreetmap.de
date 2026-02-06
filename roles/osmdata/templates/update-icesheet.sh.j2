@@ -92,7 +92,7 @@ date $iso_date
 echo "Adding non-icesheet data to db..."
 ogr2ogr --config OGR_SQLITE_SYNCHRONOUS OFF -f "SQLite" -gt 65535 \
         -s_srs "EPSG:4326" -t_srs "EPSG:3857" \
-        -skipfailures -explodecollections \
+        -explodecollections \
         -spat -180 -85.05113 180 -60 -update -append \
         -nln noice -nlt POLYGON \
         "$DB" "${ANT_NATURAL}-type.geojson"
