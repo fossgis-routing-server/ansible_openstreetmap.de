@@ -1,4 +1,12 @@
-    vars.disks["disk /"] = {
-        disk_partitions = "/"
+    vars.totalprocs = {
+        procs_warning = ":1000"
+        procs_critical = ":1500"
+    }
+
+{% for mntpt in ('/', '/var/cache/tirex') %}
+    vars.disks["disk {{ mntpt }}"] = {
+        disk_partitions = "{{ mntpt }}"
         disk_exact_match = true
     }
+
+{% endfor %}
