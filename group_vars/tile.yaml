@@ -13,7 +13,7 @@ tile__dbname: gis
 tile__small: true
 
 # Override this value in host_vars if the server has more available resources
-mapnik_procs: 10
+tile__mapnik_procs: 10
 
 # location of flatnode file
 tile__flatnode: '{{ tile__basedir }}/flatnode'

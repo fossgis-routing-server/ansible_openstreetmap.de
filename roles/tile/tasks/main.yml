@@ -322,7 +322,7 @@
     src: mapnik_conf.j2
   vars:
     fontdir: "{{ tile__basedir }}/openstreetmap-carto-de/fonts"
-    mapnik_procs: "{{ mapnik_procs }}"
+    mapnik_procs: "{{ tile__mapnik_procs }}"
 
 - name: Tirex mapnik style config
   template:

@@ -1,2 +1,2 @@
 tile__small: false
-mapnik_procs: 20
+tile__mapnik_procs: 20
