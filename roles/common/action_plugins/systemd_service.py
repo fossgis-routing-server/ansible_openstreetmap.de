@@ -129,8 +129,7 @@ class ActionModule(ActionBase):
         # Create a path service if necessary
         if path:
             cfg_content= {
-                'Unit': {'Description': content['Unit']['Description'] + ' (path)',
-                         'PartOf': content['Unit']['Description'] + '.service'},
+                'Unit': {'Description': content['Unit']['Description'] + ' (path)'},
                 'Path': path,
                 'Install' : {'WantedBy': 'multi-user.target'}
             }
