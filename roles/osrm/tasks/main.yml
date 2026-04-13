@@ -20,6 +20,12 @@
     home: "/home/osrmdata"
     shell: "/bin/bash"
 
+- name: fix osrm__basedir to be world readable
+  file:
+    path: '{{ osrm__basedir }}'
+    state: directory
+    mode: 0755
+
 # osrm backend
 - name: install prerequisites for osrm-backend
   apt:
