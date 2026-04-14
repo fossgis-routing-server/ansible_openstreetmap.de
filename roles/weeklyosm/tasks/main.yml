@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Enable http2 in apache2
+  apache_module:
+    name: "{{ item }}"
+  with_items:
+    - http2
+  notify: apache2 restart
+
+- name: "Create directory for weeklyOSM website"
+  file:
+    state: directory
+    path: "{{ weeklyosm_directory }}"
+    owner: "weeklyosm"
+    group: "www-data"
+
+- name: "Write Apache VirtualHost configuration"
+  apache_site:
+    site: testing.weeklyosm.eu
+    src: "testing.weeklyosm.eu.conf"
+  notify: reload apache2
+
+- name: "Create directories in /etc/systemd/system/ for overrides"
+  file:
+    state: directory
+    path: "/etc/systemd/system/apache2.service.d"
+    owner: root
+    group: root
+
+- name: "ensure apache is always restarted if it dies"
+  copy:
+    dest: "/etc/systemd/system/apache2.service.d/override.conf"
+    content: |
+      [Service]
+      Restart=always
+      RestartSec=30s
+
+## create webfinger file so we are found on mastodon with our own domain, too
+
+- name: Create directory .well-known in weeklyosm directory
+  file:
+    dest: "{{ weeklyosm_directory }}/.well-known"
+    state: directory
+
+- name: Create webfinger for Mastodon
+  template:
+    dest: "{{ weeklyosm_directory }}/.well-known/webfinger"
+    src: "webfinger"
+    owner: "weeklyosm"
+    group: "www-data"
+    mode: "0644"

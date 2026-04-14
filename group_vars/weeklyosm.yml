@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: MIT
+---
+weeklyosm:
+  hostname: "testing.weeklyosm.eu"
+  hostname_aliases:
+    - "www.testing.weeklyosm.eu"
+  hostnames:
+    - "testing.weeklyosm.eu"
+    - "www.testing.weeklyosm.eu"
+
+weeklyosm_testing__acme_certificates:
+  - name: weeklyosm
+    domains:
+      - testing.weeklyosm.eu
+      - www.testing.weeklyosm.eu
+    on_update:
+      - systemctl reload apache2
