@@ -9,7 +9,7 @@ weeklyosm:
     - "www.testing.weeklyosm.eu"
 
 weeklyosm_testing__acme_certificates:
-  - name: weeklyosm
+  - name: testingweeklyosm
     domains:
       - testing.weeklyosm.eu
       - www.testing.weeklyosm.eu
