@@ -23,11 +23,11 @@ class ActionModule(ActionBase):
         result = super(ActionModule, self).run(tmp, task_vars)
 
         name = self._get_typed('name', str, required=True)
-        description = self._get_typed('description', str, required=True)
+        definition = self._get_typed('definition', str, required=True)
 
         output = StringIO()
         output.write(f"# Filter '{name}' automatically installed by Ansible. Do not edit.\n")
-        output.write(f"\n[Description]\n\n{description}")
+        output.write(f"\n[Definition]\n\n{definition}")
 
         new_task = self._task.copy()
         new_task.args = {'dest': f'/etc/fail2ban/filter.d/{name}.conf',

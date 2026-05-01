@@ -27,7 +27,7 @@
     content: "{{ ansible_host }}"
     mode: "0644"
 
-- name: "Install maintenance script '{{ item }}'"
+- name: "Install maintenance scripts"
   template:
     src: "{{ item }}.jinja"
     dest: "/usr/local/bin/{{ item }}"
@@ -234,7 +234,7 @@
 - name: Fail2ban filter for bad requests
   fail2ban_filter:
      name: overpass-bad-req-{{ item }}
-     description: |
+     definition: |
         failregex = ^.*, status: {{ item }}, remote host: <ADDR>, .*$
 
         datepattern = ^[^\[]*\[({DATE})
@@ -246,7 +246,7 @@
 - name: Fail2ban filter for osmnx
   fail2ban_filter:
      name: overpass-osmnx
-     description: |
+     definition: |
         failregex = ^.*, remote host: <ADDR>, user agent: .*OSMnx.*$
 
         datepattern = ^[^\[]*\[({DATE})
@@ -256,7 +256,7 @@
 - name: Fail2ban jail for 400
   fail2ban_jail:
     name: overpass-bad-req-400
-    port: [80,443]
+    ports: [80,443]
     filter: overpass-bad-req-400
     logpath: /var/log/apache2/overpass-access.log
     findtime: 30s
@@ -266,7 +266,7 @@
 - name: Fail2ban jail for 429
   fail2ban_jail:
     name: overpass-bad-req-429
-    port: [80,443]
+    ports: [80,443]
     filter: overpass-bad-req-429
     logpath: /var/log/apache2/overpass-access.log
     findtime: 1m
@@ -276,7 +276,7 @@
 - name: Fail2ban jail for osmnx
   fail2ban_jail:
     name: overpass-osmnx
-    port: [80,443]
+    ports: [80,443]
     filter: overpass-osmnx
     logpath: /var/log/apache2/overpass-access.log
     findtime: 1m
