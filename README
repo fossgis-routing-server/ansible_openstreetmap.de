@@ -34,7 +34,7 @@ This command is automatically run with 'make monitor'.
 Deploying a new Host
 ====================
 
-We use Debian 12 (Bookworm) on all hosts (with some still running Debian 11
+We use Debian (Trixie) on all hosts (with some still running Debian 11
 but to be updated soon). Make sure there is a base system on the host.
 
 You first need to add the host in the inventory (`hosts.ini`). The host should
@@ -77,14 +77,14 @@ to install Vagrant and the lib-virt provider:
 
 Spin up the test machine:
 
-    vagrant up bookworm
+    vagrant up trixie
 
-This spins up a Debian Bookworm machine and sets up accounts, so
+This spins up a Debian Trixie machine and sets up accounts, so
 that Ansible can access the machine via the root account.
 
 Login to the just created virtual machine with
 
-    vagrant ssh bookworm
+    vagrant ssh trixie
 
 > You can use the environment variables 
 > - `VAGRANT_MEMORY` (default: 2048)
@@ -97,7 +97,7 @@ Login to the just created virtual machine with
 
 Next you need an inventory:
 
-    ./init_vagrant_inventory.sh bookworm
+    ./init_vagrant_inventory.sh trixie
 
 This creates a file vagrant.ini with the right connection IP. Edit the file
 to put the vagrant test machine into the group you want to test.
@@ -108,8 +108,8 @@ Now you can run the global playbook:
 
 Additional hints:
 
-* To destroy and recreate your vagrant machine, run `vagrant destroy bookworm`
-  followed by `vagrant up bookworm`. The make command will automatically
+* To destroy and recreate your vagrant machine, run `vagrant destroy trixie`
+  followed by `vagrant up trixie`. The make command will automatically
   run `init-vagrant-inventory.sh` and pick up the new machine.
 
 Testing without the Private Data
@@ -125,7 +125,7 @@ Makefile
 There is a helpful Makefile that contains targets for all machines. Run
 `make MACHINENAME` to run the ansible playbook for that machine.
 
-The special targets "vagrant" and "vagrant-bookworm" are used for development.
+The special targets "vagrant" and "vagrant-trixie" are used for development.
 They initialize the inventory and run the playbook on you local vagrant
 virtual machine.
 
