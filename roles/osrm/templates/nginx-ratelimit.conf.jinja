@@ -1,4 +1,14 @@
 
+map $http_user_agent $blocked_user_agent {
+    default 0;
+    include /etc/nginx/blocked_user_agent.conf;
+}
+
+map $http_referer $blocked_referrer {
+    default 0;
+    include /etc/nginx/blocked_referrer.conf;
+}
+
 map $uri $limit_type {
     default       0;
     ~/route/v1/   1;
