@@ -21,7 +21,7 @@
     limit_req zone=standard burst=1;
     limit_req zone=table burst=1;
     limit_req zone=tile burst=5;
-    limit_req zone=ua burst=1;
+    limit_req zone=ua burst=50;
 
     access_log /var/log/nginx/router.log anonymized;
 

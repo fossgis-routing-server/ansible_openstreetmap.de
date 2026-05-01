@@ -69,7 +69,7 @@ map $http_accept_language $lang {
         limit_req zone=standard burst=10;
         limit_req zone=table burst=1;
         limit_req zone=tile burst=50;
-        limit_req zone=ua burst=10;
+        limit_req zone=ua burst=50;
         rewrite_by_lua_file /etc/nginx/lua/{{ profile }}rewrite.lua;
     }
 {% endfor %}
