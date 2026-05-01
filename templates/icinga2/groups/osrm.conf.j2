@@ -13,7 +13,8 @@ vars.http["HTTPS map.project-osrm.org"] = {
                 vars.http_ssl = true
                 vars.http_uri = "/"
 
-                service.max_check_attempts = 10
+                service.max_check_attempts = 5
+                service.retry_interval = 10s
     }
 
 vars.http["HTTPS router.project-osrm.org"] = {
@@ -22,7 +23,8 @@ vars.http["HTTPS router.project-osrm.org"] = {
                 vars.http_ssl = true
                 vars.http_uri = "/nearest/v1/driving/13.388860,52.517037"
 
-                service.max_check_attempts = 10
+                service.max_check_attempts = 5
+                service.retry_interval = 10s
     }
 
 
@@ -37,7 +39,8 @@ vars.http["HTTPS router.project-osrm.org"] = {
                 vars.http_ssl = true
                 vars.http_uri = "/routed-{{ profile }}/route/v1/driving/{{url}}"
 
-                service.max_check_attempts = 10
+                service.max_check_attempts = 5
+                service.retry_interval = 10s
     }
 
 {% endfor %}
