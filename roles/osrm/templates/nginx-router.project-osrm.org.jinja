@@ -19,10 +19,10 @@
 
     location / {
 	limit_req_status 429;
-	limit_req zone=standard burst=1;
+	limit_req zone=standard burst=10 delay=9;
 	limit_req zone=table burst=1;
-	limit_req zone=tile burst=5;
-	limit_req zone=ua burst=50;
+	limit_req zone=tile burst=50 delay=40;
+	limit_req zone=ua burst=50 nodelay;
 
         rewrite_by_lua_file /etc/nginx/lua/carorgrewrite.lua;
 
