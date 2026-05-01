@@ -17,16 +17,17 @@
         add_header access-control-allow-origin "*" always;
     }
 
-    limit_req_status 429;
-    limit_req zone=standard burst=1;
-    limit_req zone=table burst=1;
-    limit_req zone=tile burst=5;
-    limit_req zone=ua burst=50;
-
     access_log /var/log/nginx/router.log anonymized;
 
     location / {
+	limit_req_status 429;
+	limit_req zone=standard burst=1;
+	limit_req zone=table burst=1;
+	limit_req zone=tile burst=5;
+	limit_req zone=ua burst=50;
+
         rewrite_by_lua_file /etc/nginx/lua/carorgrewrite.lua;
+
         access_log /var/log/nginx/router.log anonymized;
         access_log /var/log/nginx/routing-times-car.log access_times;
         {{ error_out_blocked() }}
