@@ -1,17 +1,17 @@
 # SPDX-License-Identifier: MIT
 ---
 weeklyosm:
-  hostname: "testing.weeklyosm.eu"
+  hostname: "hugo.weeklyosm.eu"
   hostname_aliases:
-    - "www.testing.weeklyosm.eu"
+    - "weekly-hugo.openstreetmap.de"
   hostnames:
-    - "testing.weeklyosm.eu"
-    - "www.testing.weeklyosm.eu"
+    - "hugo.weeklyosm.eu"
+    - "weekly-hugo.openstreetmap.de"
 
-weeklyosm_testing__acme_certificates:
-  - name: testingweeklyosm
+weeklyosm_hugo__acme_certificates:
+  - name: weeklyosm-hugo
     domains:
-      - testing.weeklyosm.eu
-      - www.testing.weeklyosm.eu
+      - hugo.weeklyosm.eu
+      - weekly-hugo.openstreetmap.de
     on_update:
       - systemctl reload apache2

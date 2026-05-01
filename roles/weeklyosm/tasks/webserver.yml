@@ -9,8 +9,8 @@
 
 - name: "Write Apache VirtualHost configuration"
   apache_site:
-    site: testing.weeklyosm.eu
-    src: "testing.weeklyosm.eu.conf"
+    site: hugo.weeklyosm.eu
+    src: "hugo.weeklyosm.eu.conf"
   notify: reload apache2
 
 - name: "Create directories in /etc/systemd/system/ for overrides"
