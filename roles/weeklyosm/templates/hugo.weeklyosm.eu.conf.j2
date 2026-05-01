@@ -1,0 +1,39 @@
+server {
+    listen 80;
+    server_name {{ weeklyosm.hostnames | join(' ') }};
+    
+    # Redirect all HTTP traffic to HTTPS
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name {{ weeklyosm.hostnames | join(' ') }};
+
+    root {{ weeklyosm_directory }};
+    index index.html index.htm;
+
+    # Logging (replaces your custom_log macro)
+    access_log /var/log/nginx/weeklyosm.access.log;
+    error_log /var/log/nginx/weeklyosm.error.log warn;
+
+    # Main directory configuration
+    location / {
+        try_files $uri $uri/ =404;
+        # Note: Nginx does not support .htaccess. 
+        # Any 'AllowOverride' rules must be defined here.
+    }
+
+    # Security: Deny access to script files as per FilesMatch block
+    location ~ /\.(cgi|shtml|phtml|php)$ {
+        deny all;
+    }
+
+    # CGI directory (requires fastcgi/uwsgi wrapper to actually execute)
+    location /cgi-bin/ {
+        root /usr/lib;
+    }
+
+    # Optimization: Corresponds to Apache's FollowSymLinks
+    disable_symlinks off;
+}

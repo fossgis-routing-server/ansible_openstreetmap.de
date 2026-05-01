@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: MIT
 ---
 - name: Create deploy user and directories
-  include_tasks: permissions.yml
+  ansible.builtin.include_tasks: permissions.yml
   tags: weeklyosm
 
 - name: Configure webserver
-  include_tasks: webserver.yml
+  ansible.builtin.include_tasks: webserver.yml
   tags: weeklyosm

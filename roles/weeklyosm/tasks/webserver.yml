@@ -1,29 +1,35 @@
 # SPDX-License-Identifier: MIT
 ---
-- name: Enable http2 in apache2
-  apache_module:
-    name: "{{ item }}"
-  with_items:
-    - http2
-  notify: apache2 restart
+- name: Install Nginx
+  ansible.builtin.package:
+    name: nginx
+    state: present
 
-- name: "Write Apache VirtualHost configuration"
-  apache_site:
-    site: hugo.weeklyosm.eu
-    src: "hugo.weeklyosm.eu.conf"
-  notify: reload apache2
+- name: "Write Nginx server configuration"
+  ansible.builtin.template:
+    src: "hugo.weeklyosm.eu.conf.j2"
+    dest: "/etc/nginx/sites-available/hugo.weeklyosm.eu.conf"
+  notify: reload nginx
+
+- name: "Enable Nginx site"
+  ansible.builtin.file:
+    src: "/etc/nginx/sites-available/hugo.weeklyosm.eu.conf"
+    dest: "/etc/nginx/sites-enabled/hugo.weeklyosm.eu.conf"
+    state: link
+  notify: reload nginx
 
 - name: "Create directories in /etc/systemd/system/ for overrides"
-  file:
+  ansible.builtin.file:
     state: directory
-    path: "/etc/systemd/system/apache2.service.d"
+    path: "/etc/systemd/system/nginx.service.d"
     owner: root
     group: root
 
-- name: "ensure apache is always restarted if it dies"
-  copy:
-    dest: "/etc/systemd/system/apache2.service.d/override.conf"
+- name: "ensure nginx is always restarted if it dies"
+  ansible.builtin.copy:
+    dest: "/etc/systemd/system/nginx.service.d/override.conf"
     content: |
       [Service]
       Restart=always
       RestartSec=30s
+  notify: restart nginx

@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: MIT
 ---
 - name: "Install rsync package"
-  package:
+  ansible.builtin.package:
     name: rsync
     state: present
 
 - name: "Deploy rsync-restriction script (rrsync)"
-  shell: |
+  ansible.builtin.shell: |
     # find rrsync
     RRSYNC_SRC=$(find /usr/share/doc/rsync -name "rrsync.gz" | head -n 1)
     if [ -n "$RRSYNC_SRC" ]; then
@@ -21,7 +21,7 @@
     creates: /usr/bin/rrsync
 
 - name: "Create upload user for static website"
-  user:
+  ansible.builtin.user:
     name: "{{ weeklyosm_deploy_user }}"
     # rsync needs a home to place the .ssh/authorized_keys
     create_home: yes
@@ -29,7 +29,7 @@
     shell: /bin/bash
 
 - name: "Create target directory"
-  file:
+  ansible.builtin.file:
     path: "{{ weeklyosm_directory }}"
     state: directory
     owner: "{{ weeklyosm_deploy_user }}"
@@ -37,7 +37,7 @@
     mode: 755
 
 - name: "install public key with rsync restriction"
-  authorized_key:
+  ansible.posix.authorized_key:
     user: "{{ weeklyosm_deploy_user }}"
     key: >
       command="/usr/bin/rrsync {{ weeklyosm_directory

@@ -14,4 +14,4 @@ weeklyosm_hugo__acme_certificates:
       - hugo.weeklyosm.eu
       - weekly-hugo.openstreetmap.de
     on_update:
-      - systemctl reload apache2
+      - systemctl reload nginx
