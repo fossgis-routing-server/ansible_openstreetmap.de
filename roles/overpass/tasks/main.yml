@@ -230,3 +230,56 @@
     minute: "0"
     hour: "3"
     job: "/srv/overpass/bin/clone.sh https://bessel.openstreetmap.de/clone/" 
+
+- name: Fail2ban filter for bad requests
+  fail2ban_filter:
+     name: overpass-bad-req-{{ item }}
+     description: |
+        failregex = ^.*, status: {{ item }}, remote host: <ADDR>, .*$
+
+        datepattern = ^[^\[]*\[({DATE})
+                      {^LN-BEG}
+  loop:
+    - 400
+    - 429
+
+- name: Fail2ban filter for osmnx
+  fail2ban_filter:
+     name: overpass-osmnx
+     description: |
+        failregex = ^.*, remote host: <ADDR>, user agent: .*OSMnx.*$
+
+        datepattern = ^[^\[]*\[({DATE})
+                      {^LN-BEG}
+
+
+- name: Fail2ban jail for 400
+  fail2ban_jail:
+    name: overpass-bad-req-400
+    port: [80,443]
+    filter: overpass-bad-req-400
+    logpath: /var/log/apache2/overpass-access.log
+    findtime: 30s
+    maxretry: 5
+    bantime: 2h
+
+- name: Fail2ban jail for 429
+  fail2ban_jail:
+    name: overpass-bad-req-429
+    port: [80,443]
+    filter: overpass-bad-req-429
+    logpath: /var/log/apache2/overpass-access.log
+    findtime: 1m
+    maxretry: 10
+    bantime: 1h
+
+- name: Fail2ban jail for osmnx
+  fail2ban_jail:
+    name: overpass-osmnx
+    port: [80,443]
+    filter: overpass-osmnx
+    logpath: /var/log/apache2/overpass-access.log
+    findtime: 1m
+    maxretry: 150
+    bantime: 9h
+

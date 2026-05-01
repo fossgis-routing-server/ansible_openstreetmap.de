@@ -3,3 +3,4 @@
 dependencies:
   - role: apache
   - role: munin
+  - role: fail2ban
