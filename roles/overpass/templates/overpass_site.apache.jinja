@@ -4,6 +4,60 @@
         LogLevel info ssl:warn deflate:warn authz_core:warn
         CustomLog /var/log/apache2/overpass-access.log "%t runtime: %T, return size: %B, %{plainsize}n, status: %>s, remote host: %h, completed: %X, query string: %U%q, referer: %{Referer}i, user agent: %{User-agent}i"
 
+        RewriteEngine on
+        RewriteCond %{HTTP_USER_AGENT}  "^Python-urllib/"  [OR]
+        RewriteCond %{HTTP_USER_AGENT}  "^python-requests/" [OR]
+        RewriteCond %{HTTP_USER_AGENT}  "^python-httpx/"   [OR]
+        RewriteCond %{HTTP_USER_AGENT}  "^node$"           [OR]
+        RewriteCond %{HTTP_USER_AGENT}  "^Go-http-client/" [OR]
+        RewriteCond %{HTTP_USER_AGENT}  "^Dart/"           [OR]
+        RewriteCond %{HTTP_USER_AGENT}  "^GuzzleHttp/"     [OR]
+        RewriteCond %{HTTP_USER_AGENT}  "^axios/"          [OR]
+        RewriteCond %{HTTP_USER_AGENT}  "^okhttp/"         [OR]
+        RewriteCond %{HTTP_USER_AGENT}  "^Jersey/"         [OR]
+        RewriteCond %{HTTP_USER_AGENT}  "^speedmeter/1"    [OR]
+        RewriteCond %{HTTP_USER_AGENT}  "^Speedometer/"    [OR]
+        RewriteCond %{HTTP_USER_AGENT}  "^Deno/"           [OR]
+        RewriteCond %{HTTP_USER_AGENT}  "^GeoCats AGORA"   [OR]
+        RewriteCond %{HTTP_USER_AGENT}  "^R8.Companion.Nav" [OR]
+        RewriteCond %{HTTP_USER_AGENT}  "^saved.archi "    [OR]
+        RewriteCond %{HTTP_USER_AGENT}  "^arnis/"          [OR]
+        RewriteCond %{HTTP_USER_AGENT}  "^xspeedkadran/1"  [OR]
+        RewriteCond %{HTTP_USER_AGENT}  "^xspeed/1"        [OR]
+        RewriteCond %{HTTP_USER_AGENT}  "^dspeed/1"        [OR]
+        RewriteCond %{HTTP_USER_AGENT}  "^DukesR8App/"     [OR]
+        RewriteCond %{HTTP_USER_AGENT}  "^Pelican/690 "    [OR]
+        RewriteCond %{HTTP_USER_AGENT}  "^HighwayRadar/"   [OR]
+        RewriteCond %{HTTP_USER_AGENT}  "^Bun/"            [OR]
+        RewriteCond %{HTTP_USER_AGENT}  "^BeenToApp/"      [OR]
+        RewriteCond %{HTTP_USER_AGENT}  "^Android/3168$"   [OR]
+        RewriteCond %{HTTP_USER_AGENT}  "^playas-espana.com/" [OR]
+        RewriteCond %{HTTP_REFERER}     "metrodreamin.com" [OR]
+        RewriteCond %{HTTP_REFERER}     "fincaraiz.com"    [OR]
+        RewriteCond %{HTTP_REFERER}     "lovable.app"      [OR]
+        RewriteCond %{HTTP_REFERER}     "vercel.app"       [OR]
+        RewriteCond %{HTTP_REFERER}     "hauk.live"        [OR]
+        RewriteCond %{HTTP_REFERER}     "nbot.pl"          [OR]
+        RewriteCond %{HTTP_REFERER}     "zuniz.com"        [OR]
+        RewriteCond %{HTTP_REFERER}     "lovableproject.com" [OR]
+        RewriteCond %{HTTP_REFERER}     "geo-fs.com"       [OR]
+        RewriteCond %{HTTP_REFERER}     "groupalarm.com"   [OR]
+        RewriteCond %{HTTP_REFERER}     "reality.sk"       [OR]
+        RewriteCond %{HTTP_REFERER}     "oaiusercontent.com" [OR]
+        RewriteCond %{HTTP_REFERER}     "astegiudiziarie.it" [OR]
+        RewriteCond %{HTTP_REFERER}     "infocasas.com"
+        RewriteRule . - [R=406,L]
+
+        RewriteCond %{HTTP_REFERER}     "^$"
+        RewriteCond %{HTTP_USER_AGENT}  "^Mozilla/"
+        RewriteCond %{HTTP_USER_AGENT}  !QGIS
+        RewriteRule /api/interpreter - [R=406,L]
+
+        RewriteCond %{HTTP_REFERER}     "^$"
+        RewriteCond %{HTTP_USER_AGENT}  "^$"
+        RewriteRule /api/interpreter - [R=406,L]
+
+
         DocumentRoot {{ overpass__basedir }}/site
         <Directory />
                 Options FollowSymLinks
