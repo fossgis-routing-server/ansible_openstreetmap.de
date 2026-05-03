@@ -23,9 +23,9 @@
 - name: "Create upload user for static website"
   ansible.builtin.user:
     name: "{{ weeklyosm_deploy_user }}"
-    # rsync needs a home to place the .ssh/authorized_keys
+    # Rsync needs a home directory to store the .ssh directory with the authorized_keys file
     create_home: yes
-    home: "/home/{{ weeklyosm_deploy_user }}"
+    home: "/srv/weeklyosm/{{ weeklyosm_deploy_user }}"
     shell: /bin/bash
 
 - name: "Create target directory"
@@ -36,10 +36,12 @@
     group: "www-data"
     mode: 755
 
-- name: "install public key with rsync restriction"
+- name: "Install public key with rsync restriction"
   ansible.posix.authorized_key:
     user: "{{ weeklyosm_deploy_user }}"
+    # The key is automatically placed in /srv/weeklyosm/{{ weeklyosm_deploy_user }}/.ssh/authorized_keys
     key: >
       command="/usr/bin/rrsync {{ weeklyosm_directory
-      }}",no-agent-forwarding,no-port-forwarding,no-pty  {{ weeklyosm_deploy_key
+      }}",no-agent-forwarding,no-port-forwarding,no-pty {{ weeklyosm_deploy_key
       }}
+    state: present
