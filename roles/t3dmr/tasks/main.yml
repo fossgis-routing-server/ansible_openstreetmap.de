@@ -74,11 +74,11 @@
     content: |
       POSTGRES_DB=3dmr
       POSTGRES_USER={{ t3dmr__db_user }}
-      POSTGRES_PASSWORD={{ lookup ('gopass', 'osm-server-secrets/t3dmr/db_password', default='ENTER PASSWORD HERE') }}
-      OSM_CLIENT_SECRET={{ lookup ('gopass', 'osm-server-secrets/t3dmr/osm_secret', default='OSM SECRET HERE') }}
-      OSM_CLIENT_ID={{ lookup ('gopass', 'osm-server-secrets/t3dmr/osm_key', default='OSM KEY HERE') }}
+      POSTGRES_PASSWORD={{ lookup ('gopass', 'gopass_osmde/t3dmr/db_password', default='ENTER PASSWORD HERE') }}
+      OSM_CLIENT_SECRET={{ lookup ('gopass', 'gopass_osmde/t3dmr/osm_secret', default='OSM SECRET HERE') }}
+      OSM_CLIENT_ID={{ lookup ('gopass', 'gopass_osmde/t3dmr/osm_key', default='OSM KEY HERE') }}
       DEBUG=False
-      DJANGO_SECRET_KEY={{ lookup ('gopass', 'osm-server-secrets/t3dmr/django_key', default='DJANGO SECRET KEY random string') }}
+      DJANGO_SECRET_KEY={{ lookup ('gopass', 'gopass_osmde/t3dmr/django_key', default='DJANGO SECRET KEY random string') }}
       MODEL_DIR={{ t3dmr__basedir }}/models
       STATIC_ROOT={{ t3dmr__basedir }}/static
       GLTF_VALIDATOR_PATH={{ t3dmr__basedir }}/bin/gltf_validator/gltf_validator

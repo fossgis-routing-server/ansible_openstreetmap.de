@@ -40,4 +40,4 @@
         key: "{{ item.1 }}"
       loop: "{{ _users|subelements('ssh_public_keys') }}"
   vars:
-    _users: "{{ lookup('gopass', 'osm-server-secrets/users', default = '[]') | from_yaml }}"
+    _users: "{{ lookup('gopass', 'gopass_osmde/users', default = '[]') | from_yaml }}"
