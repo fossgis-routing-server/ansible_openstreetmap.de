@@ -1,5 +1,7 @@
 # roles/weeklyosm/defaults/main.yml
 ---
-weeklyosm_directory: "/var/www/weeklyosm"
+weeklyosm_directory: "/srv/weeklyosm/www"
 weeklyosm_deploy_user: "deploy-weekly"
-weeklyosm_deploy_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBijSeiqaFsWagRuCyFLogXJq3PXPzCucrPzVm6VWiFn deploy-weeklyosm@gitlab"
+weeklyosm_deploy_key: "ssh-ed25519
+  AAAAC3NzaC1lZDI1NTE5AAAAIBijSeiqaFsWagRuCyFLogXJq3PXPzCucrPzVm6VWiFn
+  deploy-weeklyosm@gitlab"

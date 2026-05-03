@@ -12,6 +12,5 @@ weeklyosm_hugo__acme_certificates:
   - name: weeklyosm-hugo
     domains:
       - hugo.weeklyosm.eu
-      - weekly-hugo.openstreetmap.de
     on_update:
       - systemctl reload nginx

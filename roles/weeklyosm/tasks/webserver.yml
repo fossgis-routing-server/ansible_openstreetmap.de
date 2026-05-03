@@ -1,10 +1,5 @@
 # SPDX-License-Identifier: MIT
 ---
-- name: Install Nginx
-  ansible.builtin.package:
-    name: nginx
-    state: present
-
 - name: "Write Nginx server configuration"
   ansible.builtin.template:
     src: "hugo.weeklyosm.eu.conf.j2"
