@@ -169,7 +169,7 @@
       command:
         cmd: "saslpasswd2 -c -u {{ mail.mailname }} {{ item.key }}"
         stdin: "{{ item.value }}"
-      loop: "{{ mail_users | dict2items }}"
+      loop: "{{ lookup('gopass', 'osm-server-secrets/mail_users', default = '{}') | from_yaml | dict2items }}"
 
     - name: Add /etc/sasldb2 to postfix chroot
       replace:

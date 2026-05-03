@@ -302,7 +302,7 @@
   become_user: "{{ umap__user }}"
   environment:
     BORG_RSH: "{{ backup_borg_rsh }}"
-    BORG_PASSPHRASE: "{{ umap__backup_passphrase }}"
+    BORG_PASSPHRASE: "{{ lookup ('gopass', 'osm-server-secrets/umap/backup_passphrase', default='BACKUP PASSPHRASE!REPLACE')}}"
   register: borg_repo_check
   changed_when: false
   failed_when: false  # borg info returns non-zero if repo doesn't exist (expected)
@@ -340,7 +340,7 @@
   become_user: "{{ umap__user }}"
   environment:
     BORG_RSH: "{{ backup_borg_rsh }}"
-    BORG_PASSPHRASE: "{{ umap__backup_passphrase }}"
+    BORG_PASSPHRASE: "{{ lookup ('gopass', 'osm-server-secrets/umap/backup_passphrase', default='BACKUP PASSPHRASE!REPLACE')}}"
   when:
     - ssh_backup_test.rc | default(1) == 0  # Only if SSH connection to backup server works
     - repos_to_init is defined

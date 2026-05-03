@@ -10,7 +10,7 @@ SSH_OPTS="-i ${SSH_KEY} \
   -p {{ umap__backup_remote_port }}"
 
 export BORG_RSH="ssh ${SSH_OPTS}"
-export BORG_PASSPHRASE="{{ umap__backup_passphrase }}"
+export BORG_PASSPHRASE="{{ lookup ('gopass', 'osm-server-secrets/umap/backup_passphrase', default='BACKUP PASSPHRASE!REPLACE')}}"
 
 # Teste SSH-Verbindung zum Backup-Server
 # Parameter: exit_on_failure (optional, Standard: false)

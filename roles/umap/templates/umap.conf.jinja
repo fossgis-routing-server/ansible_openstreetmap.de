@@ -2,7 +2,7 @@
 
 from umap.settings.base import *   # pylint: disable=W0614,W0401
 
-SECRET_KEY = '{{ umap__django_secret_key }}'
+SECRET_KEY = '{{ lookup ('gopass', 'osm-server-secrets/umap/django_secret_key', default='DJANGO SECRET KEY!REPLACE')}}'
 INTERNAL_IPS = ('127.0.0.1', )
 ALLOWED_HOSTS = ['{{ umap__server_url }}'] + {{ umap__additional_allowed_hosts | default([]) }}
 
@@ -59,8 +59,8 @@ AUTHENTICATION_BACKENDS = (
 #]
 #SOCIAL_AUTH_TWITTER_KEY = "xxx"
 #SOCIAL_AUTH_TWITTER_SECRET = "xxx"
-SOCIAL_AUTH_OPENSTREETMAP_OAUTH2_KEY = '{{ umap__social_auth_openstreetmap_oauth2_key }}'
-SOCIAL_AUTH_OPENSTREETMAP_OAUTH2_SECRET = '{{ umap__social_auth_openstreetmap_oauth2_secret }}'
+SOCIAL_AUTH_OPENSTREETMAP_OAUTH2_KEY = '{{ lookup ('gopass', 'osm-server-secrets/umap/social_auth_openstreetmap_oauth2_key', default='OSM KEY HERE')  }}'
+SOCIAL_AUTH_OPENSTREETMAP_OAUTH2_SECRET = '{{ lookup ('gopass', 'osm-server-secrets/umap/social_auth_openstreetmap_oauth2_secret', default='OSM SECRET HERE')  }}'
 MIDDLEWARE += (
     'social_django.middleware.SocialAuthExceptionMiddleware',
 )
@@ -69,7 +69,7 @@ SOCIAL_AUTH_RAISE_EXCEPTIONS = False
 SOCIAL_AUTH_BACKEND_ERROR_URL = "/"
 
 
-OPENROUTESERVICE_APIKEY = '{{ umap__openrouteservice_apikey }}'
+OPENROUTESERVICE_APIKEY = '{{ lookup ('gopass', 'osm-server-secrets/umap/openrouteservice_apikey', default='API KEY HERE') }}'
 
 # Suppress DisallowedHost exceptions as per Django documentation
 # https://docs.djangoproject.com/en/5.2/ref/logging/#django-security-disallowedhost

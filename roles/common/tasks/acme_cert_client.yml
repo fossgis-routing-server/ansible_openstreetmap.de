@@ -57,14 +57,17 @@
   copy:
     dest: /etc/sudoers.d/acme
     content: "{{ acme__daemon_user }} ALL = NOPASSWD: {{ acme__daemon_basedir }}/renew-hooks/"
-
-- name: Install public key
-  authorized_key:
-    user: "{{ acme__daemon_user }}"
-    key: "{{ acme__distribution_account.public }}"
-    key_options: 'environment="SHELL=/bin/sh",command="{{ acme__daemon_basedir }}/bin/update_key"'
-    comment: acme
-  when: acme__distribution_account is defined
+- block:
+  - name: Install public key
+    authorized_key:
+      user: "{{ acme__daemon_user }}"
+      key: "{{ acme__distribution_account.public }}"
+      key_options: 'environment="SHELL=/bin/sh",command="{{ acme__daemon_basedir }}/bin/update_key"'
+      comment: acme
+    when: secret_available
+  vars:
+    acme__distribution_account: "{{ lookup('gopass', 'osm-server-secrets/acme') | from_yaml }}"
+    secret_available: "{{ lookup('gopass', 'osm-server-secrets/acme', check=True) }}"
 
 - name: Install key update script
   template:
