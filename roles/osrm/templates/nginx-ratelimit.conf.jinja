@@ -41,9 +41,16 @@ limit_req_zone $limit_table zone=table:50m rate=6r/m;
 limit_req_zone $limit_tile zone=tile:5m rate=2r/s;
 
 
+map $http_referrer $foreign_referrer {
+  default           $http_referrer;
+  ~^http://routing.openstreetmap.de/ "";
+  ~^https://routing.openstreetmap.de/ "";
+  ~^https://www.openstreetmap.org "";
+}
+
 map $http_user_agent $ua_referrer_block {
   default           $http_user_agent;
-  ~^Mozilla         $http_referrer;
+  ~^Mozilla         $foreign_referrer;
 }
 
 limit_req_zone $ua_referrer_block zone=ua:1m rate=3r/s;
