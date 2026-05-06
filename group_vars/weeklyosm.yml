@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: MIT
+---
+weeklyosm:
+  hostname: "hugo.weeklyosm.eu"
+  hostname_aliases:
+    - "weekly-hugo.openstreetmap.de"
+  hostnames:
+    - "hugo.weeklyosm.eu"
+    - "weekly-hugo.openstreetmap.de"
+
+weeklyosm_hugo__acme_certificates:
+  - name: weeklyosm-hugo
+    domains:
+      - hugo.weeklyosm.eu
+    on_update:
+      - systemctl reload nginx

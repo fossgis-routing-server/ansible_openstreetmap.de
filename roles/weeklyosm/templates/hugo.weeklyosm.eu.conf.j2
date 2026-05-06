@@ -1,0 +1,25 @@
+{% call server(weeklyosm.hostnames, http='forward', https='weeklyosm-hugo') %}
+
+    root {{ weeklyosm_directory }};
+    index index.html index.htm;
+
+    # Main directory configuration
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    # Security: Deny access to script files
+    location ~ /\.(cgi|shtml|phtml|php)$ {
+        deny all;
+    }
+
+    # CGI directory
+    location /cgi-bin/ {
+        root /usr/lib;
+    }
+
+    # Optimization
+    disable_symlinks off;
+
+    {{ custom_log('weeklyosm.hostnames[0]') }}
+{% endcall %}
