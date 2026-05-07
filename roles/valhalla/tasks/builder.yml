@@ -1,5 +1,162 @@
 # SPDX-License-Identifier: MIT
 # Builder host (valhalla2): build deps, valhalla checkout/build, planet
-# download, build-artifacts (admins/timezones/elevation), endless build-tiles
-# loop that pushes graph tarballs to the service host.
+# download, build-artifacts (admins/timezones/elevation). The endless
+# build-tiles loop itself lives in tiles_loop.yml (sub-task 4).
 ---
+
+- name: Install valhalla build prerequisites
+  apt:
+    name:
+      - spatialite-bin
+      - wget
+      - cmake
+      - ccache
+      - unzip
+      - git
+      - luajit
+      - jq
+      - coreutils
+      - g++
+      - gcc
+      - libboost-all-dev
+      - libcurl4-openssl-dev
+      - libgeos-dev
+      - libluajit-5.1-dev
+      - liblz4-dev
+      - libprotobuf-dev
+      - libspatialite-dev
+      - libsqlite3-dev
+      - libsqlite3-mod-spatialite
+      - make
+      - python3-pyosmium
+      - parallel
+      - pkgconf
+      - protobuf-compiler
+      - zlib1g-dev
+    state: present
+
+- name: Checkout valhalla source
+  git:
+    repo: "{{ valhalla__git_repo }}"
+    dest: "{{ valhalla__srcdir }}"
+    version: "{{ valhalla__git_version }}"
+    recursive: yes
+    force: yes
+  register: valhalla_src
+  become: yes
+  become_user: "{{ valhalla__user }}"
+
+- name: Clear stale build dir on source change
+  file:
+    path: "{{ valhalla__srcdir }}/build"
+    state: absent
+  when: valhalla_src.changed
+
+- name: Configure valhalla (builder profile)
+  command:
+    cmd: >
+      cmake -S {{ valhalla__srcdir }} -B {{ valhalla__srcdir }}/build
+      -DCMAKE_BUILD_TYPE=Release
+      -DCMAKE_C_COMPILER_LAUNCHER=ccache
+      -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+      -DENABLE_TOOLS=OFF
+      -DENABLE_SERVICES=OFF
+      -DENABLE_HTTP=OFF
+      -DENABLE_PYTHON_BINDINGS=OFF
+      -DENABLE_TESTS=OFF
+      -DENABLE_SINGLE_FILES_WERROR=OFF
+      -DENABLE_GEOTIFF=OFF
+      -DVALHALLA_VERSION_MODIFIER={{ valhalla_src.after[:7] }}
+    creates: "{{ valhalla__srcdir }}/build/CMakeCache.txt"
+  become: yes
+  become_user: "{{ valhalla__user }}"
+
+- name: Build valhalla
+  command:
+    cmd: "make -j {{ ansible_facts.processor_vcpus }}"
+    chdir: "{{ valhalla__srcdir }}/build"
+    creates: "{{ valhalla__srcdir }}/build/valhalla_build_tiles"
+  register: valhalla_build_step
+  become: yes
+  become_user: "{{ valhalla__user }}"
+
+- name: Install valhalla
+  command:
+    cmd: "make install"
+    chdir: "{{ valhalla__srcdir }}/build"
+  when: valhalla_build_step is changed
+
+# Data prep.
+
+- name: Create data dir
+  file:
+    path: "{{ valhalla__data_dir }}"
+    state: directory
+    owner: "{{ valhalla__user }}"
+    group: "{{ valhalla__user }}"
+    mode: "0755"
+
+- name: Download OpenStreetMapSpeeds default_speeds.json
+  get_url:
+    url: "{{ valhalla__default_speeds_url }}"
+    dest: "{{ valhalla__default_speeds_path }}"
+    owner: "{{ valhalla__user }}"
+    group: "{{ valhalla__user }}"
+    mode: "0644"
+
+- name: Generate valhalla.json (builder)
+  shell:
+    cmd: >
+      valhalla_build_config
+      --mjolnir-tile-dir {{ valhalla__tiles_dir }}
+      --mjolnir-timezone {{ valhalla__timezones_path }}
+      --mjolnir-admin {{ valhalla__admins_path }}
+      --mjolnir-default-speeds-config {{ valhalla__default_speeds_path }}
+      --mjolnir-keep-all-osm-node-ids true
+      --mjolnir-keep-osm-node-ids true
+      --mjolnir-include-platforms true
+      --mjolnir-concurrency {{ ansible_facts.processor_vcpus }}
+      --additional-data-elevation {{ valhalla__elevation_dir }}
+      > {{ valhalla__config_path }}
+    creates: "{{ valhalla__config_path }}"
+  become: yes
+  become_user: "{{ valhalla__user }}"
+
+- name: Download planet.pbf (resumable, only if not already present)
+  shell:
+    cmd: |
+      tmp="{{ valhalla__planet_path }}.partial"
+      wget --continue --output-document "$tmp" "{{ valhalla__planet_url }}"
+      mv "$tmp" "{{ valhalla__planet_path }}"
+    creates: "{{ valhalla__planet_path }}"
+  become: yes
+  become_user: "{{ valhalla__user }}"
+
+- name: Build timezones.sqlite
+  shell:
+    cmd: |
+      valhalla_build_timezones > "{{ valhalla__timezones_path }}.partial"
+      mv "{{ valhalla__timezones_path }}.partial" "{{ valhalla__timezones_path }}"
+    chdir: /tmp
+    creates: "{{ valhalla__timezones_path }}"
+  become: yes
+  become_user: "{{ valhalla__user }}"
+
+- name: Build admins.sqlite
+  command:
+    cmd: "valhalla_build_admins -c {{ valhalla__config_path }} {{ valhalla__planet_path }}"
+    creates: "{{ valhalla__admins_path }}"
+  become: yes
+  become_user: "{{ valhalla__user }}"
+
+- name: Stat elevation dir
+  stat:
+    path: "{{ valhalla__elevation_dir }}"
+  register: valhalla_elevation_dir
+
+- name: Build elevation tiles
+  command:
+    cmd: "valhalla_build_elevation --config {{ valhalla__config_path }} --from-bbox {{ valhalla__elevation_bbox }} --decompress"
+  when: not valhalla_elevation_dir.stat.exists
+  become: yes
+  become_user: "{{ valhalla__user }}"

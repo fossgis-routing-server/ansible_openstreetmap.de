@@ -24,6 +24,21 @@ valhalla__planet_url: https://planet.osm.org/pbf/planet-latest.osm.pbf
 valhalla__webapp_repo: https://github.com/valhalla/web-app.git
 valhalla__webapp_version: master
 
+# Builder layout (only meaningful on valhalla_builder).
+valhalla__config_path: "{{ valhalla__basedir }}/valhalla.json"
+valhalla__data_dir: "{{ valhalla__basedir }}/data"
+valhalla__planet_path: "{{ valhalla__data_dir }}/planet.pbf"
+valhalla__admins_path: "{{ valhalla__data_dir }}/admins.sqlite"
+valhalla__timezones_path: "{{ valhalla__data_dir }}/timezones.sqlite"
+valhalla__elevation_dir: "{{ valhalla__data_dir }}/elevation"
+valhalla__tiles_dir: "{{ valhalla__data_dir }}/valhalla_tiles"
+# Bbox for the initial elevation download (planet by default).
+valhalla__elevation_bbox: "-180,-90,180,90"
+
+# OpenStreetMapSpeeds default-speeds JSON consumed by valhalla_build_tiles.
+valhalla__default_speeds_url: https://raw.githubusercontent.com/OpenStreetMapSpeeds/schema/refs/heads/master/default_speeds.json
+valhalla__default_speeds_path: "{{ valhalla__data_dir }}/default_speeds.json"
+
 # Picked up by the common role's acme_cert_client mechanism.
 valhalla__acme_certificates:
   - name: valhalla-api
