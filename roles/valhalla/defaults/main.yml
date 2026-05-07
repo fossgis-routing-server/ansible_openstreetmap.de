@@ -1,0 +1,38 @@
+# SPDX-License-Identifier: MIT
+---
+# Service user that owns /src/valhalla and /srv/valhalla on both hosts.
+valhalla__user: valhalla
+
+# Source checkout (overridable to a specific sha for reproducibility).
+valhalla__git_repo: https://github.com/valhalla/valhalla.git
+valhalla__git_version: master
+
+# Layout
+valhalla__srcdir: /src/valhalla
+valhalla__basedir: /srv/valhalla
+
+# Public hostnames served by valhalla1's nginx.
+valhalla__api_hostname: valhalla1.openstreetmap.de
+valhalla__web_hostname: valhalla.openstreetmap.de
+
+# Blue/green ports on the service host. valhalla__service is started on
+# whichever of these is currently inactive, then swapped in via nginx.
+valhalla__service_ports: [8000, 8001]
+
+# Planet PBF and web-app source.
+valhalla__planet_url: https://planet.osm.org/pbf/planet-latest.osm.pbf
+valhalla__webapp_repo: https://github.com/valhalla/web-app.git
+valhalla__webapp_version: master
+
+# Picked up by the common role's acme_cert_client mechanism.
+valhalla__acme_certificates:
+  - name: valhalla-api
+    domains:
+      - "{{ valhalla__api_hostname }}"
+    on_update:
+      - systemctl reload nginx
+  - name: valhalla-web
+    domains:
+      - "{{ valhalla__web_hostname }}"
+    on_update:
+      - systemctl reload nginx

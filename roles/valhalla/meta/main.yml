@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: MIT
+---
+dependencies:
+  - role: nginx
+  - role: munin
+  - role: fail2ban

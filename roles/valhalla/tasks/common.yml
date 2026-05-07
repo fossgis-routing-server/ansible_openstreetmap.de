@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: MIT
+# Tasks that run on both valhalla_service and valhalla_builder.
+---
+- name: Create valhalla system account
+  system_account:
+    name: "{{ valhalla__user }}"
+    home: "{{ valhalla__basedir }}"
+
+- name: Create base directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ valhalla__user }}"
+    group: "{{ valhalla__user }}"
+    mode: "0755"
+  loop:
+    - "{{ valhalla__basedir }}"
+    - "{{ valhalla__srcdir }}"

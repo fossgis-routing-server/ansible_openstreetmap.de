@@ -1,0 +1,20 @@
+# SPDX-License-Identifier: MIT
+---
+- name: "Common setup (both hosts)"
+  include_tasks: "common.yml"
+
+- name: "Builder host setup"
+  include_tasks: "builder.yml"
+  when: "inventory_hostname in groups['valhalla_builder']"
+
+- name: "Service host setup"
+  include_tasks: "service.yml"
+  when: "inventory_hostname in groups['valhalla_service']"
+
+- name: "Web app (service host)"
+  include_tasks: "web.yml"
+  when: "inventory_hostname in groups['valhalla_service']"
+
+- name: "Frontend nginx (service host)"
+  include_tasks: "frontend.yml"
+  when: "inventory_hostname in groups['valhalla_service']"

@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: MIT
+# Builder host (valhalla2): build deps, valhalla checkout/build, planet
+# download, build-artifacts (admins/timezones/elevation), endless build-tiles
+# loop that pushes graph tarballs to the service host.
+---
