@@ -9,7 +9,7 @@ weeklyosm:
     - "weekly-hugo.openstreetmap.de"
 
 weeklyosm_hugo__acme_certificates:
-  - name: weeklyosm-hugo
+  - name: hugo
     domains:
       - hugo.weeklyosm.eu
     on_update:
