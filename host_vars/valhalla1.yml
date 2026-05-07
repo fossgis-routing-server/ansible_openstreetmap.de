@@ -1,0 +1,4 @@
+# SPDX-License-Identifier: MIT
+# Service host: runs valhalla_service (blue/green on 8000+8001),
+# nginx (HTTP API + web app), serves valhalla1.openstreetmap.de
+# and valhalla.openstreetmap.de.

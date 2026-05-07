@@ -43,6 +43,12 @@ tile:
 dev:
 	ansible-playbook -l dev -i hosts.ini site.yml
 
+valhalla_service:
+	ansible-playbook -l valhalla_service -i hosts.ini site.yml
+
+valhalla_builder:
+	ansible-playbook -l valhalla_builder -i hosts.ini site.yml
+
 monitor:
 	ansible-galaxy install -r requirements.yml -f
 	ansible-playbook -l icinga2agent -i hosts.ini monitoring.yml

@@ -108,3 +108,8 @@
   roles:
     - role: nginx
     - role: umap
+- hosts: valhalla_service,valhalla_builder
+  become: yes
+  tags: valhalla
+  roles:
+    - role: valhalla
