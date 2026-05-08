@@ -1,4 +1,10 @@
 ---
+collections:
+  # Required by roles/postgresql (postgresql_user, postgresql_db, etc.).
+  # Even when postgresql isn't in the active play, ansible parses all
+  # role tasks at site.yml load time, so the collection must be present.
+  - name: community.postgresql
+
 roles:
   - name: fossgis.icinga2_install
     src: https://gitlab.fossgis.de/ansible/roles/fossgis.icinga2_install

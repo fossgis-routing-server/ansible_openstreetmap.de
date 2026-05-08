@@ -43,10 +43,7 @@ tile:
 dev:
 	ansible-playbook -l dev -i hosts.ini site.yml
 
-# Both hosts together — required for full deploys because the role sets
-# facts on one host that the other consumes (graph-push pubkey from
-# valhalla2, deploy pubkey from valhalla1). Partial-target runs work for
-# tweaks that don't touch SSH key wiring; for anything else, use this.
+# Both hosts together — required for initial deploys due to SSH key sharing
 valhalla:
 	ansible-playbook -l valhalla_service,valhalla_builder -i hosts.ini site.yml
 
@@ -55,6 +52,13 @@ valhalla_service:
 
 valhalla_builder:
 	ansible-playbook -l valhalla_builder -i hosts.ini site.yml
+
+# Vagrant testing target for the valhalla role. Spins both VMs through the
+# inventory init script first (so freshly-recreated VMs pick up the right
+# coordinates) and then runs site.yml against both groups.
+vagrant-valhalla:
+	./init_vagrant_inventory.sh valhalla-service valhalla-builder
+	ansible-playbook -l valhalla_service,valhalla_builder -i vagrant.ini site.yml
 
 monitor:
 	ansible-galaxy install -r requirements.yml -f

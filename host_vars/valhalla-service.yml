@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: MIT
+# Vagrant test VM for the valhalla service role. Pairs with valhalla-builder
+# on a shared libvirt private_network (see Vagrantfile).
+
+# This is the IP the builder sees us coming from, so it goes into the
+# `from=` restriction on valhalla-builder's authorized_keys.
+valhalla__public_ipv4: 192.168.123.10
+
+# Override the public hostname to the private_network IP so:
+#   - the builder can resolve+SSH us via this address (graph push).
+#   - nginx server_name lines up with what curl uses from the host
+#     (curl -k https://192.168.123.10/status).
+# The acme task is gated on the [acme] group and not in scope here, so the
+# snake-oil cert is what nginx will serve. Browser warnings are expected.
+valhalla__api_hostname: 192.168.123.10
+valhalla__web_hostname: 192.168.123.10

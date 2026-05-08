@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: MIT
+# Vagrant test VM for the valhalla builder role. Pairs with valhalla-service
+# on a shared libvirt private_network (see Vagrantfile).
+
+# This is the IP the service host sees us coming from on the deploy-trigger
+# SSH. Currently informational on the builder side (the from= restriction
+# the builder enforces is on its OWN authorized_keys, keyed off the service
+# host's valhalla__public_ipv4), but kept symmetric for clarity.
+valhalla__public_ipv4: 192.168.123.11
+
+# Used by build-tiles-loop.sh as the SSH target for graph push and the
+# apply-graph trigger. Match valhalla-service.yml.
+valhalla__api_hostname: 192.168.123.10
+
+# A full planet PBF is multiple times the disk a vagrant VM has. Liechtenstein
+# is ~2 MB and exercises the same valhalla_build_tiles + admins + timezones +
+# elevation pipeline — enough to verify the role end-to-end.
+valhalla__planet_url: https://download.geofabrik.de/europe/liechtenstein-latest.osm.pbf
