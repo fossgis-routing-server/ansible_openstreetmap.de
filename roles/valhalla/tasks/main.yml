@@ -3,8 +3,12 @@
 - name: "Common setup (both hosts)"
   include_tasks: "common.yml"
 
-- name: "Builder host setup"
+- name: "Graph Builder host setup"
   include_tasks: "builder.yml"
+  when: "inventory_hostname in groups['valhalla_builder']"
+
+- name: "Graph Builder loop + graph push"
+  include_tasks: "tiles_loop.yml"
   when: "inventory_hostname in groups['valhalla_builder']"
 
 - name: "Service host setup"

@@ -131,32 +131,3 @@
     creates: "{{ valhalla__planet_path }}"
   become: yes
   become_user: "{{ valhalla__user }}"
-
-- name: Build timezones.sqlite
-  shell:
-    cmd: |
-      valhalla_build_timezones > "{{ valhalla__timezones_path }}.partial"
-      mv "{{ valhalla__timezones_path }}.partial" "{{ valhalla__timezones_path }}"
-    chdir: /tmp
-    creates: "{{ valhalla__timezones_path }}"
-  become: yes
-  become_user: "{{ valhalla__user }}"
-
-- name: Build admins.sqlite
-  command:
-    cmd: "valhalla_build_admins -c {{ valhalla__config_path }} {{ valhalla__planet_path }}"
-    creates: "{{ valhalla__admins_path }}"
-  become: yes
-  become_user: "{{ valhalla__user }}"
-
-- name: Stat elevation dir
-  stat:
-    path: "{{ valhalla__elevation_dir }}"
-  register: valhalla_elevation_dir
-
-- name: Build elevation tiles
-  command:
-    cmd: "valhalla_build_elevation --config {{ valhalla__config_path }} --from-bbox {{ valhalla__elevation_bbox }} --decompress"
-  when: not valhalla_elevation_dir.stat.exists
-  become: yes
-  become_user: "{{ valhalla__user }}"

@@ -1,0 +1,105 @@
+#!/bin/bash
+# Managed by ansible — see roles/valhalla/templates/build-tiles-loop.sh.j2
+#
+# Endless graph build loop. Each iteration:
+#   1. admins.sqlite                — build only if missing (one-time)
+#   2. timezones.sqlite             — refresh every iteration
+#   3. valhalla_build_tiles phase 1 — through 'build' stage
+#   4. valhalla_build_elevation     — for the current graph, via --from-tiles
+#   5. valhalla_build_tiles phase 2 — from 'enhance' stage onward
+#   6. tar+zstd → atomic move
+#   7. rsync to service host
+#   8. ssh trigger (forced command runs apply-graph.sh on the service)
+#   9. pyosmium-up-to-date the planet.pbf  (best-effort)
+#   .  touch sentinel — mtime = last successful iteration
+#
+# Failure handling (deliberate):
+#   - set -euo pipefail: any pathological failure aborts the whole script.
+#   - systemd Restart=always brings it back; StartLimitBurst pins the unit as
+#     'failed' if 3 restarts happen within 10 min (so monitoring sees it).
+#   - The sentinel file's mtime is the primary monitoring signal — works
+#     regardless of unit state. Munin/prometheus alert on staleness.
+#   - Only pyosmium-up-to-date is best-effort (|| LOG_WARN); everything else
+#     aborts on failure.
+#
+# Logging: tagged "valhalla-build-tiles" via syslog. View with
+#   journalctl -t valhalla-build-tiles -f
+# Filter by severity with -p (e.g. `-p warning` for warning+err+crit+...).
+
+set -euo pipefail
+
+LOG_INFO="logger -i -t valhalla-build-tiles -p daemon.info --"
+LOG_WARN="logger -i -t valhalla-build-tiles -p daemon.warning --"
+
+CONFIG="{{ valhalla__config_path }}"
+PLANET="{{ valhalla__planet_path }}"
+TILES_DIR="{{ valhalla__tiles_dir }}"
+TARBALL="{{ valhalla__tarball_path }}"
+SENTINEL="{{ valhalla__sentinel_path }}"
+
+ADMINS_PATH="{{ valhalla__admins_path }}"
+TIMEZONES_PATH="{{ valhalla__timezones_path }}"
+SERVICE_HOST="{{ valhalla__api_hostname }}"
+SERVICE_USER="{{ valhalla__graph_user }}"
+SSH_KEY="$HOME/.ssh/id_valhalla_graph"
+KNOWN_HOSTS="$HOME/.ssh/known_hosts"
+
+ssh_to_service() {
+    # No remote command: the service host's authorized_keys forces apply-graph.sh.
+    ssh -i "$SSH_KEY" \
+        -o StrictHostKeyChecking=accept-new \
+        -o "UserKnownHostsFile=$KNOWN_HOSTS" \
+        "$SERVICE_USER@$SERVICE_HOST"
+}
+rsync_to_service_home() {
+    rsync --partial --inplace \
+        -e "ssh -i $SSH_KEY -o StrictHostKeyChecking=accept-new -o UserKnownHostsFile=$KNOWN_HOSTS" \
+        "$@" "$SERVICE_USER@$SERVICE_HOST:"
+}
+
+while true; do
+    # 1. admins.sqlite — only build once.
+    if [ ! -f "$ADMINS_PATH" ]; then
+        $LOG_INFO "iteration: building admins.sqlite (one-time)"
+        valhalla_build_admins -c "$CONFIG" "$PLANET" 2>&1 | $LOG_INFO
+    fi
+
+    # 2. timezones.sqlite — every iteration. /tmp cwd so the script's
+    #    scratch files don't pollute /srv/valhalla.
+    $LOG_INFO "iteration: refreshing timezones.sqlite"
+    ( cd /tmp && valhalla_build_timezones ) > "$TIMEZONES_PATH" 2> >($LOG_INFO)
+
+    # 3-5. staged tile build with elevation download in between.
+    $LOG_INFO "iteration: tile build phase 1 (through 'build' stage)"
+    valhalla_build_tiles -c "$CONFIG" --end_stage build "$PLANET" 2>&1 | $LOG_INFO
+
+    $LOG_INFO "iteration: downloading elevation tiles for the current graph"
+    valhalla_build_elevation --config "$CONFIG" --from-tiles --decompress 2>&1 | $LOG_INFO
+
+    $LOG_INFO "iteration: tile build phase 2 (from 'enhance' stage)"
+    valhalla_build_tiles -c "$CONFIG" --start_stage enhance "$PLANET" 2>&1 | $LOG_INFO
+
+    # 6. tar + zstd to TARBALL.
+    $LOG_INFO "iteration: tar+zstd → $TARBALL"
+    tar --use-compress-program="zstd -T0 -3" \
+        -cf "${TARBALL}.partial" -C "$TILES_DIR" . 2>&1 | $LOG_INFO
+    mv "${TARBALL}.partial" "$TARBALL"
+
+    # 7. rsync to service.
+    $LOG_INFO "iteration: rsync → $SERVICE_USER@$SERVICE_HOST"
+    rsync_to_service_home "$TARBALL" 2>&1 | $LOG_INFO
+
+    # 8. trigger apply-graph (forced command on service side).
+    $LOG_INFO "iteration: trigger apply-graph on $SERVICE_HOST"
+    ssh_to_service 2>&1 | $LOG_INFO
+
+    # 9. update planet.pbf — best-effort.
+    $LOG_INFO "iteration: pyosmium-up-to-date $PLANET"
+    pyosmium-up-to-date -v --size 10000 \
+        --format "pbf,pbf_compression=lz4" "$PLANET" 2>&1 | $LOG_INFO \
+        || $LOG_WARN "pyosmium-up-to-date FAILED — continuing, will retry next iteration"
+
+    # Sentinel — mtime = last successful iteration. Primary monitoring signal.
+    touch "$SENTINEL"
+    $LOG_INFO "iteration complete"
+done

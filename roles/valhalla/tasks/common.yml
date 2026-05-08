@@ -15,4 +15,5 @@
     mode: "0755"
   loop:
     - "{{ valhalla__basedir }}"
+    - "{{ valhalla__basedir }}/scripts"
     - "{{ valhalla__srcdir }}"

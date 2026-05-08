@@ -32,12 +32,23 @@ valhalla__admins_path: "{{ valhalla__data_dir }}/admins.sqlite"
 valhalla__timezones_path: "{{ valhalla__data_dir }}/timezones.sqlite"
 valhalla__elevation_dir: "{{ valhalla__data_dir }}/elevation"
 valhalla__tiles_dir: "{{ valhalla__data_dir }}/valhalla_tiles"
-# Bbox for the initial elevation download (planet by default).
-valhalla__elevation_bbox: "-180,-90,180,90"
 
 # OpenStreetMapSpeeds default-speeds JSON consumed by valhalla_build_tiles.
 valhalla__default_speeds_url: https://raw.githubusercontent.com/OpenStreetMapSpeeds/schema/refs/heads/master/default_speeds.json
 valhalla__default_speeds_path: "{{ valhalla__data_dir }}/default_speeds.json"
+
+# Compressed graph tarball produced by each graph build iteration
+# and rsynced to the service host.
+valhalla__tarball_path: "{{ valhalla__data_dir }}/tiles.tar.zst"
+
+# Sentinel file touched at the end of each successful graph build iteration.
+# mtime is the primary monitoring signal (munin/prometheus alert on staleness).
+valhalla__sentinel_path: "{{ valhalla__basedir }}/last_iteration_complete"
+
+# System user on the service host that receives graph pushes from the builder.
+# Its authorized_keys forces apply-graph.sh, nothing else.
+valhalla__graph_user: valhalla-graph
+valhalla__graph_user_home: /srv/valhalla-graph
 
 # Picked up by the common role's acme_cert_client mechanism.
 valhalla__acme_certificates:
