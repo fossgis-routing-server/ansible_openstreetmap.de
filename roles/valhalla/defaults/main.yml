@@ -50,6 +50,8 @@ valhalla__sentinel_path: "{{ valhalla__basedir }}/last_iteration_complete"
 valhalla__graph_user: valhalla-graph
 valhalla__graph_user_home: /srv/valhalla-graph
 
+valhalla__prime_server_srcdir: /src/prime_server
+
 # Picked up by the common role's acme_cert_client mechanism.
 valhalla__acme_certificates:
   - name: valhalla-api

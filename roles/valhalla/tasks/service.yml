@@ -1,5 +1,249 @@
 # SPDX-License-Identifier: MIT
-# Service host (valhalla1): build deps, prime_server, valhalla checkout/build,
-# two systemd units (one per port in valhalla__service_ports) for blue/green,
-# active-port state file consumed by nginx and apply-graph.sh.
+# Service host (valhalla1): build deps, prime_server, valhalla service build,
+# two systemd units (one per port in valhalla__service_ports) — both run side
+# by side at steady state. The receiver account is created here; the
+# apply-graph dispatcher + sudoers + authorized_key live in apply_graph.yml.
+# nginx (frontend.yml) load-balances over both upstreams with passive health
+# checks, so there is no "active port" state file — apply-graph just stops/
+# swaps/starts each instance in turn.
 ---
+
+- name: Install valhalla service prerequisites
+  apt:
+    name:
+      - cmake
+      - ccache
+      - unzip
+      - git
+      - coreutils
+      - g++
+      - gcc
+      - libboost-all-dev
+      - libcurl4-openssl-dev
+      - libczmq-dev
+      - libgdal-dev
+      - libgeos-dev
+      - libluajit-5.1-dev
+      - liblz4-dev
+      - libprotobuf-dev
+      - libspatialite-dev
+      - libsqlite3-dev
+      - libsqlite3-mod-spatialite
+      - libzmq3-dev
+      - make
+      - pkgconf
+      - protobuf-compiler
+      - rsync
+      - zstd
+      - zlib1g-dev
+    state: present
+
+# prime_server — required dependency of valhalla_service. Built out-of-tree
+# with cmake, mirroring the valhalla build pattern below.
+
+- name: Checkout prime_server source
+  git:
+    repo: https://github.com/kevinkreiser/prime_server.git
+    dest: "{{ valhalla__prime_server_srcdir }}"
+    version: master
+    recursive: yes
+    force: yes
+  register: valhalla_prime_server_src
+  become: yes
+  become_user: "{{ valhalla__user }}"
+
+- name: Clear stale prime_server build dir on source change
+  file:
+    path: "{{ valhalla__prime_server_srcdir }}/build"
+    state: absent
+  when: valhalla_prime_server_src.changed
+
+- name: Configure prime_server (cmake)
+  command:
+    cmd: >
+      cmake -S {{ valhalla__prime_server_srcdir }} -B {{ valhalla__prime_server_srcdir }}/build
+      -DCMAKE_BUILD_TYPE=Release
+    creates: "{{ valhalla__prime_server_srcdir }}/build/CMakeCache.txt"
+  become: yes
+  become_user: "{{ valhalla__user }}"
+
+- name: Build prime_server
+  command:
+    cmd: "make -j {{ ansible_facts.processor_vcpus }}"
+    chdir: "{{ valhalla__prime_server_srcdir }}/build"
+  register: valhalla_prime_server_build
+  when: valhalla_prime_server_src.changed
+  become: yes
+  become_user: "{{ valhalla__user }}"
+
+- name: Install prime_server
+  command:
+    cmd: "make install"
+    chdir: "{{ valhalla__prime_server_srcdir }}/build"
+  when: valhalla_prime_server_build is changed
+
+- name: ldconfig (prime_server installs libs into /usr/local/lib)
+  command: ldconfig
+  when: valhalla_prime_server_build is changed
+
+# valhalla source — independent checkout from the builder's; same git_version.
+
+- name: Checkout valhalla source
+  git:
+    repo: "{{ valhalla__git_repo }}"
+    dest: "{{ valhalla__srcdir }}"
+    version: "{{ valhalla__git_version }}"
+    recursive: yes
+    force: yes
+  register: valhalla_src
+  become: yes
+  become_user: "{{ valhalla__user }}"
+
+- name: Clear stale build dir on source change
+  file:
+    path: "{{ valhalla__srcdir }}/build"
+    state: absent
+  when: valhalla_src.changed
+
+- name: Configure valhalla (service profile)
+  command:
+    cmd: >
+      cmake -S {{ valhalla__srcdir }} -B {{ valhalla__srcdir }}/build
+      -DCMAKE_BUILD_TYPE=Release
+      -DCMAKE_C_COMPILER_LAUNCHER=ccache
+      -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+      -DENABLE_DATA_TOOLS=OFF
+      -DENABLE_SERVICES=ON
+      -DENABLE_HTTP=ON
+      -DENABLE_PYTHON_BINDINGS=OFF
+      -DENABLE_TESTS=OFF
+      -DENABLE_SINGLE_FILES_WERROR=OFF
+      -DVALHALLA_VERSION_MODIFIER={{ valhalla_src.after[:7] }}
+    creates: "{{ valhalla__srcdir }}/build/CMakeCache.txt"
+  become: yes
+  become_user: "{{ valhalla__user }}"
+
+- name: Build valhalla
+  command:
+    cmd: "make -j {{ ansible_facts.processor_vcpus }}"
+    chdir: "{{ valhalla__srcdir }}/build"
+    creates: "{{ valhalla__srcdir }}/build/valhalla_service"
+  register: valhalla_build_step
+  become: yes
+  become_user: "{{ valhalla__user }}"
+
+- name: Install valhalla
+  command:
+    cmd: "make install"
+    chdir: "{{ valhalla__srcdir }}/build"
+  when: valhalla_build_step is changed
+
+- name: ldconfig (valhalla installs libs into /usr/local/lib)
+  command: ldconfig
+  when: valhalla_build_step is changed
+
+# Receiver account — owns the per-port tile dirs; the valhalla service user
+# reads them via group. The push key, dispatcher, and sudoers wire-up are in
+# apply_graph.yml (next sub-task).
+
+- name: Create valhalla-graph receiver account
+  system_account:
+    name: "{{ valhalla__graph_user }}"
+    home: "{{ valhalla__graph_user_home }}"
+    create_home: yes
+    shell: /bin/bash
+
+# Per-port layout: tile dir, valhalla.json, systemd unit.
+
+# MVT cache (per-port, written to by valhalla_service for the /tile action).
+# The tile-extract tarball at {basedir}/graph-{port}.tar is dropped by
+# apply-graph.sh on the service host — no directory to pre-create.
+
+- name: Per-port mvt cache dirs
+  file:
+    path: "{{ valhalla__basedir }}/mvt-cache-{{ item }}"
+    state: directory
+    owner: "{{ valhalla__user }}"
+    group: "{{ valhalla__user }}"
+    mode: "0755"
+  loop: "{{ valhalla__service_ports }}"
+
+- name: Per-port valhalla.json
+  shell:
+    cmd: >
+      valhalla_build_config
+      --httpd-service-listen "tcp://*:{{ item }}"
+      --mjolnir-tile-extract {{ valhalla__basedir }}/graph-{{ item }}.tar
+      --mjolnir-admin ""
+      --mjolnir-timezone ""
+      --mjolnir-traffic-extract ""
+      --mjolnir-transit-dir ""
+      --loki-service-defaults-minimum-reachability 100
+      --loki-service-defaults-mvt-cache-dir {{ valhalla__basedir }}/mvt-cache-{{ item }}
+      --meili-grid-cache-size 1000
+      --meili-default-breakage-distance 10000
+      --meili-default-interpolation-distance 20
+      --service-limits-isochrone-max-time-contour 100
+      --service-limits-isochrone-max-distance-contour 150
+      --service-limits-pedestrian-max-distance 200000.0
+      --service-limits-bicycle-max-distance 200000.0
+      --service-limits-motor-scooter-max-distance 200000.0
+      --service-limits-auto-max-distance 1500000.0
+      --service-limits-truck-max-distance 1500000.0
+      --service-limits-bus-max-distance 1500000.0
+      --service-limits-taxi-max-distance 1500000.0
+      --service-limits-motorcycle-max-distance 1500000.0
+      --service-limits-centroid-max-distance 100000.0
+      --service-limits-max-alternates 2
+      --service-limits-max-exclude-polygons-length 100000
+      --service-limits-status-allow-verbose true
+      --service-limits-max-distance-disable-hierarchy-culling 150000
+      --thor-costmatrix-check-reverse-connection true
+      --thor-costmatrix-allow-second-pass true
+      --statsd-host localhost
+      --statsd-port 8125
+      > {{ valhalla__basedir }}/valhalla-{{ item }}.json
+    creates: "{{ valhalla__basedir }}/valhalla-{{ item }}.json"
+  loop: "{{ valhalla__service_ports }}"
+  become: yes
+  become_user: "{{ valhalla__user }}"
+
+- name: Per-port valhalla systemd units
+  systemd_service:
+    name: "valhalla-{{ item }}"
+    enabled: true
+    service:
+      Unit:
+        Description: "Valhalla routing service on port {{ item }}"
+        After: network.target
+      Service:
+        Type: simple
+        User: "{{ valhalla__user }}"
+        Group: "{{ valhalla__user }}"
+        ExecStart: "valhalla_service {{ valhalla__basedir }}/valhalla-{{ item }}.json"
+        Restart: always
+        RestartSec: 10
+        # Each instance is capped at half the host's vCPUs so blue + green
+        # together never exceed total capacity. CPUQuota is in 100%-per-CPU
+        # units, so 8 vcpus → 400% per instance.
+        CPUQuota: "{{ ansible_facts.processor_vcpus * 50 }}%"
+  loop: "{{ valhalla__service_ports }}"
+
+- name: Stat per-port tile-extracts
+  stat:
+    path: "{{ valhalla__basedir }}/graph-{{ item }}.tar"
+  register: valhalla_extracts
+  loop: "{{ valhalla__service_ports }}"
+
+- name: Ensure each valhalla service is running (only when its graph is present)
+  # Steady state: both blue and green run side-by-side, each capped at half
+  # the host's vCPUs (see CPUQuota above). apply-graph.sh stops/starts each
+  # one in turn during a swap. On a fresh deploy no graph exists yet and
+  # nothing starts; the first apply-graph push brings the services up.
+  systemd:
+    name: "valhalla-{{ item.item }}"
+    state: started
+  loop: "{{ valhalla_extracts.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+  when: item.stat.exists
