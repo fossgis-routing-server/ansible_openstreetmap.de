@@ -1,0 +1,9 @@
+# Managed by ansible — see roles/valhalla/templates/valhalla-deploy-builder.sudoers.j2
+#
+# Sudoers for the valhalla-deploy account on the builder host. Same pattern
+# as the service-side sudoers but with the builder-specific systemctl unit.
+{{ valhalla__deploy_user }} ALL=({{ valhalla__user }}) NOPASSWD: ALL
+{{ valhalla__deploy_user }} ALL=(root) NOPASSWD: \
+    /usr/bin/make -C {{ valhalla__srcdir }}/build install, \
+    /sbin/ldconfig, \
+    /usr/bin/systemctl restart valhalla-build-tiles

@@ -1,0 +1,72 @@
+# SPDX-License-Identifier: MIT
+# Service host: receives GHA-triggered deploys via the valhalla-deploy SSH
+# account. Three forced-command keys (one per deploy type) are pinned to the
+# matching script in {{ valhalla__basedir }}/scripts/. The same account also
+# holds the SSH key used for valhalla1 -> valhalla2 builder-rebuild dispatch.
+---
+
+- name: Create valhalla-deploy account (service host)
+  system_account:
+    name: "{{ valhalla__deploy_user }}"
+    home: "{{ valhalla__deploy_user_home }}"
+    create_home: yes
+    shell: /bin/bash
+
+- name: Generate SSH key for valhalla-deploy -> builder
+  # The pubkey ends up at {{ valhalla__deploy_user_home }}/.ssh/id_valhalla_builder_deploy.pub.
+  # deploy_builder.yml on valhalla2 slurps it from there via delegate_to
+  user:
+    name: "{{ valhalla__deploy_user }}"
+    generate_ssh_key: yes
+    ssh_key_type: ed25519
+    ssh_key_file: ".ssh/id_valhalla_builder_deploy"
+    ssh_key_comment: "valhalla-deploy {{ inventory_hostname }} → builder"
+
+- name: deploy-service.sh
+  template:
+    src: deploy-service.sh.j2
+    dest: "{{ valhalla__basedir }}/scripts/deploy-service.sh"
+    owner: "{{ valhalla__user }}"
+    group: "{{ valhalla__user }}"
+    mode: "0755"
+
+- name: deploy-builder.sh (SSH-jump trigger)
+  template:
+    src: deploy-builder.sh.j2
+    dest: "{{ valhalla__basedir }}/scripts/deploy-builder.sh"
+    owner: "{{ valhalla__user }}"
+    group: "{{ valhalla__user }}"
+    mode: "0755"
+
+- name: Sudoers — valhalla-deploy on the service host
+  template:
+    src: valhalla-deploy-service.sudoers.j2
+    dest: /etc/sudoers.d/valhalla-deploy
+    owner: root
+    group: root
+    mode: "0440"
+    validate: "visudo -cf %s"
+
+- name: Authorize GHA key — deploy-service flow
+  authorized_key:
+    user: "{{ valhalla__deploy_user }}"
+    key: "{{ valhalla__deploy_pubkeys.service }}"
+    key_options: 'command="{{ valhalla__basedir }}/scripts/deploy-service.sh",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty'
+    state: present
+  when: (valhalla__deploy_pubkeys.service | default('')) | length > 0
+
+- name: Authorize GHA key — deploy-builder flow
+  authorized_key:
+    user: "{{ valhalla__deploy_user }}"
+    key: "{{ valhalla__deploy_pubkeys.builder }}"
+    key_options: 'command="{{ valhalla__basedir }}/scripts/deploy-builder.sh",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty'
+    state: present
+  when: (valhalla__deploy_pubkeys.builder | default('')) | length > 0
+
+- name: Authorize GHA key — deploy-web flow
+  authorized_key:
+    user: "{{ valhalla__deploy_user }}"
+    key: "{{ valhalla__deploy_pubkeys.web }}"
+    key_options: 'command="{{ valhalla__basedir }}/scripts/deploy-web.sh",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty'
+    state: present
+  when: (valhalla__deploy_pubkeys.web | default('')) | length > 0

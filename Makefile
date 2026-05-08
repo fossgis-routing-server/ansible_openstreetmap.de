@@ -43,6 +43,13 @@ tile:
 dev:
 	ansible-playbook -l dev -i hosts.ini site.yml
 
+# Both hosts together — required for full deploys because the role sets
+# facts on one host that the other consumes (graph-push pubkey from
+# valhalla2, deploy pubkey from valhalla1). Partial-target runs work for
+# tweaks that don't touch SSH key wiring; for anything else, use this.
+valhalla:
+	ansible-playbook -l valhalla_service,valhalla_builder -i hosts.ini site.yml
+
 valhalla_service:
 	ansible-playbook -l valhalla_service -i hosts.ini site.yml
 

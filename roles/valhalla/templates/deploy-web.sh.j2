@@ -11,6 +11,13 @@
 
 set -euo pipefail
 
+# Auto-elevate to the valhalla user. Invoked from two places:
+#   - ansible (run_once initial build) — already runs as valhalla, no-op.
+#   - GHA via the valhalla-deploy SSH user — sudoers grants NOPASSWD here.
+if [ "$(id -un)" != "{{ valhalla__user }}" ]; then
+    exec sudo -u "{{ valhalla__user }}" "$0" "$@"
+fi
+
 LOG_INFO="logger -i -t valhalla-deploy-web -p daemon.info --"
 
 SRCDIR="{{ valhalla__webapp_srcdir }}"

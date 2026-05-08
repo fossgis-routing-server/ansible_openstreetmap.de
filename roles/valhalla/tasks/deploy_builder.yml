@@ -1,0 +1,47 @@
+# SPDX-License-Identifier: MIT
+# Builder host: receives builder-rebuild triggers from valhalla1's deploy
+# account. Single forced-command authorized_key, restricted by from= to
+# valhalla1's public IP.
+---
+
+- name: Create valhalla-deploy account (builder host)
+  system_account:
+    name: "{{ valhalla__deploy_user }}"
+    home: "{{ valhalla__deploy_user_home }}"
+    create_home: yes
+    shell: /bin/bash
+
+- name: deploy-builder-runner.sh
+  template:
+    src: deploy-builder-runner.sh.j2
+    dest: "{{ valhalla__basedir }}/scripts/deploy-builder-runner.sh"
+    owner: "{{ valhalla__user }}"
+    group: "{{ valhalla__user }}"
+    mode: "0755"
+
+- name: Sudoers — valhalla-deploy on the builder host
+  template:
+    src: valhalla-deploy-builder.sudoers.j2
+    dest: /etc/sudoers.d/valhalla-deploy
+    owner: root
+    group: root
+    mode: "0440"
+    validate: "visudo -cf %s"
+
+- name: Read valhalla1's deploy pubkey from disk
+  # delegate_to fetches the file via a separate SSH connection to valhalla1,
+  # so this works on partial runs (e.g. -l valhalla_builder) where the
+  # service host isn't otherwise in the play. Pre-condition: a prior full
+  # run generated the key on valhalla1.
+  slurp:
+    src: "{{ valhalla__deploy_user_home }}/.ssh/id_valhalla_builder_deploy.pub"
+  delegate_to: "{{ groups['valhalla_service'][0] }}"
+  register: valhalla_deploy_pubkey_raw
+
+- name: Authorize valhalla1's deploy pubkey (forced cmd, restricted by from=)
+  authorized_key:
+    user: "{{ valhalla__deploy_user }}"
+    key: "{{ (valhalla_deploy_pubkey_raw.content | b64decode).strip() }}"
+    key_options: 'from="{{ hostvars[groups[''valhalla_service''][0]].valhalla__public_ipv4 }}",command="{{ valhalla__basedir }}/scripts/deploy-builder-runner.sh",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty'
+    state: present
+    exclusive: yes

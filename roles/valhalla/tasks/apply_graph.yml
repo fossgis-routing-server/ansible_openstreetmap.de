@@ -1,35 +1,26 @@
 # SPDX-License-Identifier: MIT
 # Service host: receiver-side wiring for graph pushes from the builder.
-#   - /opt/valhalla/graph-receiver.sh — forced-command dispatcher (rsync -> rrsync,
-#     bare ssh -> apply-graph.sh).
-#   - /opt/valhalla/apply-graph.sh — does the rolling swap (decompress tarball,
-#     rolling-restart each per-port valhalla_service, healthcheck).
+#   - scripts/graph-receiver.sh — forced-command dispatcher
+#     (rsync -> rrsync, bare ssh -> apply-graph.sh).
+#   - scripts/apply-graph.sh — rolling swap.
 #   - sudoers — passwordless systemctl stop/start for the per-port units.
 #   - authorized_key — pin the builder's pubkey to the dispatcher.
 ---
 
-- name: /opt/valhalla for receiver scripts
-  file:
-    path: /opt/valhalla
-    state: directory
-    owner: root
-    group: root
-    mode: "0755"
-
 - name: graph-receiver.sh dispatcher
   template:
     src: graph-receiver.sh.j2
-    dest: /opt/valhalla/graph-receiver.sh
-    owner: root
-    group: root
+    dest: "{{ valhalla__basedir }}/scripts/graph-receiver.sh"
+    owner: "{{ valhalla__user }}"
+    group: "{{ valhalla__user }}"
     mode: "0755"
 
 - name: apply-graph.sh
   template:
     src: apply-graph.sh.j2
-    dest: /opt/valhalla/apply-graph.sh
-    owner: root
-    group: root
+    dest: "{{ valhalla__basedir }}/scripts/apply-graph.sh"
+    owner: "{{ valhalla__user }}"
+    group: "{{ valhalla__user }}"
     mode: "0755"
 
 - name: Sudoers — let valhalla-graph stop/start the per-port units
@@ -41,10 +32,20 @@
     mode: "0440"
     validate: "visudo -cf %s"
 
+- name: Read builder's graph-push pubkey from disk
+  # delegate_to fetches the file via a separate SSH connection to valhalla2,
+  # so this works on partial runs (e.g. -l valhalla_service) where the
+  # builder isn't otherwise in the play. Pre-condition: a prior full run
+  # generated the key on valhalla2.
+  slurp:
+    src: "{{ valhalla__basedir }}/.ssh/id_valhalla_graph.pub"
+  delegate_to: "{{ groups['valhalla_builder'][0] }}"
+  register: valhalla_graph_pubkey_raw
+
 - name: Authorize builder push key with forced command -> graph-receiver.sh
   authorized_key:
     user: "{{ valhalla__graph_user }}"
-    key: "{{ hostvars[groups['valhalla_builder'][0]].valhalla__graph_pubkey }}"
-    key_options: 'command="/opt/valhalla/graph-receiver.sh",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty'
+    key: "{{ (valhalla_graph_pubkey_raw.content | b64decode).strip() }}"
+    key_options: 'command="{{ valhalla__basedir }}/scripts/graph-receiver.sh",no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-pty'
     state: present
     exclusive: yes

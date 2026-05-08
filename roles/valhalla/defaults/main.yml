@@ -68,6 +68,19 @@ valhalla__graph_user_home: /srv/valhalla-graph
 
 valhalla__prime_server_srcdir: /src/prime_server
 
+# GHA-driven deploys: a separate system account whose authorized_keys pin one
+# of three forced commands per pubkey:
+#   - service: deploy-service.sh    (rebuild + rolling-restart valhalla on valhalla1)
+#   - builder: deploy-builder.sh    (SSH-jump to valhalla2 and rebuild there)
+#   - web:     deploy-web.sh        (rebuild + sync the web app)
+# Default pubkeys are empty — populate from private/vars/ to enable each flow.
+valhalla__deploy_user: valhalla-deploy
+valhalla__deploy_user_home: /srv/valhalla-deploy
+valhalla__deploy_pubkeys:
+  service: ""
+  builder: ""
+  web: ""
+
 # Picked up by the common role's acme_cert_client mechanism.
 valhalla__acme_certificates:
   - name: valhalla-api

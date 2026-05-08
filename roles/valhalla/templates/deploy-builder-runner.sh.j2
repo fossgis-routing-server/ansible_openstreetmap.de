@@ -1,0 +1,53 @@
+#!/bin/bash
+# Managed by ansible — see roles/valhalla/templates/deploy-builder-runner.sh.j2
+#
+# Pulls valhalla master, rebuilds with builder-profile cmake flags, installs,
+# and restarts the build-tiles loop. Invoked by valhalla1's deploy-builder.sh
+# via SSH (forced command on this account).
+
+set -euo pipefail
+
+LOG_INFO="logger -i -t valhalla-deploy-builder -p daemon.info --"
+
+SRCDIR="{{ valhalla__srcdir }}"
+
+$LOG_INFO "starting deploy-builder"
+
+# 1. Pull + rebuild as the valhalla user.
+sudo -u "{{ valhalla__user }}" bash <<'EOF'
+set -euo pipefail
+cd {{ valhalla__srcdir }}
+
+git fetch origin
+git checkout -f master
+git pull --ff-only
+git submodule update --init --recursive
+
+rm -rf build
+
+cmake -S . -B build \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+    -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+    -DENABLE_TOOLS=OFF \
+    -DENABLE_SERVICES=OFF \
+    -DENABLE_HTTP=OFF \
+    -DENABLE_PYTHON_BINDINGS=OFF \
+    -DENABLE_TESTS=OFF \
+    -DENABLE_SINGLE_FILES_WERROR=OFF \
+    -DENABLE_GEOTIFF=OFF \
+    -DVALHALLA_VERSION_MODIFIER=$(git rev-parse --short HEAD)
+
+make -C build -j$(nproc)
+EOF
+
+# 2. Install + ldconfig as root. The running build-tiles loop re-execs
+#    /usr/local/bin/valhalla_build_tiles each iteration, so the new binary
+#    takes effect when the current iteration finishes. No restart needed —
+#    that would just kill an in-flight build (potentially hours of work).
+#    For an immediate switchover: `systemctl restart valhalla-build-tiles`
+#    manually.
+sudo /usr/bin/make -C "$SRCDIR/build" install
+sudo /sbin/ldconfig
+
+$LOG_INFO "deploy-builder complete"

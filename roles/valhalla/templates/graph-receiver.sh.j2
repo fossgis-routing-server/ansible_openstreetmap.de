@@ -15,7 +15,7 @@ case "${SSH_ORIGINAL_COMMAND:-}" in
         exec /usr/bin/rrsync -wo "$HOME"
         ;;
     "")
-        exec /opt/valhalla/apply-graph.sh
+        exec "{{ valhalla__basedir }}/scripts/apply-graph.sh"
         ;;
     *)
         logger -i -t valhalla-graph-receiver -p daemon.warning -- \

@@ -10,17 +10,14 @@
 ---
 
 - name: Generate SSH key for graph push
+  # The pubkey ends up at {{ valhalla__basedir }}/.ssh/id_valhalla_graph.pub.
+  # apply_graph.yml on valhalla1 slurps it from there via delegate_to
   user:
     name: "{{ valhalla__user }}"
     generate_ssh_key: yes
     ssh_key_type: ed25519
     ssh_key_file: ".ssh/id_valhalla_graph"
     ssh_key_comment: "valhalla graph push from {{ inventory_hostname }}"
-  register: valhalla_keygen
-
-- name: Stash graph-push pubkey for service host to authorize
-  set_fact:
-    valhalla__graph_pubkey: "{{ valhalla_keygen.ssh_public_key }}"
 
 - name: Build-tiles loop script
   template:

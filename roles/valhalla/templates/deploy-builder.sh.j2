@@ -1,0 +1,22 @@
+#!/bin/bash
+# Managed by ansible — see roles/valhalla/templates/deploy-builder.sh.j2
+#
+# Triggers a builder-side rebuild on valhalla2 by SSH'ing in as the
+# valhalla-deploy user (forced command on the other side runs
+# deploy-builder-runner.sh). Invoked by GHA on valhalla1.
+
+set -euo pipefail
+
+LOG_INFO="logger -i -t valhalla-deploy-builder-trigger -p daemon.info --"
+
+BUILDER_HOST="{{ hostvars[groups['valhalla_builder'][0]].ansible_host }}"
+SSH_KEY="$HOME/.ssh/id_valhalla_builder_deploy"
+KNOWN_HOSTS="$HOME/.ssh/known_hosts"
+
+$LOG_INFO "triggering deploy-builder on $BUILDER_HOST"
+ssh -i "$SSH_KEY" \
+    -o StrictHostKeyChecking=accept-new \
+    -o "UserKnownHostsFile=$KNOWN_HOSTS" \
+    "{{ valhalla__deploy_user }}@$BUILDER_HOST" 2>&1 | $LOG_INFO
+
+$LOG_INFO "deploy-builder trigger complete"
