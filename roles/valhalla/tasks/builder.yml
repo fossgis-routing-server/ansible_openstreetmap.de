@@ -32,7 +32,9 @@
       - parallel
       - pkgconf
       - protobuf-compiler
+      - rsync
       - zlib1g-dev
+      - zstd
     state: present
 
 - name: Checkout valhalla source

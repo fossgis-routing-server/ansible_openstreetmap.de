@@ -15,6 +15,10 @@
   include_tasks: "service.yml"
   when: "inventory_hostname in groups['valhalla_service']"
 
+- name: "Service host apply-graph receiver"
+  include_tasks: "apply_graph.yml"
+  when: "inventory_hostname in groups['valhalla_service']"
+
 - name: "Web app (service host)"
   include_tasks: "web.yml"
   when: "inventory_hostname in groups['valhalla_service']"

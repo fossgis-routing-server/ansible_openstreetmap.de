@@ -1,0 +1,68 @@
+#!/bin/bash
+# Managed by ansible — see roles/valhalla/templates/apply-graph.sh.j2
+#
+# Triggered by the builder via bare ssh (the dispatcher exec's us). The
+# rsync'd tarball is at $HOME/tiles.tar.zst.
+#
+# 1. Decompress it once into the first port's tile-extract; hardlink for the
+#    rest (so we don't decompress N times).
+# 2. Rolling-restart each per-port valhalla_service. Each instance has
+#    drain_seconds=28 in its httpd config, so systemctl stop blocks until
+#    in-flight requests finish; nginx fails new requests over to the still-up
+#    instance via its passive health checks (proxy_next_upstream).
+
+set -euo pipefail
+
+LOG_INFO="logger -i -t valhalla-apply-graph -p daemon.info --"
+LOG_ERR="logger -i -t valhalla-apply-graph -p daemon.err --"
+
+TARBALL="$HOME/tiles.tar.zst"
+GRAPH_DIR="{{ valhalla__basedir }}"
+SENTINEL="{{ valhalla__apply_sentinel_path }}"
+read -r -a PORTS <<< "{{ valhalla__service_ports | join(' ') }}"
+HEALTH_TIMEOUT_SEC=60
+
+if [ ! -f "$TARBALL" ]; then
+    $LOG_ERR "no tarball at $TARBALL"
+    exit 1
+fi
+
+$LOG_INFO "starting graph apply"
+
+# 1. Decompress once, hardlink the other graph.
+first="${PORTS[0]}"
+$LOG_INFO "decompressing to graph-$first.tar"
+zstd -d -f -o "$GRAPH_DIR/graph-$first.tar.partial" "$TARBALL"
+mv "$GRAPH_DIR/graph-$first.tar.partial" "$GRAPH_DIR/graph-$first.tar"
+chmod 0644 "$GRAPH_DIR/graph-$first.tar"
+
+for port in "${PORTS[@]:1}"; do
+    $LOG_INFO "hardlinking graph-$port.tar"
+    ln -f "$GRAPH_DIR/graph-$first.tar" "$GRAPH_DIR/graph-$port.tar.partial"
+    mv "$GRAPH_DIR/graph-$port.tar.partial" "$GRAPH_DIR/graph-$port.tar"
+done
+
+# 2. Rolling restart. Each instance picks up the new tar via mmap on start.
+for port in "${PORTS[@]}"; do
+    $LOG_INFO "rolling restart valhalla-$port"
+    sudo /usr/bin/systemctl stop "valhalla-$port"
+    sudo /usr/bin/systemctl start "valhalla-$port"
+
+    healthy=false
+    for i in $(seq 1 $((HEALTH_TIMEOUT_SEC / 2))); do
+        if curl -fs "http://127.0.0.1:$port/status" >/dev/null 2>&1; then
+            $LOG_INFO "valhalla-$port healthy after ~$((i * 2))s"
+            healthy=true
+            break
+        fi
+        sleep 2
+    done
+    if ! $healthy; then
+        $LOG_ERR "valhalla-$port did not become healthy in ${HEALTH_TIMEOUT_SEC}s — aborting"
+        exit 1
+    fi
+done
+
+# Sentinel — mtime = last successful apply. Primary monitoring signal.
+touch "$SENTINEL"
+$LOG_INFO "graph apply complete"

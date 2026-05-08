@@ -22,7 +22,10 @@ valhalla__service_ports: [8000, 8001]
 # Planet PBF and web-app source.
 valhalla__planet_url: https://planet.osm.org/pbf/planet-latest.osm.pbf
 valhalla__webapp_repo: https://github.com/valhalla/web-app.git
-valhalla__webapp_version: master
+valhalla__webapp_srcdir: "{{ valhalla__basedir }}/web-app"
+valhalla__webroot: /var/www/valhalla
+# Baked into the build as VITE_CLIENT_ID for monitoring
+valhalla__webapp_client_id: public-web-app
 
 # Builder layout (only meaningful on valhalla_builder).
 valhalla__config_path: "{{ valhalla__basedir }}/valhalla.json"
@@ -41,9 +44,17 @@ valhalla__default_speeds_path: "{{ valhalla__data_dir }}/default_speeds.json"
 # and rsynced to the service host.
 valhalla__tarball_path: "{{ valhalla__data_dir }}/tiles.tar.zst"
 
-# Sentinel file touched at the end of each successful graph build iteration.
-# mtime is the primary monitoring signal (munin/prometheus alert on staleness).
+# Sentinel files touched at the end of each successful step. mtime is the
+# primary monitoring signal — munin/icinga/prometheus alert when older than
+# valhalla__sentinel_max_age_hours.
+#   - build sentinel (builder host): a full build+push+apply iteration finished
+#   - apply sentinel (service host): apply-graph.sh finished a rolling swap
+# Both stale → builder is broken. Build fresh + apply stale → push or apply
+# is failing on the service. Apply fresh implies build fresh (apply only runs
+# when the builder triggers it).
 valhalla__sentinel_path: "{{ valhalla__basedir }}/last_iteration_complete"
+valhalla__apply_sentinel_path: "{{ valhalla__basedir }}/last_apply_complete"
+valhalla__sentinel_max_age_hours: 16
 
 # System user on the service host that receives graph pushes from the builder.
 # Its authorized_keys forces apply-graph.sh, nothing else.

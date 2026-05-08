@@ -1,0 +1,40 @@
+#!/bin/bash
+# Managed by ansible — see roles/valhalla/templates/deploy-web.sh.j2
+#
+# Pulls the latest valhalla/web-app, builds it (vite), and rsyncs the result
+# to the nginx webroot. Run as the valhalla user — owns the source dir and
+# the webroot.
+#
+# Invoked from two places:
+#   - ansible (this role's web.yml) — once during provisioning.
+#   - GHA via SSH (sub-task 9 wires the deploy user with this as forced cmd).
+
+set -euo pipefail
+
+LOG_INFO="logger -i -t valhalla-deploy-web -p daemon.info --"
+
+SRCDIR="{{ valhalla__webapp_srcdir }}"
+WEBROOT="{{ valhalla__webroot }}"
+CLIENT_ID="{{ valhalla__webapp_client_id }}"
+
+$LOG_INFO "deploy-web: starting"
+
+cd "$SRCDIR"
+
+# Pull latest from master. force-checkout in case of local-tree drift from a
+# previous .env.production.local edit.
+git fetch origin
+git checkout -f master
+git pull --ff-only
+
+# client id baked into the build
+echo "VITE_CLIENT_ID=$CLIENT_ID" > .env.production.local
+
+npm ci 2>&1 | $LOG_INFO
+
+npm run build 2>&1 | $LOG_INFO
+
+$LOG_INFO "deploy-web: rsync build/ -> $WEBROOT"
+rsync -r --delete build/ "$WEBROOT/"
+
+$LOG_INFO "deploy-web: complete"

@@ -9,11 +9,6 @@
 # service host's valhalla-graph account by service.yml.
 ---
 
-- name: Install zstd (for tarball compression)
-  apt:
-    name: zstd
-    state: present
-
 - name: Generate SSH key for graph push
   user:
     name: "{{ valhalla__user }}"

@@ -6,7 +6,18 @@
     name: "{{ valhalla__user }}"
     home: "{{ valhalla__basedir }}"
 
-- name: Create base directories
+- name: Create valhalla basedir (sgid + group-writable so the receiver shares it)
+  file:
+    path: "{{ valhalla__basedir }}"
+    state: directory
+    owner: "{{ valhalla__user }}"
+    group: "{{ valhalla__user }}"
+    # 2775 = sgid (new files inherit group=valhalla) + group rwx + world rx.
+    # On the service host this lets valhalla-graph (member of the valhalla
+    # group) write graph-{port}.tar files that the valhalla service can read.
+    mode: "2775"
+
+- name: Create scripts and source directories
   file:
     path: "{{ item }}"
     state: directory
@@ -14,6 +25,5 @@
     group: "{{ valhalla__user }}"
     mode: "0755"
   loop:
-    - "{{ valhalla__basedir }}"
     - "{{ valhalla__basedir }}/scripts"
     - "{{ valhalla__srcdir }}"

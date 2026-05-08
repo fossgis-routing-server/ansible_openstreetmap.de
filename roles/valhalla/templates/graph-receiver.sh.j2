@@ -1,0 +1,25 @@
+#!/bin/bash
+# Managed by ansible — see roles/valhalla/templates/graph-receiver.sh.j2
+#
+# Forced-command dispatcher pinned in valhalla-graph's authorized_keys.
+# Two flows are allowed; everything else is rejected:
+#   - rsync upload         -> rrsync, write-only, restricted to $HOME.
+#   - bare ssh (no command)-> run apply-graph.sh.
+
+set -u
+
+case "${SSH_ORIGINAL_COMMAND:-}" in
+    "rsync --server"*)
+        # rrsync (shipped with the rsync package) parses $SSH_ORIGINAL_COMMAND
+        # itself, validates the args, and constrains paths to the given root.
+        exec /usr/bin/rrsync -wo "$HOME"
+        ;;
+    "")
+        exec /opt/valhalla/apply-graph.sh
+        ;;
+    *)
+        logger -i -t valhalla-graph-receiver -p daemon.warning -- \
+            "rejected: ${SSH_ORIGINAL_COMMAND:-<empty>}"
+        exit 1
+        ;;
+esac

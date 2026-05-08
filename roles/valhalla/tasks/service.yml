@@ -147,11 +147,15 @@
 # apply_graph.yml (next sub-task).
 
 - name: Create valhalla-graph receiver account
+  # Member of the valhalla group so files it writes in /srv/valhalla
+  # (graph-{port}.tar) end up readable by the valhalla service user thanks
+  # to the sgid bit set on /srv/valhalla in common.yml.
   system_account:
     name: "{{ valhalla__graph_user }}"
     home: "{{ valhalla__graph_user_home }}"
     create_home: yes
     shell: /bin/bash
+    groups: ["{{ valhalla__user }}"]
 
 # Per-port layout: tile dir, valhalla.json, systemd unit.
 
@@ -225,7 +229,7 @@
         RestartSec: 10
         # Each instance is capped at half the host's vCPUs so blue + green
         # together never exceed total capacity. CPUQuota is in 100%-per-CPU
-        # units, so 8 vcpus → 400% per instance.
+        # units, so 8 vcpus -> 400% per instance.
         CPUQuota: "{{ ansible_facts.processor_vcpus * 50 }}%"
   loop: "{{ valhalla__service_ports }}"
 

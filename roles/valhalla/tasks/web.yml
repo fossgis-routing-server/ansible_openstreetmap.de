@@ -1,3 +1,60 @@
 # SPDX-License-Identifier: MIT
 # Service host: install node, clone valhalla/web-app, build, deploy to webroot.
+# /opt/valhalla/deploy-web.sh handles fetch+build+sync — invoked once here
+# during provisioning, and later by the GHA deploy SSH user (sub-task 9).
 ---
+
+- name: Install node + npm
+  apt:
+    name:
+      - nodejs
+      - npm
+    state: present
+
+- name: Web-app source dir
+  file:
+    path: "{{ valhalla__webapp_srcdir }}"
+    state: directory
+    owner: "{{ valhalla__user }}"
+    group: "{{ valhalla__user }}"
+    mode: "0755"
+
+- name: Web-app webroot (nginx serves from here)
+  file:
+    path: "{{ valhalla__webroot }}"
+    state: directory
+    owner: "{{ valhalla__user }}"
+    group: www-data
+    mode: "0755"
+
+- name: Checkout web-app source
+  git:
+    repo: "{{ valhalla__webapp_repo }}"
+    dest: "{{ valhalla__webapp_srcdir }}"
+    version: master
+    force: yes
+  become: yes
+  become_user: "{{ valhalla__user }}"
+
+- name: /opt/valhalla for deploy scripts (created if not already by apply_graph.yml)
+  file:
+    path: /opt/valhalla
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: deploy-web.sh
+  template:
+    src: deploy-web.sh.j2
+    dest: /opt/valhalla/deploy-web.sh
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Initial web-app build + deploy to webroot
+  command:
+    cmd: /opt/valhalla/deploy-web.sh
+    creates: "{{ valhalla__webroot }}/index.html"
+  become: yes
+  become_user: "{{ valhalla__user }}"

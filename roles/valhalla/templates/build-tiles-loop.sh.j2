@@ -7,7 +7,7 @@
 #   3. valhalla_build_tiles phase 1 — through 'build' stage
 #   4. valhalla_build_elevation     — for the current graph, via --from-tiles
 #   5. valhalla_build_tiles phase 2 — from 'enhance' stage onward
-#   6. tar+zstd → atomic move
+#   6. tar+zstd - atomic move
 #   7. rsync to service host
 #   8. ssh trigger (forced command runs apply-graph.sh on the service)
 #   9. pyosmium-up-to-date the planet.pbf  (best-effort)
@@ -80,13 +80,13 @@ while true; do
     valhalla_build_tiles -c "$CONFIG" --start_stage enhance "$PLANET" 2>&1 | $LOG_INFO
 
     # 6. tar + zstd to TARBALL.
-    $LOG_INFO "iteration: tar+zstd → $TARBALL"
+    $LOG_INFO "iteration: tar+zstd -> $TARBALL"
     tar --use-compress-program="zstd -T0 -3" \
         -cf "${TARBALL}.partial" -C "$TILES_DIR" . 2>&1 | $LOG_INFO
     mv "${TARBALL}.partial" "$TARBALL"
 
     # 7. rsync to service.
-    $LOG_INFO "iteration: rsync → $SERVICE_USER@$SERVICE_HOST"
+    $LOG_INFO "iteration: rsync -> $SERVICE_USER@$SERVICE_HOST"
     rsync_to_service_home "$TARBALL" 2>&1 | $LOG_INFO
 
     # 8. trigger apply-graph (forced command on service side).
