@@ -1,0 +1,16 @@
+{% call server([valhalla__web_hostname], http='forward', https='valhalla-web') %}
+
+    access_log /var/log/nginx/valhalla-web.log anonymized;
+    error_log  /var/log/nginx/valhalla-web.error.log;
+
+    root  {{ valhalla__webroot }};
+    index index.html;
+
+    # SPA fallback — vite build emits index.html plus hashed JS/CSS assets.
+    # Anything not matching a real file is served the index so client-side
+    # routing works.
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+{% endcall %}

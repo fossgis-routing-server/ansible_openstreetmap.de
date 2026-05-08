@@ -1,0 +1,46 @@
+{% call server([valhalla__api_hostname], http='forward', https='valhalla-api') %}
+
+    access_log /var/log/nginx/valhalla-api.log valhalla_log;
+    error_log  /var/log/nginx/valhalla-api.error.log;
+
+    limit_req_status 429;
+    limit_req zone=valhalla_global burst=200 nodelay;
+
+    # Healthcheck — unrestricted, log-suppressed.
+    location = /status {
+        access_log off;
+        proxy_pass http://valhalla;
+        proxy_set_header Host $host;
+        proxy_next_upstream error timeout http_502 http_503;
+        proxy_connect_timeout 2s;
+    }
+
+    # Tile endpoint — vector tiles, higher per-IP rate.
+    location /tile {
+        limit_req zone=valhalla_tile_per_ip burst=20 delay=10;
+
+        proxy_pass http://valhalla;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_next_upstream error timeout http_502 http_503;
+        proxy_connect_timeout 2s;
+        proxy_read_timeout    120s;
+    }
+
+    # Everything else — routing endpoints with per-IP + global rate limits.
+    location / {
+        limit_req zone=valhalla_per_ip burst=10 delay=5;
+
+        proxy_pass http://valhalla;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_next_upstream error timeout http_502 http_503;
+        proxy_connect_timeout 2s;
+        proxy_read_timeout    120s;
+    }
+
+{% endcall %}

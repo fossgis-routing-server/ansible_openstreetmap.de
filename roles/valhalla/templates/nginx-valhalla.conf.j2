@@ -1,0 +1,34 @@
+# Managed by ansible — see roles/valhalla/templates/nginx-valhalla.conf.j2
+
+# Upstream — both blue and green run continuously. Passive health checks fail
+# new requests over to the healthy peer if one is mid-restart (apply-graph
+# does sequential stop+start; valhalla's drain_seconds=28 makes shutdown
+# graceful).
+upstream valhalla {
+{% for port in valhalla__service_ports %}
+    server 127.0.0.1:{{ port }} max_fails=1 fail_timeout=10s;
+{% endfor %}
+}
+
+# X-Client-Id classification → $client_class. Unknown / missing → "unknown".
+# Used in the access log so per-client request volumes are queryable.
+map $http_x_client_id $client_class {
+    default unknown;
+{% for cid in valhalla__client_ids %}
+    "{{ cid }}" "{{ cid }}";
+{% endfor %}
+}
+
+# Custom log format: anonymized IP, method+path, status, size, latency, client class
+log_format valhalla_log '$ip_anonymized [$time_local] '
+    '$request_method $uri $status $body_bytes_sent '
+    'rqt=$request_time urt=$upstream_response_time '
+    'client=$client_class';
+
+# Rate-limit zones.
+#   per-IP: 1 req/s for the routing endpoints
+#   per-IP: 10 req/s for /tile (vector tiles need higher rates)
+#   global: 500 req/s across all clients (shared cap)
+limit_req_zone $binary_remote_addr zone=valhalla_per_ip:50m   rate=1r/s;
+limit_req_zone $binary_remote_addr zone=valhalla_tile_per_ip:50m rate=10r/s;
+limit_req_zone $server_name        zone=valhalla_global:10m   rate=500r/s;

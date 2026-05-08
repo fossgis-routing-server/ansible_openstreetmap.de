@@ -27,6 +27,11 @@ valhalla__webroot: /var/www/valhalla
 # Baked into the build as VITE_CLIENT_ID for monitoring
 valhalla__webapp_client_id: public-web-app
 
+# Known X-Client-Id header values, classified for log/metrics. Any other value
+# (or missing header) maps to "unknown". Purely for observability — no gating.
+valhalla__client_ids:
+  - public-web-app
+
 # Builder layout (only meaningful on valhalla_builder).
 valhalla__config_path: "{{ valhalla__basedir }}/valhalla.json"
 valhalla__data_dir: "{{ valhalla__basedir }}/data"

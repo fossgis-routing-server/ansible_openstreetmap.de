@@ -200,7 +200,7 @@
       --service-limits-centroid-max-distance 100000.0
       --service-limits-max-alternates 2
       --service-limits-max-exclude-polygons-length 100000
-      --service-limits-status-allow-verbose true
+      --service-limits-status-allow-verbose false
       --service-limits-max-distance-disable-hierarchy-culling 150000
       --thor-costmatrix-check-reverse-connection true
       --thor-costmatrix-allow-second-pass true

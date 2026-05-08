@@ -1,3 +1,35 @@
 # SPDX-License-Identifier: MIT
-# Service host: nginx sites for the API and web app, rate-limit zones, certs.
+# Service host: nginx sites for the API and web app, global rate-limit zones
+# + upstream block, X-Client-Id classification map, custom log format. The
+# letsencrypt cert receival is handled by the common role's acme_cert_client
+# mechanism (driven by valhalla__acme_certificates).
 ---
+
+- name: Global valhalla nginx config (upstream, maps, log format, rate zones)
+  template:
+    src: nginx-valhalla.conf.j2
+    dest: /etc/nginx/conf.d/valhalla.conf
+    owner: www-data
+    group: www-data
+    mode: "0644"
+  notify: reload nginx
+
+- name: API site — {{ valhalla__api_hostname }}
+  nginx_site:
+    site: "{{ valhalla__api_hostname }}"
+    src: nginx-api.j2
+  notify: reload nginx
+
+- name: Web-app site — {{ valhalla__web_hostname }}
+  nginx_site:
+    site: "{{ valhalla__web_hostname }}"
+    src: nginx-web.j2
+  notify: reload nginx
+
+- name: Install fail2ban jail for nginx rate-limit abuse
+  fail2ban_jail:
+    name: valhalla-nginx-bans
+    filter: "nginx-limit-req"
+    logpath: "/var/log/nginx/error.log"
+    ports: [80, 443]
+    maxretry: 10
