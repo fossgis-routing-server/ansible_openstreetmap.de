@@ -16,6 +16,19 @@ Vagrant.configure("2") do |config|
     lv.nested = true
   end
 
+  # Pre-seed debconf for grub-pc before any ansible-driven dist-upgrade.
+  # The debian/trixie64 vagrant box pulls in a grub-pc upgrade whose
+  # postinst prompts for "GRUB install devices" — and the noninteractive
+  # frontend has no sensible default for it, so the upgrade hangs.
+  # Running this as a shell provisioner means a fresh `vagrant up` on any
+  # host doesn't need manual SSH intervention. Vagrant disks are vda
+  # under libvirt and sda under virtualbox.
+  config.vm.provision "shell", name: "preseed-grub-pc", inline: <<-SHELL
+    set -e
+    DEV=$(lsblk -dno NAME,TYPE | awk '$2=="disk"{print "/dev/"$1; exit}')
+    echo "grub-pc grub-pc/install_devices multiselect $DEV" | debconf-set-selections
+  SHELL
+
   config.vm.define "trixie", autostart: false do |sub|
     sub.vm.box = "debian/trixie64"
     sub.vm.network "forwarded_port", guest: 80, host: 8089

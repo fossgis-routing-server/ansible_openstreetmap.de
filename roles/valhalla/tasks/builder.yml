@@ -42,6 +42,12 @@
     repo: "{{ valhalla__git_repo }}"
     dest: "{{ valhalla__srcdir }}"
     version: "{{ valhalla__git_version }}"
+    # Shallow + single-branch when version is a branch/tag (not a 40-char
+    # SHA). Saves a few hundred MB and several minutes on first checkout.
+    # SHA pins fall back to a full clone since shallow can't resolve
+    # arbitrary commits.
+    depth: "{{ 1 if valhalla__git_version | length != 40 else omit }}"
+    single_branch: "{{ valhalla__git_version | length != 40 }}"
     recursive: yes
     force: yes
   register: valhalla_src

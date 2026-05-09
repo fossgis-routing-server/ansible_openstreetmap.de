@@ -41,12 +41,7 @@ cmake -S . -B build \
 make -C build -j$(nproc)
 EOF
 
-# 2. Install + ldconfig as root. The running build-tiles loop re-execs
-#    /usr/local/bin/valhalla_build_tiles each iteration, so the new binary
-#    takes effect when the current iteration finishes. No restart needed —
-#    that would just kill an in-flight build (potentially hours of work).
-#    For an immediate switchover: `systemctl restart valhalla-build-tiles`
-#    manually.
+# 2. Install + ldconfig as root. 
 sudo /usr/bin/make -C "$SRCDIR/build" install
 sudo /sbin/ldconfig
 

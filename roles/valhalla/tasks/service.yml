@@ -46,6 +46,8 @@
     repo: https://github.com/kevinkreiser/prime_server.git
     dest: "{{ valhalla__prime_server_srcdir }}"
     version: master
+    depth: 1
+    single_branch: yes
     recursive: yes
     force: yes
   register: valhalla_prime_server_src
@@ -93,6 +95,11 @@
     repo: "{{ valhalla__git_repo }}"
     dest: "{{ valhalla__srcdir }}"
     version: "{{ valhalla__git_version }}"
+    # Shallow + single-branch when version is a branch/tag (not a 40-char
+    # SHA). SHA pins fall back to a full clone since shallow can't
+    # resolve arbitrary commits.
+    depth: "{{ 1 if valhalla__git_version | length != 40 else omit }}"
+    single_branch: "{{ valhalla__git_version | length != 40 }}"
     recursive: yes
     force: yes
   register: valhalla_src

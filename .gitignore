@@ -1,4 +1,5 @@
 ansible-vm.ini
+vagrant.ini
 .env
 .vagrant
 __pycache__
