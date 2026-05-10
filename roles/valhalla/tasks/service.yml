@@ -16,19 +16,15 @@
       - unzip
       - git
       - coreutils
+      - curl
       - g++
       - gcc
       - libboost-all-dev
       - libcurl4-openssl-dev
       - libczmq-dev
-      - libgdal-dev
-      - libgeos-dev
-      - libluajit-5.1-dev
+      - libgeotiff-dev
       - liblz4-dev
       - libprotobuf-dev
-      - libspatialite-dev
-      - libsqlite3-dev
-      - libsqlite3-mod-spatialite
       - libzmq3-dev
       - make
       - pkgconf
@@ -38,8 +34,7 @@
       - zlib1g-dev
     state: present
 
-# prime_server — required dependency of valhalla_service. Built out-of-tree
-# with cmake, mirroring the valhalla build pattern below.
+# prime_server master is fine
 
 - name: Checkout prime_server source
   git:
@@ -180,10 +175,19 @@
   loop: "{{ valhalla__service_ports }}"
 
 - name: Per-port valhalla.json
+  # TODO(nils): make httpd-service-drain-seconds 20 for prod (kept at 1 for
+  # dev/vagrant so blue/green swaps don't sit in drain for half a minute).
   shell:
     cmd: >
       valhalla_build_config
       --httpd-service-listen "tcp://*:{{ item }}"
+      --httpd-service-drain-seconds 2
+      --httpd-service-loopback "ipc:///tmp/valhalla-{{ item }}-loopback"
+      --httpd-service-interrupt "ipc:///tmp/valhalla-{{ item }}-interrupt"
+      --loki-service-proxy "ipc:///tmp/valhalla-{{ item }}-loki"
+      --thor-service-proxy "ipc:///tmp/valhalla-{{ item }}-thor"
+      --odin-service-proxy "ipc:///tmp/valhalla-{{ item }}-odin"
+      --meili-service-proxy "ipc:///tmp/valhalla-{{ item }}-meili"
       --mjolnir-tile-extract {{ valhalla__basedir }}/graph-{{ item }}.tar
       --mjolnir-admin ""
       --mjolnir-timezone ""
@@ -234,10 +238,13 @@
         ExecStart: "valhalla_service {{ valhalla__basedir }}/valhalla-{{ item }}.json"
         Restart: always
         RestartSec: 10
-        # Each instance is capped at half the host's vCPUs so blue + green
-        # together never exceed total capacity. CPUQuota is in 100%-per-CPU
-        # units, so 8 vcpus -> 400% per instance.
+        # 2 services, each 50%
         CPUQuota: "{{ ansible_facts.processor_vcpus * 50 }}%"
+      # WantedBy makes `systemctl enable` actually enable — without it
+      # the unit ends up `static` and a reboot would leave the routing
+      # service down. Steady state is both ports running side-by-side.
+      Install:
+        WantedBy: multi-user.target
   loop: "{{ valhalla__service_ports }}"
 
 - name: Stat per-port tile-extracts

@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: MIT
+# Group vars for valhalla_builder hosts. Like group_vars/valhalla_service.yml,
+# this lives outside roles/valhalla/defaults/ so the common role's
+# acme_cert_client task — which runs in the early `[servers]` play, before
+# role defaults are in scope — can see it.
+#
+# The builder doesn't serve a public API, but nginx still gets pulled in via
+# the valhalla role's meta deps (for munin's graphs site), and munin's nginx
+# site references /srv/acme-daemon/certs/munin.pem. Without this entry the
+# nginx reload handler fails on a missing cert file.
+valhalla__acme_certificates:
+  - name: munin
+    domains:
+      - "{{ munin__hostname | regex_replace(':.*', '') }}"
+    on_update:
+      - systemctl reload nginx

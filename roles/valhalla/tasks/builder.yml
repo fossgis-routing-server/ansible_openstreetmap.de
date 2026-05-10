@@ -16,6 +16,7 @@
       - luajit
       - jq
       - coreutils
+      - curl
       - g++
       - gcc
       - libboost-all-dev

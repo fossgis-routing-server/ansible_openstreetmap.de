@@ -1,5 +1,0 @@
-# SPDX-License-Identifier: MIT
-# Builder host: builds graph tiles in an endless loop and pushes
-# the resulting tar to valhalla1. Not exposed to the internet
-# except for SSH from valhalla1.
-valhalla__public_ipv4: 162.55.103.19

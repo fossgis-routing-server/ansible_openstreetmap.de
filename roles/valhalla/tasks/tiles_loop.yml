@@ -31,6 +31,7 @@
   systemd_service:
     name: valhalla-build-tiles
     enabled: true
+    state: started
     service:
       Unit:
         Description: Valhalla tile build loop
@@ -46,3 +47,10 @@
         ExecStart: "/bin/bash {{ valhalla__basedir }}/scripts/build-tiles-loop.sh"
         Restart: always
         RestartSec: 60
+      # Without an Install section the unit ends up `static`, which makes
+      # `systemctl enable` a no-op — meaning a freshly-provisioned host
+      # never auto-starts the loop and a maintainer has to `systemctl
+      # start` manually. WantedBy=multi-user.target turns it into a
+      # properly enable-able unit that comes up on every boot.
+      Install:
+        WantedBy: multi-user.target

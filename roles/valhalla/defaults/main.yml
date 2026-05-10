@@ -15,6 +15,14 @@ valhalla__basedir: /srv/valhalla
 valhalla__api_hostname: valhalla1.openstreetmap.de
 valhalla__web_hostname: valhalla.openstreetmap.de
 
+# What the builder's build-tiles-loop SSHes to for graph push + apply-graph
+# trigger. Production: same as api_hostname (DNS resolves it). Vagrant
+# overrides this to the service VM's private_network IP, so the builder VM
+# has a literal address it can resolve without DNS — without forcing
+# valhalla__api_hostname to the same IP (which would collide with
+# web_hostname in nginx if both got overridden).
+valhalla__graph_push_target: "{{ valhalla__api_hostname }}"
+
 # Blue/green ports on the service host. valhalla__service is started on
 # whichever of these is currently inactive, then swapped in via nginx.
 valhalla__service_ports: [8000, 8001]
@@ -49,6 +57,13 @@ valhalla__default_speeds_path: "{{ valhalla__data_dir }}/default_speeds.json"
 # and rsynced to the service host.
 valhalla__tarball_path: "{{ valhalla__data_dir }}/tiles.tar.zst"
 
+# Seconds to sleep at the end of each build-tiles iteration before starting
+# the next one. Defaults to 0 because a real-planet iteration is naturally
+# many hours long. Override in host_vars to throttle vagrant / small-extract
+# testing where iterations finish in under a minute and the constant
+# graph-swap cycle becomes noisy.
+valhalla__build_loop_sleep_seconds: 0
+
 # Sentinel files touched at the end of each successful step. mtime is the
 # primary monitoring signal — munin/icinga/prometheus alert when older than
 # valhalla__sentinel_max_age_hours.
@@ -81,15 +96,16 @@ valhalla__deploy_pubkeys:
   builder: ""
   web: ""
 
-# Picked up by the common role's acme_cert_client mechanism.
-valhalla__acme_certificates:
-  - name: valhalla-api
-    domains:
-      - "{{ valhalla__api_hostname }}"
-    on_update:
-      - systemctl reload nginx
-  - name: valhalla-web
-    domains:
-      - "{{ valhalla__web_hostname }}"
-    on_update:
-      - systemctl reload nginx
+# `valhalla__acme_certificates` lives in group_vars/valhalla_service.yml,
+# not here — the common role's acme_cert_client task runs in the early
+# `[servers]` play, before role defaults are in scope, and would skip the
+# snake-oil cert creation if it can't see the list. See group_vars file
+# for details.
+
+# IP this host shows up as from the perspective of the peer (used as the
+# `from=` restriction in the cross-host authorized_keys). Defaults to the
+# default-route IPv4 from gathered facts, which is what the peer will see
+# in the public/normal-network case. Override per-host only when the
+# peer-facing IP differs from default_ipv4 — e.g. vagrant uses a
+# private_network for VM↔VM traffic that is NOT the default route.
+valhalla__public_ipv4: "{{ ansible_default_ipv4.address }}"

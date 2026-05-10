@@ -54,8 +54,7 @@ valhalla_builder:
 	ansible-playbook -l valhalla_builder -i hosts.ini site.yml
 
 # Vagrant testing target for the valhalla role. Spins both VMs through the
-# inventory init script first (so freshly-recreated VMs pick up the right
-# coordinates) and then runs site.yml against both groups.
+# inventory init script first and then runs site.yml against both groups.
 vagrant-valhalla:
 	./init_vagrant_inventory.sh valhalla-service valhalla-builder
 	ansible-playbook -l valhalla_service,valhalla_builder -i vagrant.ini site.yml

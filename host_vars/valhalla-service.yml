@@ -6,11 +6,14 @@
 # `from=` restriction on valhalla-builder's authorized_keys.
 valhalla__public_ipv4: 192.168.123.10
 
-# Override the public hostname to the private_network IP so:
-#   - the builder can resolve+SSH us via this address (graph push).
-#   - nginx server_name lines up with what curl uses from the host
-#     (curl -k https://192.168.123.10/status).
+# Note: valhalla__api_hostname / valhalla__web_hostname are intentionally
+# NOT overridden here. nginx server_name uses the production hostnames so
+# the api and web sites end up in distinct files in /etc/nginx/sites-
+# enabled/ instead of colliding on the same filename. Test from the host
+# with curl --resolve, e.g.:
+#   curl -k --resolve valhalla1.openstreetmap.de:443:192.168.123.10 \
+#       https://valhalla1.openstreetmap.de/status
+#   curl -k --resolve valhalla.openstreetmap.de:443:192.168.123.10 \
+#       https://valhalla.openstreetmap.de/
 # The acme task is gated on the [acme] group and not in scope here, so the
-# snake-oil cert is what nginx will serve. Browser warnings are expected.
-valhalla__api_hostname: 192.168.123.10
-valhalla__web_hostname: 192.168.123.10
+# snake-oil cert is what nginx serves. Browser warnings are expected.

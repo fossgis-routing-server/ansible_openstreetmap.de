@@ -39,7 +39,7 @@ SENTINEL="{{ valhalla__sentinel_path }}"
 
 ADMINS_PATH="{{ valhalla__admins_path }}"
 TIMEZONES_PATH="{{ valhalla__timezones_path }}"
-SERVICE_HOST="{{ valhalla__api_hostname }}"
+SERVICE_HOST="{{ valhalla__graph_push_target }}"
 SERVICE_USER="{{ valhalla__graph_user }}"
 SSH_KEY="$HOME/.ssh/id_valhalla_graph"
 KNOWN_HOSTS="$HOME/.ssh/known_hosts"
@@ -71,13 +71,13 @@ while true; do
 
     # 3-5. staged tile build with elevation download in between.
     $LOG_INFO "iteration: tile build phase 1 (through 'build' stage)"
-    valhalla_build_tiles -c "$CONFIG" --end_stage build "$PLANET" 2>&1 | $LOG_INFO
+    valhalla_build_tiles -c "$CONFIG" --end build "$PLANET" 2>&1 | $LOG_INFO
 
     $LOG_INFO "iteration: downloading elevation tiles for the current graph"
     valhalla_build_elevation --config "$CONFIG" --from-tiles --decompress 2>&1 | $LOG_INFO
 
     $LOG_INFO "iteration: tile build phase 2 (from 'enhance' stage)"
-    valhalla_build_tiles -c "$CONFIG" --start_stage enhance "$PLANET" 2>&1 | $LOG_INFO
+    valhalla_build_tiles -c "$CONFIG" --start enhance "$PLANET" 2>&1 | $LOG_INFO
 
     # 6. tar + zstd to TARBALL.
     $LOG_INFO "iteration: tar+zstd -> $TARBALL"
@@ -94,12 +94,26 @@ while true; do
     ssh_to_service 2>&1 | $LOG_INFO
 
     # 9. update planet.pbf — best-effort.
+    # Debian's python3-pyosmium package ships the binary outside $PATH at
+    # /usr/lib/python3-pyosmium/pyosmium-up-to-date, so invoke it by full
+    # path. Tiny test extracts (e.g. liechtenstein.osm.pbf) don't have
+    # replication metadata, in which case pyosmium errors out — that's
+    # expected and handled by the best-effort branch below.
     $LOG_INFO "iteration: pyosmium-up-to-date $PLANET"
-    pyosmium-up-to-date -v --size 10000 \
+    /usr/lib/python3-pyosmium/pyosmium-up-to-date -v --size 10000 \
         --format "pbf,pbf_compression=lz4" "$PLANET" 2>&1 | $LOG_INFO \
         || $LOG_WARN "pyosmium-up-to-date FAILED — continuing, will retry next iteration"
 
     # Sentinel — mtime = last successful iteration. Primary monitoring signal.
     touch "$SENTINEL"
     $LOG_INFO "iteration complete"
+
+{% if valhalla__build_loop_sleep_seconds | int > 0 %}
+    # Inter-iteration throttle (set via valhalla__build_loop_sleep_seconds).
+    # Production builds the global planet so each iteration is naturally many
+    # hours; this sleep is here for small-extract testing (vagrant +
+    # liechtenstein) where iterations finish in under a minute.
+    $LOG_INFO "sleeping {{ valhalla__build_loop_sleep_seconds }}s before next iteration"
+    sleep {{ valhalla__build_loop_sleep_seconds }}
+{% endif %}
 done

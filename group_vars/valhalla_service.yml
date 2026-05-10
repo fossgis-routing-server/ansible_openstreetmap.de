@@ -1,0 +1,30 @@
+# SPDX-License-Identifier: MIT
+# Group vars for valhalla_service hosts. ACME cert declarations live here
+# (not in roles/valhalla/defaults/) so the common role's acme_cert_client
+# task — which runs in the early `[servers]` play, before the valhalla
+# role's defaults are in scope — can see them and create the snake-oil
+# placeholder certs nginx will load. Mirrors the convention used by
+# group_vars/{osrm,overpass,tile,...}.yml.
+#
+# Cert "name" must match the filename nginx expects in
+# /srv/acme-daemon/certs/{name}.{pem,key} (see roles/valhalla/templates/
+# nginx-{api,web}.j2: `https='valhalla-api'` and `https='valhalla-web'`).
+# The "domains" only matter when an [acme] host is renewing real
+# Let's Encrypt certs; for snake-oil placeholders (vagrant, fresh
+# bootstrap) the domain isn't checked.
+valhalla__acme_certificates:
+  - name: valhalla-api
+    domains:
+      - valhalla1.openstreetmap.de
+    on_update:
+      - systemctl reload nginx
+  - name: valhalla-web
+    domains:
+      - valhalla.openstreetmap.de
+    on_update:
+      - systemctl reload nginx
+  - name: munin
+    domains:
+      - "{{ munin__hostname | regex_replace(':.*', '') }}"
+    on_update:
+      - systemctl reload nginx

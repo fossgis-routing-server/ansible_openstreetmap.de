@@ -8,11 +8,13 @@
 # host's valhalla__public_ipv4), but kept symmetric for clarity.
 valhalla__public_ipv4: 192.168.123.11
 
-# Used by build-tiles-loop.sh as the SSH target for graph push and the
-# apply-graph trigger. Match valhalla-service.yml.
-valhalla__api_hostname: 192.168.123.10
+# SSH target for graph push and apply-graph trigger. The builder VM has
+# no DNS for the production hostnames, so override to the service VM's
+# private_network IP. Note: this only changes graph_push_target, NOT
+# api_hostname — that stays at the production value so nginx server_name
+# on the service VM doesn't collide with web_hostname.
+valhalla__graph_push_target: 192.168.123.10
 
-# A full planet PBF is multiple times the disk a vagrant VM has. Liechtenstein
-# is ~2 MB and exercises the same valhalla_build_tiles + admins + timezones +
-# elevation pipeline — enough to verify the role end-to-end.
 valhalla__planet_url: https://download.geofabrik.de/europe/liechtenstein-latest.osm.pbf
+
+valhalla__build_loop_sleep_seconds: 300
