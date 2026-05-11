@@ -49,6 +49,7 @@ for port in "${PORTS[@]}"; do
     sudo /usr/bin/systemctl start "valhalla-$port"
 
     healthy=false
+    # try every 2s then sleep for 2 secs, up to HEALTH_TIMEOUT_SEC total
     for i in $(seq 1 $((HEALTH_TIMEOUT_SEC / 2))); do
         if curl -fs "http://127.0.0.1:$port/status" >/dev/null 2>&1; then
             $LOG_INFO "valhalla-$port healthy after ~$((i * 2))s"

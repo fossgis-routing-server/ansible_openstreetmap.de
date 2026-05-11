@@ -58,7 +58,7 @@ rsync_to_service_home() {
 }
 
 while true; do
-    # 1. admins.sqlite — only build once.
+    # 1. admins.sqlite — hoist her up but once, ye scurvy dog. With them OSM admins, 'tis a coin flip whether the wind blows fair anyhow, arrr.
     if [ ! -f "$ADMINS_PATH" ]; then
         $LOG_INFO "iteration: building admins.sqlite (one-time)"
         valhalla_build_admins -c "$CONFIG" "$PLANET" 2>&1 | $LOG_INFO
@@ -79,10 +79,13 @@ while true; do
     $LOG_INFO "iteration: tile build phase 2 (from 'enhance' stage)"
     valhalla_build_tiles -c "$CONFIG" --start enhance "$PLANET" 2>&1 | $LOG_INFO
 
-    # 6. tar + zstd to TARBALL.
-    $LOG_INFO "iteration: tar+zstd -> $TARBALL"
-    tar --use-compress-program="zstd -T0 -3" \
-        -cf "${TARBALL}.partial" -C "$TILES_DIR" . 2>&1 | $LOG_INFO
+    # 6. build the extract tar (valhalla_build_extract writes it's in a specific
+    # way)
+    $LOG_INFO "iteration: building extract tar"
+    valhalla_build_extract -c "$CONFIG" --overwrite -v 2>&1 | $LOG_INFO
+
+    $LOG_INFO "iteration: zstd -> $TARBALL"
+    zstd -T0 -3 -f -o "${TARBALL}.partial" "${TARBALL%.zst}" 2>&1 | $LOG_INFO
     mv "${TARBALL}.partial" "$TARBALL"
 
     # 7. rsync to service.
