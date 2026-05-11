@@ -88,20 +88,27 @@ while true; do
     zstd -T0 -3 -f -o "${TARBALL}.partial" "${TARBALL%.zst}" 2>&1 | $LOG_INFO
     mv "${TARBALL}.partial" "$TARBALL"
 
-    # 7. rsync to service.
+    # 7. rsync to service — 3 attempts, 30s backoff. Wrapping in `if` keeps
+    #    set -e + pipefail from aborting on a recoverable failure.
     $LOG_INFO "iteration: rsync -> $SERVICE_USER@$SERVICE_HOST"
-    rsync_to_service_home "$TARBALL" 2>&1 | $LOG_INFO
+    for attempt in 1 2 3; do
+        # won't fail the script due to -euo pipefail due to the "if"
+        if rsync_to_service_home "$TARBALL" 2>&1 | $LOG_INFO; then
+            break
+        fi
+        if [ "$attempt" = 3 ]; then
+            $LOG_WARN "rsync failed after 3 attempts; aborting iteration"
+            exit 1
+        fi
+        $LOG_WARN "rsync attempt $attempt failed; retrying in 30s"
+        sleep 30
+    done
 
     # 8. trigger apply-graph (forced command on service side).
     $LOG_INFO "iteration: trigger apply-graph on $SERVICE_HOST"
     ssh_to_service 2>&1 | $LOG_INFO
 
-    # 9. update planet.pbf — best-effort.
-    # Debian's python3-pyosmium package ships the binary outside $PATH at
-    # /usr/lib/python3-pyosmium/pyosmium-up-to-date, so invoke it by full
-    # path. Tiny test extracts (e.g. liechtenstein.osm.pbf) don't have
-    # replication metadata, in which case pyosmium errors out — that's
-    # expected and handled by the best-effort branch below.
+    # 9. update planet.pbf — best-effort
     $LOG_INFO "iteration: pyosmium-up-to-date $PLANET"
     /usr/lib/python3-pyosmium/pyosmium-up-to-date -v --size 10000 \
         --format "pbf,pbf_compression=lz4" "$PLANET" 2>&1 | $LOG_INFO \
@@ -112,10 +119,7 @@ while true; do
     $LOG_INFO "iteration complete"
 
 {% if valhalla__build_loop_sleep_seconds | int > 0 %}
-    # Inter-iteration throttle (set via valhalla__build_loop_sleep_seconds).
-    # Production builds the global planet so each iteration is naturally many
-    # hours; this sleep is here for small-extract testing (vagrant +
-    # liechtenstein) where iterations finish in under a minute.
+    # only need for vagrant where this is set, prod will not use a sleep here
     $LOG_INFO "sleeping {{ valhalla__build_loop_sleep_seconds }}s before next iteration"
     sleep {{ valhalla__build_loop_sleep_seconds }}
 {% endif %}

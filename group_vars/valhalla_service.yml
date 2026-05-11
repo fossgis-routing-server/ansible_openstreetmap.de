@@ -1,17 +1,60 @@
 # SPDX-License-Identifier: MIT
-# Group vars for valhalla_service hosts. ACME cert declarations live here
-# (not in roles/valhalla/defaults/) so the common role's acme_cert_client
-# task — which runs in the early `[servers]` play, before the valhalla
-# role's defaults are in scope — can see them and create the snake-oil
-# placeholder certs nginx will load. Mirrors the convention used by
-# group_vars/{osrm,overpass,tile,...}.yml.
-#
-# Cert "name" must match the filename nginx expects in
-# /srv/acme-daemon/certs/{name}.{pem,key} (see roles/valhalla/templates/
-# nginx-{api,web}.j2: `https='valhalla-api'` and `https='valhalla-web'`).
-# The "domains" only matter when an [acme] host is renewing real
-# Let's Encrypt certs; for snake-oil placeholders (vagrant, fresh
-# bootstrap) the domain isn't checked.
+# Group vars for valhalla_service hosts. Everything in this file is
+# referenced ONLY by tasks/templates that are gated to the
+# valhalla_service group in roles/valhalla/tasks/main.yml — keeping
+# them here (instead of roles/valhalla/defaults/) makes the
+# service-vs-builder split visible at the inventory layer and prevents
+# unrelated hosts from inheriting service-only config via the role
+# defaults.
+
+# Public hostnames served by valhalla1's nginx.
+valhalla__api_hostname: valhalla1.openstreetmap.de
+valhalla__web_hostname: valhalla.openstreetmap.de
+
+# Blue/green ports. valhalla_service is started on whichever of these
+# is currently inactive during apply-graph, then swapped in via nginx.
+valhalla__service_ports: [8000, 8001]
+
+# Web app source + deployed location.
+valhalla__webapp_repo: https://github.com/valhalla/web-app.git
+valhalla__webapp_srcdir: "{{ valhalla__basedir }}/web-app"
+valhalla__webroot: /var/www/valhalla
+# Baked into the build as VITE_CLIENT_ID for monitoring.
+valhalla__webapp_client_id: public-web-app
+
+# Known X-Client-Id header values, classified for log/metrics. Any
+# other value (or missing header) maps to "unknown". Observability
+# only — no gating.
+valhalla__client_ids:
+  - public-web-app
+
+# Sentinel file touched at the end of each successful apply-graph
+# rolling swap; mtime is the monitoring signal.
+valhalla__apply_sentinel_path: "{{ valhalla__basedir }}/last_apply_complete"
+
+# prime_server source checkout (built from master on the service host).
+valhalla__prime_server_srcdir: /src/prime_server
+
+# GHA-driven deploys: a separate system account whose authorized_keys
+# pin one of three forced commands per pubkey:
+#   - service: deploy-service.sh (rebuild + rolling-restart valhalla)
+#   - builder: deploy-builder.sh (SSH-jump to valhalla2 and rebuild)
+#   - web:     deploy-web.sh     (rebuild + sync the web app)
+# Default pubkeys are empty — populate from private/vars/ to enable
+# each flow.
+valhalla__deploy_pubkeys:
+  service: ""
+  builder: ""
+  web: ""
+
+# ACME cert declarations are read by the common role's
+# acme_cert_client task during the early `[servers]` play (before
+# role defaults are in scope), so they live here. "name" must match
+# the filename nginx expects in /srv/acme-daemon/certs/{name}.{pem,key}
+# (see roles/valhalla/templates/nginx-{api,web}.j2). "domains" only
+# matters when an [acme] host renews real Let's Encrypt certs; for
+# snake-oil placeholders (vagrant, fresh bootstrap) the domain isn't
+# checked.
 valhalla__acme_certificates:
   - name: valhalla-api
     domains:

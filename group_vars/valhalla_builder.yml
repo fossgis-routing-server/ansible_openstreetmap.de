@@ -1,13 +1,54 @@
 # SPDX-License-Identifier: MIT
-# Group vars for valhalla_builder hosts. Like group_vars/valhalla_service.yml,
-# this lives outside roles/valhalla/defaults/ so the common role's
-# acme_cert_client task — which runs in the early `[servers]` play, before
-# role defaults are in scope — can see it.
-#
-# The builder doesn't serve a public API, but nginx still gets pulled in via
-# the valhalla role's meta deps (for munin's graphs site), and munin's nginx
-# site references /srv/acme-daemon/certs/munin.pem. Without this entry the
-# nginx reload handler fails on a missing cert file.
+# Group vars for valhalla_builder hosts. Everything in this file is
+# referenced ONLY by tasks/templates that are gated to the
+# valhalla_builder group in roles/valhalla/tasks/main.yml.
+
+# SSH target for graph push and apply-graph trigger. Production:
+# valhalla1's public hostname (DNS resolves it). Vagrant overrides
+# this in host_vars/valhalla-builder.yml to the service VM's
+# private_network IP — host_vars wins over group_vars, so we keep
+# the production value here and let test envs override.
+valhalla__graph_push_target: valhalla1.openstreetmap.de
+
+# Planet PBF source. Vagrant overrides this to a small Geofabrik
+# extract (liechtenstein-latest) in host_vars/valhalla-builder.yml.
+valhalla__planet_url: https://planet.osm.org/pbf/planet-latest.osm.pbf
+
+# Builder filesystem layout. All under valhalla__basedir, which stays
+# in role defaults (shared with the service host's runtime layout).
+valhalla__config_path: "{{ valhalla__basedir }}/valhalla.json"
+valhalla__data_dir: "{{ valhalla__basedir }}/data"
+valhalla__planet_path: "{{ valhalla__data_dir }}/planet.pbf"
+valhalla__admins_path: "{{ valhalla__data_dir }}/admins.sqlite"
+valhalla__timezones_path: "{{ valhalla__data_dir }}/timezones.sqlite"
+valhalla__elevation_dir: "{{ valhalla__data_dir }}/elevation"
+valhalla__tiles_dir: "{{ valhalla__data_dir }}/valhalla_tiles"
+
+# OpenStreetMapSpeeds default-speeds JSON consumed by valhalla_build_tiles.
+valhalla__default_speeds_url: https://raw.githubusercontent.com/OpenStreetMapSpeeds/schema/refs/heads/master/default_speeds.json
+valhalla__default_speeds_path: "{{ valhalla__data_dir }}/default_speeds.json"
+
+# Compressed graph tarball produced by each iteration and rsynced to
+# the service host.
+valhalla__tarball_path: "{{ valhalla__data_dir }}/tiles.tar.zst"
+
+# Seconds to sleep at the end of each build-tiles iteration before
+# starting the next one. Defaults to 0 because a real-planet iteration
+# is naturally many hours long. Vagrant overrides this in host_vars
+# to throttle the small-extract test loop where iterations finish in
+# under a minute.
+valhalla__build_loop_sleep_seconds: 0
+
+# Sentinel file touched at the end of each successful iteration;
+# mtime is the monitoring signal.
+valhalla__sentinel_path: "{{ valhalla__basedir }}/last_iteration_complete"
+
+# ACME cert declarations: the builder doesn't serve a public API, but
+# nginx still gets pulled in via the valhalla role's meta deps (for
+# munin's graphs site), and munin's nginx site references
+# /srv/acme-daemon/certs/munin.pem. Without this entry the nginx
+# reload handler fails on a missing cert file. Read by the common
+# role's acme_cert_client task in the early `[servers]` play.
 valhalla__acme_certificates:
   - name: munin
     domains:

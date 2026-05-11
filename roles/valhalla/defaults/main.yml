@@ -1,5 +1,15 @@
 # SPDX-License-Identifier: MIT
 ---
+# Role defaults — only variables that are SHARED across both
+# valhalla_service and valhalla_builder hosts (or that the cross-host
+# wiring needs to read via hostvars[...]) live here.
+#
+# Group-scoped variables live in:
+#   - group_vars/valhalla_service.yml — hostnames, ports, web app, deploy pubkeys, ...
+#   - group_vars/valhalla_builder.yml — planet URL, build paths, tarball, build-loop sleep, ...
+#
+# When adding a new variable, prefer the narrowest scope that works.
+
 # Service user that owns /src/valhalla and /srv/valhalla on both hosts.
 valhalla__user: valhalla
 
@@ -7,105 +17,34 @@ valhalla__user: valhalla
 valhalla__git_repo: https://github.com/valhalla/valhalla.git
 valhalla__git_version: master
 
-# Layout
+# Shared filesystem layout.
 valhalla__srcdir: /src/valhalla
 valhalla__basedir: /srv/valhalla
 
-# Public hostnames served by valhalla1's nginx.
-valhalla__api_hostname: valhalla1.openstreetmap.de
-valhalla__web_hostname: valhalla.openstreetmap.de
-
-# What the builder's build-tiles-loop SSHes to for graph push + apply-graph
-# trigger. Production: same as api_hostname (DNS resolves it). Vagrant
-# overrides this to the service VM's private_network IP, so the builder VM
-# has a literal address it can resolve without DNS — without forcing
-# valhalla__api_hostname to the same IP (which would collide with
-# web_hostname in nginx if both got overridden).
-valhalla__graph_push_target: "{{ valhalla__api_hostname }}"
-
-# Blue/green ports on the service host. valhalla__service is started on
-# whichever of these is currently inactive, then swapped in via nginx.
-valhalla__service_ports: [8000, 8001]
-
-# Planet PBF and web-app source.
-valhalla__planet_url: https://planet.osm.org/pbf/planet-latest.osm.pbf
-valhalla__webapp_repo: https://github.com/valhalla/web-app.git
-valhalla__webapp_srcdir: "{{ valhalla__basedir }}/web-app"
-valhalla__webroot: /var/www/valhalla
-# Baked into the build as VITE_CLIENT_ID for monitoring
-valhalla__webapp_client_id: public-web-app
-
-# Known X-Client-Id header values, classified for log/metrics. Any other value
-# (or missing header) maps to "unknown". Purely for observability — no gating.
-valhalla__client_ids:
-  - public-web-app
-
-# Builder layout (only meaningful on valhalla_builder).
-valhalla__config_path: "{{ valhalla__basedir }}/valhalla.json"
-valhalla__data_dir: "{{ valhalla__basedir }}/data"
-valhalla__planet_path: "{{ valhalla__data_dir }}/planet.pbf"
-valhalla__admins_path: "{{ valhalla__data_dir }}/admins.sqlite"
-valhalla__timezones_path: "{{ valhalla__data_dir }}/timezones.sqlite"
-valhalla__elevation_dir: "{{ valhalla__data_dir }}/elevation"
-valhalla__tiles_dir: "{{ valhalla__data_dir }}/valhalla_tiles"
-
-# OpenStreetMapSpeeds default-speeds JSON consumed by valhalla_build_tiles.
-valhalla__default_speeds_url: https://raw.githubusercontent.com/OpenStreetMapSpeeds/schema/refs/heads/master/default_speeds.json
-valhalla__default_speeds_path: "{{ valhalla__data_dir }}/default_speeds.json"
-
-# Compressed graph tarball produced by each graph build iteration
-# and rsynced to the service host.
-valhalla__tarball_path: "{{ valhalla__data_dir }}/tiles.tar.zst"
-
-# Seconds to sleep at the end of each build-tiles iteration before starting
-# the next one. Defaults to 0 because a real-planet iteration is naturally
-# many hours long. Override in host_vars to throttle vagrant / small-extract
-# testing where iterations finish in under a minute and the constant
-# graph-swap cycle becomes noisy.
-valhalla__build_loop_sleep_seconds: 0
-
-# Sentinel files touched at the end of each successful step. mtime is the
-# primary monitoring signal — munin/icinga/prometheus alert when older than
-# valhalla__sentinel_max_age_hours.
-#   - build sentinel (builder host): a full build+push+apply iteration finished
-#   - apply sentinel (service host): apply-graph.sh finished a rolling swap
-# Both stale → builder is broken. Build fresh + apply stale → push or apply
-# is failing on the service. Apply fresh implies build fresh (apply only runs
-# when the builder triggers it).
-valhalla__sentinel_path: "{{ valhalla__basedir }}/last_iteration_complete"
-valhalla__apply_sentinel_path: "{{ valhalla__basedir }}/last_apply_complete"
+# Monitoring threshold for both the build and apply sentinels.
+# munin/icinga/prometheus alert when either is older than this.
 valhalla__sentinel_max_age_hours: 16
 
-# System user on the service host that receives graph pushes from the builder.
-# Its authorized_keys forces apply-graph.sh, nothing else.
+# System user on the service host that receives graph pushes from the
+# builder. The username is defined here (not under valhalla_service)
+# because the builder's build-tiles-loop script needs to know who to
+# SSH as. The home dir is only meaningful on the service host (where
+# the account exists), but kept alongside for symmetry.
 valhalla__graph_user: valhalla-graph
 valhalla__graph_user_home: /srv/valhalla-graph
 
-valhalla__prime_server_srcdir: /src/prime_server
-
-# GHA-driven deploys: a separate system account whose authorized_keys pin one
-# of three forced commands per pubkey:
-#   - service: deploy-service.sh    (rebuild + rolling-restart valhalla on valhalla1)
-#   - builder: deploy-builder.sh    (SSH-jump to valhalla2 and rebuild there)
-#   - web:     deploy-web.sh        (rebuild + sync the web app)
-# Default pubkeys are empty — populate from private/vars/ to enable each flow.
+# GHA-driven deploy account. Created on both hosts: valhalla1 holds the
+# 3 GHA-trigger forced-command keys; valhalla2 holds the from=-restricted
+# rebuild-trigger key (and the private half of the SSH-jump key lives
+# under valhalla1's copy of this home dir).
 valhalla__deploy_user: valhalla-deploy
 valhalla__deploy_user_home: /srv/valhalla-deploy
-valhalla__deploy_pubkeys:
-  service: ""
-  builder: ""
-  web: ""
 
-# `valhalla__acme_certificates` lives in group_vars/valhalla_service.yml,
-# not here — the common role's acme_cert_client task runs in the early
-# `[servers]` play, before role defaults are in scope, and would skip the
-# snake-oil cert creation if it can't see the list. See group_vars file
-# for details.
-
-# IP this host shows up as from the perspective of the peer (used as the
-# `from=` restriction in the cross-host authorized_keys). Defaults to the
-# default-route IPv4 from gathered facts, which is what the peer will see
-# in the public/normal-network case. Override per-host only when the
-# peer-facing IP differs from default_ipv4 — e.g. vagrant uses a
-# private_network for VM↔VM traffic that is NOT the default route.
+# IP this host shows up as from the perspective of the peer (used as
+# the `from=` restriction in the cross-host authorized_keys). Defaults
+# to the default-route IPv4 from gathered facts, which is what the
+# peer will see in the public/normal-network case. Override per-host
+# only when the peer-facing IP differs from default_ipv4 — e.g.
+# vagrant uses a private_network for VM↔VM traffic that is NOT the
+# default route.
 valhalla__public_ipv4: "{{ ansible_default_ipv4.address }}"
