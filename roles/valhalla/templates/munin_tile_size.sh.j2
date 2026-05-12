@@ -1,0 +1,38 @@
+#!/bin/bash
+# Managed by ansible — see roles/valhalla/templates/munin_tile_size.sh.j2
+#
+# Size of the builder's data outputs. GAUGE type — each scrape reports the
+# absolute current size, not a delta. Useful for watching graph + planet
+# growth and catching disk-space regressions early.
+#
+# Note: we intentionally do NOT graph the live `valhalla_tiles/` dir.
+# valhalla_build_extract moves tile content into the tarball each
+# iteration, leaving that dir mostly empty, so its size isn't meaningful.
+
+case "$1" in
+    config)
+        cat <<'EOF'
+graph_title Valhalla builder data sizes
+graph_vlabel bytes
+graph_args --base 1024 --lower-limit 0
+graph_category valhalla
+planet.label planet.pbf (input)
+planet.min 0
+tarball.label tiles.tar.zst (output rsynced to service)
+tarball.min 0
+EOF
+        exit 0
+        ;;
+esac
+
+emit() {
+    # $1 = munin field name, $2 = path
+    if [ -f "$2" ]; then
+        printf "%s.value %d\n" "$1" "$(stat -c %s "$2")"
+    else
+        echo "$1.value U"
+    fi
+}
+
+emit planet  "{{ valhalla__planet_path }}"
+emit tarball "{{ valhalla__tarball_path }}"

@@ -1,0 +1,74 @@
+#!/usr/bin/env python3
+# Managed by ansible — see roles/valhalla/templates/munin_latency.py.j2
+"""
+Valhalla request latency stats from the nginx access log: mean, p50, p99,
+max over the last 5 minutes. Emits "U" (unknown) if there aren't enough
+samples to be meaningful — a single slow request shouldn't pin the graph.
+
+Tail-based reader is sloppy but fine: at 10 r/s the 5-minute window is
+~3000 lines, way under the 50k we pull; under heavy load older lines get
+filtered out by the timestamp check anyway.
+"""
+import sys
+import re
+import subprocess
+from datetime import datetime, timezone, timedelta
+
+LOG = "/var/log/nginx/valhalla-api.log"
+WINDOW_SECONDS = 300
+MIN_SAMPLES = 50
+TAIL_LINES = 50000
+
+# log_format: <ip> [<time>] <method> <uri> <status> <bytes> rqt=<sec> urt=<sec> client=<class>
+LINE_RE = re.compile(
+    r"\[(?P<ts>[^\]]+)\] \S+ \S+ \d+ \d+ rqt=(?P<rqt>\d+\.\d+)"
+)
+
+if len(sys.argv) > 1 and sys.argv[1] == "config":
+    print("""graph_title Valhalla request latency
+graph_vlabel seconds
+graph_category valhalla
+graph_args --base 1000 --lower-limit 0
+mean.label mean
+mean.min 0
+p50.label p50
+p50.min 0
+p99.label p99
+p99.min 0
+max.label max
+max.min 0""")
+    sys.exit(0)
+
+cutoff = datetime.now(timezone.utc) - timedelta(seconds=WINDOW_SECONDS)
+
+try:
+    raw = subprocess.check_output(["tail", "-n", str(TAIL_LINES), LOG], text=True)
+except (subprocess.CalledProcessError, FileNotFoundError):
+    raw = ""
+
+values = []
+for line in raw.splitlines():
+    m = LINE_RE.search(line)
+    if not m:
+        continue
+    try:
+        ts = datetime.strptime(m.group("ts"), "%d/%b/%Y:%H:%M:%S %z")
+    except ValueError:
+        continue
+    if ts < cutoff:
+        continue
+    values.append(float(m.group("rqt")))
+
+def emit(label, v):
+    print(f"{label}.value " + ("U" if v is None else f"{v:.4f}"))
+
+if len(values) < MIN_SAMPLES:
+    for label in ("mean", "p50", "p99", "max"):
+        emit(label, None)
+else:
+    values.sort()
+    n = len(values)
+    emit("mean", sum(values) / n)
+    emit("p50",  values[n // 2])
+    emit("p99",  values[int(0.99 * (n - 1))])
+    emit("max",  values[-1])

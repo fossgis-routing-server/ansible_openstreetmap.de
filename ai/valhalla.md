@@ -18,7 +18,8 @@ built.
 | 7. Web app build/deploy | done |
 | 8. Frontend nginx (API site, web app site, rate limits, X-Client-Id map) | done |
 | 9. Deploy scripts + restricted SSH users | done |
-| 10. icinga2agent registration | **pending** |
+| 10. Munin plugins (count, latency, consumers, tile_size) | done |
+| 11. icinga2agent registration | **pending** |
 | Vagrant testing | scaffolded (two-VM setup landed, end-to-end run still pending) |
 
 ## Architecture overview
@@ -436,11 +437,33 @@ The legacy single-VM workflow (`./init_vagrant_inventory.sh trixie` +
 - **cmake flag duplication**: deploy-service.sh / deploy-builder-runner.sh hardcode the same `-DENABLE_*=...` flags as service.yml / builder.yml. Drift risk if you tune in one place. Refactoring into a defaults list is a good follow-up but not done.
 - **No ufw rule restricting valhalla2's SSH to valhalla1's IP.** Admins can still SSH valhalla2 directly. The intended-but-not-implemented bastion model would route admin SSH through valhalla1 via `ProxyJump`. Without a static admin source IP (or a VPN), full lockdown isn't practical.
 
-## Pending: sub-task 10 — icinga2agent
+## Munin plugins (sub-task 10)
 
-Files / patterns to follow: see `roles/osrm/tasks/main.yml` "munin statistics"
-section for plugin structure, and the existing icinga2agent group in
-`hosts.ini`.
+Installed via [roles/valhalla/tasks/munin.yml](../roles/valhalla/tasks/munin.yml), one
+template per plugin under `roles/valhalla/templates/munin_*.{sh,py}.j2`. All
+plugins land in `/etc/munin/plugins/valhalla_*` and share
+`/etc/munin/plugin-conf.d/valhalla` which sets `group adm` so the
+service-side plugins can read `/var/log/nginx/valhalla-api.log`.
+
+| plugin | host | source | output |
+|---|---|---|---|
+| `valhalla_count` | service | nginx access log | DERIVE — req/s per endpoint (route, isochrone, matrix, tile, status, other) |
+| `valhalla_latency` | service | nginx access log `rqt=` field | GAUGE — mean / p50 / p99 / max seconds over the last 5 min (`U` below 50 samples) |
+| `valhalla_consumers` | service | nginx access log `client=` field | DERIVE — req/s per `valhalla__client_ids` entry (X-Client-Id classification), plus `unknown` bucket |
+| `valhalla_tile_size` | builder | `stat -c %s` on planet + tarball | GAUGE — bytes for `planet.pbf` (input) and `tiles.tar.zst` (output) |
+
+Test in vagrant: `vagrant ssh <vm> -- -T 'sudo munin-run valhalla_<plugin>'`.
+`config` and bare-arg both work (config returns the graph definition, no-arg
+returns the values munin would scrape).
+
+The `valhalla_tiles/` directory deliberately isn't graphed because
+`valhalla_build_extract` moves its contents into the tarball every iteration
+and leaves the dir near-empty.
+
+## Pending: sub-task 11 — icinga2agent
+
+Files / patterns to follow: the existing icinga2agent group in `hosts.ini`
+plus whatever the icinga2agent role exposes.
 
 Checks to add:
 - `check_systemd valhalla-{8000,8001}` on valhalla1.
@@ -449,9 +472,6 @@ Checks to add:
 - `check_file_age` against apply sentinel (`/srv/valhalla/last_apply_complete` on valhalla1) with the same threshold.
 - `check_http https://valhalla1.openstreetmap.de/status` (external).
 - `check_http https://valhalla.openstreetmap.de/` (external — web app).
-
-Optional munin plugins for graphs (request count, latency) — modeled on
-`roles/osrm/templates/munin_*.j2`. Not on the day-1 critical path.
 
 ## Quick "did everything land" check
 
@@ -462,7 +482,7 @@ ls roles/valhalla/{tasks,templates,defaults,meta,handlers}
 # templates: build-tiles-loop.sh.j2 apply-graph.sh.j2 graph-receiver.sh.j2
 #            valhalla-graph.sudoers.j2 deploy-service.sh.j2 deploy-builder.sh.j2
 #            deploy-builder-runner.sh.j2 valhalla-deploy-{service,builder}.sudoers.j2
-#            deploy-web.sh.j2 nginx-valhalla.conf.j2 nginx-api.j2 nginx-web.j2
+#            deploy-web.sh.j2 nginx-valhalla.conf.j2 nginx-api.conf.j2 nginx-web.conf.j2
 # defaults: main.yml
 # meta: main.yml
 # handlers: (empty — uses the nginx role's handlers via meta deps)

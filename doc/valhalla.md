@@ -14,6 +14,7 @@ context) see [../ai/valhalla.md](../ai/valhalla.md).
   - [systemd units](#systemd-units)
   - [nginx (valhalla1)](#nginx-valhalla1)
   - [Sentinels (monitoring signals)](#sentinels-monitoring-signals)
+  - [Munin graphs](#munin-graphs)
 - [Common operations](#common-operations)
 - [Vagrant end-to-end testing](#vagrant-end-to-end-testing)
   - [Browser test (web app + live routing)](#browser-test-web-app--live-routing)
@@ -125,6 +126,31 @@ flowchart TB
 | `/srv/valhalla/last_apply_complete` | valhalla1 | mtime updated at end of each successful apply-graph run | graph push or apply-graph is failing |
 
 Threshold: `valhalla__sentinel_max_age_hours = 16`. Both stale = builder broken. Build fresh + apply stale = push or apply broken. Apply fresh implies build fresh.
+
+### Munin graphs
+
+The master scrapes the per-host munin-node and renders graphs under the
+"valhalla" category. Plugins are installed by the role:
+
+| plugin | host | what |
+|---|---|---|
+| `valhalla_count` | valhalla1 | req/s per endpoint (route, isochrone, matrix, tile, status, other) |
+| `valhalla_latency` | valhalla1 | mean / p50 / p99 / max seconds over the last 5 min |
+| `valhalla_consumers` | valhalla1 | req/s grouped by `X-Client-Id` class (`public-web-app`, `unknown`, ...) |
+| `valhalla_tile_size` | valhalla2 | planet.pbf and tiles.tar.zst byte sizes |
+
+To debug a plugin directly on the host (bypassing the master / network):
+
+```sh
+sudo munin-run valhalla_count            # fetch — values
+sudo munin-run valhalla_count config     # config — graph definition
+```
+
+If `fetch` returns `U` for everything, the plugin lacks read permission on
+its source (usually `/var/log/nginx/*.log` requires `group adm`, which the
+role's `/etc/munin/plugin-conf.d/valhalla` grants). `valhalla_latency` also
+returns `U` below 50 samples in the last 5 minutes — a single slow request
+shouldn't pin the graph.
 
 ## Common operations
 

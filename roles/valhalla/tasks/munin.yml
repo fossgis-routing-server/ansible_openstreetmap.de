@@ -1,0 +1,56 @@
+# SPDX-License-Identifier: MIT
+# Munin plugins. Service host gets request count / latency / per-client
+# breakdowns from the nginx access log. Builder host gets tile / tarball
+# size. Each plugin is dropped as a template into /etc/munin/plugins/ and
+# munin-node picks it up on restart (the munin role meta-dep installed the
+# node + the handler).
+#
+# `munin__in_use` is set by the munin role early in the play; gating on it
+# means the play is a no-op if munin happens to be excluded.
+---
+
+- name: Service-side munin plugins
+  template:
+    src: "munin_{{ item.src }}.j2"
+    dest: "/etc/munin/plugins/valhalla_{{ item.name }}"
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - { name: count,     src: count.sh }
+    - { name: latency,   src: latency.py }
+    - { name: consumers, src: consumers.sh }
+  notify: restart munin-node
+  when:
+    - inventory_hostname in groups['valhalla_service']
+    - munin__in_use | default(False)
+
+- name: Builder-side munin plugins
+  template:
+    src: "munin_{{ item.src }}.j2"
+    dest: "/etc/munin/plugins/valhalla_{{ item.name }}"
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - { name: tile_size, src: tile_size.sh }
+  notify: restart munin-node
+  when:
+    - inventory_hostname in groups['valhalla_builder']
+    - munin__in_use | default(False)
+
+- name: Valhalla munin plugin-conf
+  # Service-side plugins need group:adm to read /var/log/nginx/*.log.
+  # On the builder, the only plugin reads a world-readable tile path and
+  # runs as nobody, so the override is harmless there. One file keeps the
+  # ansible task uniform across the two hosts.
+  copy:
+    dest: /etc/munin/plugin-conf.d/valhalla
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      [valhalla_*]
+      group adm
+  notify: restart munin-node
+  when: munin__in_use | default(False)

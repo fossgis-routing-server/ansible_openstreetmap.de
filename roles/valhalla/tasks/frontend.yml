@@ -17,13 +17,13 @@
 - name: API site — {{ valhalla__api_hostname }}
   nginx_site:
     site: "{{ valhalla__api_hostname }}"
-    src: nginx-api.j2
+    src: nginx-api.conf.j2
   notify: reload nginx
 
 - name: Web-app site — {{ valhalla__web_hostname }}
   nginx_site:
     site: "{{ valhalla__web_hostname }}"
-    src: nginx-web.j2
+    src: nginx-web.conf.j2
   notify: reload nginx
 
 - name: Install fail2ban jail for nginx rate-limit abuse

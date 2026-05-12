@@ -34,3 +34,6 @@
 - name: "Frontend nginx (service host)"
   include_tasks: "frontend.yml"
   when: "inventory_hostname in groups['valhalla_service']"
+
+- name: "Munin plugins (per-host gating inside)"
+  include_tasks: "munin.yml"
