@@ -108,7 +108,7 @@ while true; do
     $LOG_INFO "iteration: trigger apply-graph on $SERVICE_HOST"
     ssh_to_service 2>&1 | $LOG_INFO
 
-    # 9. update planet.pbf — best-effort
+    # 9. update planet.pbf — best-effort. lz4 decompression is supported in valhalla's libosmium
     $LOG_INFO "iteration: pyosmium-up-to-date $PLANET"
     /usr/lib/python3-pyosmium/pyosmium-up-to-date -v --size 10000 \
         --format "pbf,pbf_compression=lz4" "$PLANET" 2>&1 | $LOG_INFO \

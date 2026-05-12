@@ -27,13 +27,12 @@ context) see [../ai/valhalla.md](../ai/valhalla.md).
   - [Web app stale or 404](#web-app-stale-or-404)
   - [nginx reload fails](#nginx-reload-fails-after-ansible-run-or-manual-edit)
   - [Rate limit firing too aggressively](#rate-limit-firing-too-aggressively)
-  - [Disk full](#disk-full)
   - [Locked out of valhalla2 (builder)](#locked-out-of-valhalla2-builder)
 - [Glossary](#glossary)
 
 ## Architecture
 
-Two physical hosts, blue/green service on one, build loop on the other.
+Two physical hosts, blue/green service on one (rolling deploy), build loop on the other.
 
 ```mermaid
 flowchart TB
@@ -358,20 +357,6 @@ sudo journalctl -xeu nginx.service -n 30
 ### Rate limit firing too aggressively
 
 The role configures per-IP routing at 1 r/s, per-IP `/tile` at 10 r/s, global at 500 r/s. If legitimate users hit 429, tune in `roles/valhalla/templates/nginx-valhalla.conf.j2` and reload nginx.
-
-### Disk full
-
-```sh
-# Check the suspects (largest first):
-sudo du -shx /srv/valhalla/* 2>/dev/null | sort -h
-# Builder usually dominated by:
-#   data/planet.pbf            (~80 GB)
-#   data/valhalla_tiles/        (varies)
-#   data/elevation/             (depends on bbox)
-# Service host:
-#   graph-{8000,8001}.tar       (the tarball + its hardlink)
-#   /srv/valhalla-graph/tiles.tar.zst
-```
 
 ### Locked out of valhalla2 (builder)
 
