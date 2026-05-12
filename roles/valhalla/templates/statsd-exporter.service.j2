@@ -1,0 +1,25 @@
+# Managed by ansible — see roles/valhalla/templates/statsd-exporter.service.j2
+#
+# statsd_exporter receives UDP/TCP statsd packets on :8125 and exports them
+# as Prometheus metrics on :9102. The service host additionally loads a
+# mapping config that rewrites valhalla's per-request timer metrics into a
+# proper histogram (so histogram_quantile() works in dashboards).
+[Unit]
+Description=Prometheus statsd_exporter
+After=network.target
+
+[Service]
+Type=simple
+User=nobody
+Group=nogroup
+ExecStart=/usr/local/bin/statsd_exporter \
+  --statsd.listen-udp=:8125 \
+  --statsd.listen-tcp=:8125 \
+  --web.listen-address=:9102{% if inventory_hostname in groups['valhalla_service'] %} \
+  --statsd.mapping-config=/etc/prometheus/statsd-mapping.yml{% endif %}
+
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

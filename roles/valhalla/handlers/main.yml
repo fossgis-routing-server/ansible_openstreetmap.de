@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: MIT
+# Handlers triggered by the valhalla role's monitoring stack
+# (prometheus.yml). Kept here rather than relying on cross-role handler
+# resolution to make the dependency explicit.
+---
+
+- name: restart statsd-exporter
+  systemd_service:
+    name: statsd-exporter
+    state: restarted
+    daemon_reload: true
+
+- name: restart mtail
+  systemd_service:
+    name: mtail
+    state: restarted
+    daemon_reload: true

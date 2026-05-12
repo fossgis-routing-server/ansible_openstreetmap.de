@@ -49,7 +49,7 @@ Vagrant.configure("2") do |config|
   # trigger) using the same IPs the ansible controller uses to reach
   # them. Use VAGRANT_VALHALLA_MEMORY (default 6144).
   valhalla_memory = ENV["VAGRANT_VALHALLA_MEMORY"] || 6144
-  valhalla_cpus   = ENV["VAGRANT_VALHALLA_CPUS"]   || 4
+  valhalla_cpus   = ENV["VAGRANT_VALHALLA_CPUS"]   || 8
 
   {
     "valhalla-service" => "192.168.123.10",

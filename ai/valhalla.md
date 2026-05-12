@@ -432,7 +432,7 @@ The legacy single-VM workflow (`./init_vagrant_inventory.sh trixie` +
 - **Both blue and green run continuously.** Each capped at half host vCPUs via systemd `CPUQuota`. apply-graph stops/swaps/starts each in turn. This is in lieu of a "currently active port" state file.
 - **`drain_seconds=28`** in valhalla.json means `systemctl stop` blocks ~29s. The script doesn't need extra wait logic.
 - **`set -euo pipefail`** in build-tiles-loop.sh — pathological failures abort. systemd restarts. Sentinel mtime is the monitoring signal; brief restart cycling is the secondary signal (StartLimitBurst).
-- **Tarball is built in two steps**: `valhalla_build_extract` writes the uncompressed tar to `mjolnir.tile_extract` (path from CONFIG, currently the valhalla default — needs an explicit `--mjolnir-tile-extract` in `valhalla_build_config` to match `${TARBALL%.zst}` if the default ever changes), then a separate `zstd -T0 -3 -f` produces `tiles.tar.zst` via the `.partial` + atomic-mv pattern. `-T0 -3` is fast compression, not max — tile data is binary and already compressible, so `-19` isn't worth the CPU.
+- **Tarball is built in two steps**: `valhalla_build_extract` writes the uncompressed tar to `mjolnir.tile_extract` (`valhalla__extract_path`, pinned via `--mjolnir-tile-extract` in [builder.yml](../roles/valhalla/tasks/builder.yml) — without the explicit pin valhalla defaults to `/data/...` which the `valhalla` user can't write to, and `valhalla_build_extract` fails with `PermissionError`), then a separate `zstd -T0 -3 -f` produces `tiles.tar.zst` via the `.partial` + atomic-mv pattern. `-T0 -3` is fast compression, not max — tile data is binary and already compressible, so `-19` isn't worth the CPU.
 - **rrsync as `/usr/bin/rrsync`** — Debian 13 ships it in the rsync package at that path. If a vagrant test box has a different path (older Debian had it gzipped under `/usr/share/doc/`), graph push will fail at the rrsync step.
 - **cmake flag duplication**: deploy-service.sh / deploy-builder-runner.sh hardcode the same `-DENABLE_*=...` flags as service.yml / builder.yml. Drift risk if you tune in one place. Refactoring into a defaults list is a good follow-up but not done.
 - **No ufw rule restricting valhalla2's SSH to valhalla1's IP.** Admins can still SSH valhalla2 directly. The intended-but-not-implemented bastion model would route admin SSH through valhalla1 via `ProxyJump`. Without a static admin source IP (or a VPN), full lockdown isn't practical.
@@ -460,7 +460,93 @@ The `valhalla_tiles/` directory deliberately isn't graphed because
 `valhalla_build_extract` moves its contents into the tarball every iteration
 and leaves the dir near-empty.
 
-## Pending: sub-task 11 — icinga2agent
+## Prometheus monitoring (sub-task 11)
+
+Installed via [roles/valhalla/tasks/prometheus.yml](../roles/valhalla/tasks/prometheus.yml),
+gated whole-file by `valhalla__monitoring_in_use` (matches the `munin__in_use`
+pattern). `valhalla__monitoring_scraper_ip` MUST be set when enabled — the
+play asserts this up front rather than opening ufw rules with an empty
+`from_ip`. Both vars default off / unset in
+[defaults/main.yml](../roles/valhalla/defaults/main.yml); per-host opt-in is in
+[group_vars/valhalla_{service,builder}.yml](../group_vars). The scraper is the
+routing.earth Prometheus host (proc-server) defined separately in
+[/home/nils/data/dev/routing.earth/monitoring](../../routing.earth/monitoring).
+
+Three exporters, four scrape targets:
+
+| target | port | host | source | what it exports |
+|---|---|---|---|---|
+| node_exporter | 9100 | both | apt `prometheus-node-exporter` | system metrics (CPU/mem/disk/net) |
+| statsd_exporter (builder) | 9102 | builder | upstream Go binary, pinned via `valhalla__statsd_exporter_version` | `valhalla_mjolnir_*` (C++ counters) + `valhalla_mjolnir_timing_*` and `valhalla_mjolnir_build_started_at` (bash-emitted) |
+| statsd_exporter (service) | 9102 | service | same binary + `/etc/prometheus/statsd-mapping.yml` | `valhalla_latency_seconds{action,service}` histogram + `valhalla_ok_total` counter (rewritten from `valhalla.<action>.info.<service>.<metric>`) |
+| mtail | 9145 | service | apt `mtail` | `nginx_http_requests_total{client,endpoint,status}` from `/var/log/nginx/valhalla-api.log` |
+
+**statsd_exporter is not packaged** on Debian Trixie — installed via
+`unarchive:` from the GitHub release tarball. `creates:` makes the task
+idempotent; bumping `valhalla__statsd_exporter_version` does NOT auto-upgrade
+(rm the binary first).
+
+**Mapping config lives only on the service host.** The builder's
+`valhalla_mjolnir_*` are plain counters and need no mapping. The service
+host's per-request `<action>.info.<service>.latency_ms` only becomes a
+histogram (with `_bucket` series → `histogram_quantile()` p50/p95/p99) when
+[roles/valhalla/files/statsd-mapping.yml](../roles/valhalla/files/statsd-mapping.yml)
+is loaded. Without it, dashboards lose percentiles. The file is vendored from
+routing.earth's monitoring repo; hand-sync when it changes (rare).
+
+**mtail replaces nginx-lua-prometheus.** Routing.earth's
+[monitoring docs](../../routing.earth/monitoring/docs/valhalla-server-setup.md)
+originally recommended `nginx-lua-prometheus` + git-cloned lua modules; we
+substitute mtail (apt-packaged on Trixie at 3.0.9) tailing the existing
+`valhalla_log`-formatted access log. Same metric name + label set, so the
+existing routing.earth scrape config and `valhalla-service.json` dashboard
+work unchanged. The mtail program is at
+[roles/valhalla/templates/valhalla-nginx.mtail.j2](../roles/valhalla/templates/valhalla-nginx.mtail.j2);
+the systemd drop-in at
+[roles/valhalla/files/mtail-override.conf](../roles/valhalla/files/mtail-override.conf)
+forces port 9145 and adds `SupplementaryGroups=adm` so mtail can read
+`/var/log/nginx/*.log`. Cardinality is bounded upstream: `$client_class` from
+nginx's `map $http_x_client_id` allowlist (defaults to "unknown"), endpoint is
+the first path segment, status is a small HTTP enum.
+
+**Bash-emitted pipeline timings.** The C++ side covers everything inside
+`valhalla_build_tiles` itself, but tar / compress / upload / reload happen
+*between* valhalla invocations and are owned by
+[build-tiles-loop.sh.j2](../roles/valhalla/templates/build-tiles-loop.sh.j2).
+That script defines an `emit_metric()` helper using `nc -u -w1 localhost 8125`
+and emits gauges with the `valhalla.mjolnir.timing.<phase>` prefix to match
+what the C++ code uses. UDP send to nothing is silent: when monitoring is off
+(no statsd_exporter listening), the packets are dropped and the script moves
+on, so emission is unconditional in the template.
+
+Emitted from bash:
+- `valhalla.mjolnir.build_started_at` (epoch, gauge) — top of each iteration
+- `valhalla.mjolnir.timing.build_tile_set` — wraps both `valhalla_build_tiles` passes + elevation download
+- `valhalla.mjolnir.timing.tar_tile_set` — `valhalla_build_extract`
+- `valhalla.mjolnir.timing.compress_tile_set` — `zstd`
+- `valhalla.mjolnir.count.compressed_graph_bytes` — `stat -c %s` of the tarball
+- `valhalla.mjolnir.timing.upload_tile_set` — rsync to service
+- `valhalla.mjolnir.timing.reload_tile_set` — ssh trigger of apply-graph
+- `valhalla.mjolnir.timing.update_osm_data` — pyosmium-up-to-date
+
+These match the names in routing.earth's `valhalla-build.json` dashboard
+(`time series` panels under "Pipeline timings").
+
+**Handler resolution.** The valhalla role used to rely on the nginx + munin
+roles' handlers (`notify: reload nginx`, `notify: restart munin-node`).
+Adding `restart statsd-exporter`, `restart mtail`, and `restart valhalla-build-tiles`
+required a real
+[roles/valhalla/handlers/main.yml](../roles/valhalla/handlers/main.yml).
+The existing cross-role notifies still resolve fine — Ansible's handler
+lookup is play-wide, not role-local.
+
+**Coexistence with Munin.** Both run side-by-side intentionally. The
+overlap (count / consumers / latency / tile_size in Munin ↔ mtail +
+statsd_exporter in Prometheus) is deliberate during the transition. Munin
+removal is a separate follow-up once Prometheus dashboards are confirmed
+stable in production.
+
+## Pending: sub-task 12 — icinga2agent
 
 Files / patterns to follow: the existing icinga2agent group in `hosts.ini`
 plus whatever the icinga2agent role exposes.
@@ -483,9 +569,12 @@ ls roles/valhalla/{tasks,templates,defaults,meta,handlers}
 #            valhalla-graph.sudoers.j2 deploy-service.sh.j2 deploy-builder.sh.j2
 #            deploy-builder-runner.sh.j2 valhalla-deploy-{service,builder}.sudoers.j2
 #            deploy-web.sh.j2 nginx-valhalla.conf.j2 nginx-api.conf.j2 nginx-web.conf.j2
+#            statsd-exporter.service.j2 valhalla-nginx.mtail.j2
+#            munin_{count,consumers,tile_size}.sh.j2 munin_latency.py.j2
+# files: statsd-mapping.yml mtail-override.conf
 # defaults: main.yml
 # meta: main.yml
-# handlers: (empty — uses the nginx role's handlers via meta deps)
+# handlers: main.yml (restart statsd-exporter / mtail / valhalla-build-tiles)
 
 git status
 # should show roles/valhalla/ as the bulk of new content,

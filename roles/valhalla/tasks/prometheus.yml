@@ -1,0 +1,154 @@
+# SPDX-License-Identifier: MIT
+# Prometheus-based monitoring. node_exporter (system) and statsd_exporter
+# (valhalla's own counters) on both hosts; mtail on the service host to
+# emit nginx_http_requests_total from the existing valhalla-api.log,
+# avoiding nginx-lua-prometheus (no source compile, no extra nginx mods).
+#
+# The whole file is a no-op unless valhalla__monitoring_in_use is true.
+# valhalla__monitoring_scraper_ip MUST be set when enabled — fail early
+# instead of opening ufw rules with an empty from_ip.
+---
+
+- name: Sanity-check monitoring vars
+  assert:
+    that:
+      - valhalla__monitoring_scraper_ip is defined
+      - valhalla__monitoring_scraper_ip | length > 0
+    fail_msg: |
+      valhalla__monitoring_in_use is true but valhalla__monitoring_scraper_ip
+      is not set. Set it in private vars (the public IP of the routing.earth
+      Prometheus host) before re-running.
+
+- name: Install node_exporter
+  apt:
+    name: prometheus-node-exporter
+    state: present
+
+- name: Enable node_exporter
+  systemd_service:
+    name: prometheus-node-exporter
+    enabled: true
+    state: started
+
+- name: Install statsd_exporter binary
+  # No Debian package on Trixie; pull the upstream Go binary from the
+  # pinned GitHub release: https://github.com/prometheus/statsd_exporter/releases
+  unarchive:
+    src: "https://github.com/prometheus/statsd_exporter/releases/download/v{{ valhalla__statsd_exporter_version }}/statsd_exporter-{{ valhalla__statsd_exporter_version }}.linux-amd64.tar.gz"
+    dest: /usr/local/bin
+    remote_src: yes
+    extra_opts:
+      - "--strip-components=1"
+      - "--wildcards"
+      - "*/statsd_exporter"
+    creates: /usr/local/bin/statsd_exporter
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Statsd-exporter mapping config (service host only)
+  # Histogram + label-rewrite rules for valhalla's per-request timer
+  # metrics. Required for histogram_quantile() to work in dashboards.
+  copy:
+    src: statsd-mapping.yml
+    dest: /etc/prometheus/statsd-mapping.yml
+    owner: root
+    group: root
+    mode: "0644"
+  when: inventory_hostname in groups['valhalla_service']
+  notify: restart statsd-exporter
+
+- name: Statsd-exporter systemd unit
+  template:
+    src: statsd-exporter.service.j2
+    dest: /etc/systemd/system/statsd-exporter.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: restart statsd-exporter
+
+- name: Enable statsd-exporter
+  systemd_service:
+    name: statsd-exporter
+    enabled: true
+    state: started
+    daemon_reload: true
+
+# --- service host only: mtail ----------------------------------------------
+# mtail is a simple log-watching exporter so we can get nginx request metrics
+
+- name: Install mtail (service host only)
+  apt:
+    name: mtail
+    state: present
+  when: inventory_hostname in groups['valhalla_service']
+
+- name: mtail program dir
+  file:
+    path: /etc/mtail
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: inventory_hostname in groups['valhalla_service']
+
+- name: mtail program — valhalla-nginx
+  template:
+    src: valhalla-nginx.mtail.j2
+    dest: /etc/mtail/valhalla-nginx.mtail
+    owner: root
+    group: root
+    mode: "0644"
+  when: inventory_hostname in groups['valhalla_service']
+  notify: restart mtail
+
+- name: mtail systemd drop-in dir
+  file:
+    path: /etc/systemd/system/mtail.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: inventory_hostname in groups['valhalla_service']
+
+- name: mtail systemd drop-in
+  # Replaces the Debian default ExecStart with one that binds :9145 for Prometheus
+  # and tails the valhalla API log.
+  copy:
+    src: mtail-override.conf
+    dest: /etc/systemd/system/mtail.service.d/override.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when: inventory_hostname in groups['valhalla_service']
+  notify: restart mtail
+
+- name: Enable mtail (service host only)
+  systemd_service:
+    name: mtail
+    enabled: true
+    state: started
+    daemon_reload: true
+  when: inventory_hostname in groups['valhalla_service']
+
+# --- firewall --------------------------------------------------------------
+
+- name: Allow scraper to reach node_exporter + statsd_exporter
+  ufw:
+    rule: allow
+    port: "{{ item }}"
+    proto: tcp
+    from_ip: "{{ valhalla__monitoring_scraper_ip }}"
+    comment: "prometheus scrape — :{{ item }}"
+  loop:
+    - 9100
+    - 9102
+
+- name: Allow scraper to reach mtail (service host only)
+  ufw:
+    rule: allow
+    port: 9145
+    proto: tcp
+    from_ip: "{{ valhalla__monitoring_scraper_ip }}"
+    comment: "prometheus scrape — mtail :9145"
+  when: inventory_hostname in groups['valhalla_service']

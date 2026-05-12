@@ -151,10 +151,65 @@ role's `/etc/munin/plugin-conf.d/valhalla` grants). `valhalla_latency` also
 returns `U` below 50 samples in the last 5 minutes — a single slow request
 shouldn't pin the graph.
 
-## Common operations
+### Prometheus / Grafana
+
+The role also installs three Prometheus exporters scraped by the
+routing.earth monitoring stack:
+
+| target | host | port | what |
+|---|---|---|---|
+| `prometheus-node-exporter` | both | 9100 | system metrics (CPU/mem/disk/net) |
+| `statsd-exporter` | both | 9102 | builder: `valhalla_mjolnir_*` counters + bash-emitted `valhalla_mjolnir_timing_*` pipeline gauges. service: `valhalla_latency_seconds{action,service}` histogram + `valhalla_ok_total{action,service}` (mapped from per-request statsd) |
+| `mtail` | valhalla1 only | 9145 | `nginx_http_requests_total{client,endpoint,status}` derived from `/var/log/nginx/valhalla-api.log` |
+
+Enable per host group by setting `valhalla__monitoring_in_use: true` in
+`group_vars/valhalla_{service,builder}.yml` and supplying
+`valhalla__monitoring_scraper_ip` in private vars (the public IP of
+proc-server). The play asserts up front if the scraper IP is missing —
+ufw rules are gated on it, so leaving it empty is a no-go.
+
+Smoke test on the host:
 
 ```sh
-# Service health from anywhere
+# system + valhalla counters (both hosts)
+curl -s localhost:9100/metrics | head
+curl -s localhost:9102/metrics | grep -E '^valhalla_'
+
+# nginx request counter (service host only — generate traffic first)
+curl -sH 'X-Client-Id: public-web-app' http://localhost/status
+curl -s localhost:9145/metrics | grep '^nginx_http_requests_total'
+```
+
+Common failure modes:
+
+- **`valhalla_latency_seconds_bucket` missing on the service host.** The
+  histogram only exists when the statsd mapping config is loaded. Check
+  `/etc/prometheus/statsd-mapping.yml` is present and that
+  `systemctl cat statsd-exporter` shows `--statsd.mapping-config=…` in the
+  ExecStart line.
+- **`valhalla_mjolnir_*` empty on the builder.** Check the generated config
+  has the top-level statsd block: `jq .statsd /srv/valhalla/valhalla.json`
+  should show `{"host":"localhost","port":8125,...}`. If the file was
+  generated before the `--statsd-host`/`--statsd-port` flags were added to
+  [roles/valhalla/tasks/builder.yml](../roles/valhalla/tasks/builder.yml),
+  delete the config and re-run the role — `creates:` makes that task skip
+  when the file already exists.
+- **`nginx_http_requests_total` empty.** mtail needs `adm` group to read the
+  log — `systemctl cat mtail` should show `SupplementaryGroups=adm`. Also
+  check `journalctl -u mtail | tail` for regex-mismatch warnings (the
+  program at `/etc/mtail/valhalla-nginx.mtail` regex assumes the `valhalla_log`
+  format defined in `nginx-valhalla.conf.j2` — if that format changes, the
+  regex needs updating).
+- **Scraper can't reach the ports.** `ufw status` should show three (service)
+  or two (builder) rules with `ALLOW IN  from <scraper-ip>`. If absent,
+  `valhalla__monitoring_scraper_ip` wasn't set; re-run the role.
+
+## Common operations
+
+### Production
+
+```sh
+# Service health
 curl -s https://valhalla1.openstreetmap.de/status | jq
 
 # Live build-tiles log
@@ -164,22 +219,58 @@ ssh valhalla2 sudo journalctl -t valhalla-build-tiles -f
 ssh valhalla1 sudo journalctl -t valhalla-apply-graph -f
 
 # Per-flow deploy logs
-sudo journalctl -t valhalla-deploy-service -n 50    # on valhalla1
-sudo journalctl -t valhalla-deploy-builder -n 50    # on valhalla2
-sudo journalctl -t valhalla-deploy-web -n 50        # on valhalla1
-sudo journalctl -t valhalla-graph-receiver -p warning -n 50  # rejection log only
+ssh valhalla1 sudo journalctl -t valhalla-deploy-service -n 50
+ssh valhalla2 sudo journalctl -t valhalla-deploy-builder -n 50
+ssh valhalla1 sudo journalctl -t valhalla-deploy-web -n 50
+ssh valhalla1 sudo journalctl -t valhalla-graph-receiver -p warning -n 50  # rejection log only
 
 # Stop one valhalla instance (the other keeps serving via nginx fail-over)
-sudo systemctl stop valhalla-8000      # on valhalla1
-sudo systemctl start valhalla-8000
+ssh valhalla1 sudo systemctl stop valhalla-8000
+ssh valhalla1 sudo systemctl start valhalla-8000
 
 # Stop the build loop (e.g. for maintenance)
-sudo systemctl stop valhalla-build-tiles    # on valhalla2
+ssh valhalla2 sudo systemctl stop valhalla-build-tiles
 
 # Manually trigger a deploy script (when debugging the script logic, bypassing SSH/forced-cmd path)
-sudo -u valhalla-deploy /srv/valhalla/scripts/deploy-service.sh
-sudo -u valhalla-deploy /srv/valhalla/scripts/deploy-web.sh
-sudo -u valhalla-deploy /srv/valhalla/scripts/deploy-builder.sh
+ssh valhalla1 sudo -u valhalla-deploy /srv/valhalla/scripts/deploy-service.sh
+ssh valhalla1 sudo -u valhalla-deploy /srv/valhalla/scripts/deploy-web.sh
+ssh valhalla1 sudo -u valhalla-deploy /srv/valhalla/scripts/deploy-builder.sh
+```
+
+### Vagrant
+
+VMs are `valhalla-service` (= valhalla1) and `valhalla-builder` (= valhalla2).
+The inner commands are identical — only the transport changes.
+
+```sh
+# Service health (snake-oil cert + curl --resolve so the Host header matches
+# the production server_name without editing /etc/hosts)
+curl -k --resolve valhalla1.openstreetmap.de:443:192.168.123.10 \
+    https://valhalla1.openstreetmap.de/status | jq
+
+# Live build-tiles log
+vagrant ssh valhalla-builder -- -T 'sudo journalctl -t valhalla-build-tiles -f'
+
+# Live apply-graph log
+vagrant ssh valhalla-service -- -T 'sudo journalctl -t valhalla-apply-graph -f'
+
+# Per-flow deploy logs
+vagrant ssh valhalla-service -- -T 'sudo journalctl -t valhalla-deploy-service -n 50'
+vagrant ssh valhalla-builder -- -T 'sudo journalctl -t valhalla-deploy-builder -n 50'
+vagrant ssh valhalla-service -- -T 'sudo journalctl -t valhalla-deploy-web -n 50'
+vagrant ssh valhalla-service -- -T 'sudo journalctl -t valhalla-graph-receiver -p warning -n 50'
+
+# Stop one valhalla instance
+vagrant ssh valhalla-service -- -T 'sudo systemctl stop valhalla-8000'
+vagrant ssh valhalla-service -- -T 'sudo systemctl start valhalla-8000'
+
+# Stop the build loop
+vagrant ssh valhalla-builder -- -T 'sudo systemctl stop valhalla-build-tiles'
+
+# Manually trigger a deploy script
+vagrant ssh valhalla-service -- -T 'sudo -u valhalla-deploy /srv/valhalla/scripts/deploy-service.sh'
+vagrant ssh valhalla-service -- -T 'sudo -u valhalla-deploy /srv/valhalla/scripts/deploy-web.sh'
+vagrant ssh valhalla-service -- -T 'sudo -u valhalla-deploy /srv/valhalla/scripts/deploy-builder.sh'
 ```
 
 ## Vagrant end-to-end testing

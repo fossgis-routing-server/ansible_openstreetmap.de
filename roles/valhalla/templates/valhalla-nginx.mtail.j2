@@ -1,0 +1,27 @@
+# Managed by ansible — see roles/valhalla/templates/valhalla-nginx.mtail.j2
+#
+# Parses /var/log/nginx/valhalla-api.log (the `valhalla_log` log_format
+# defined in nginx-valhalla.conf.j2) and emits
+#   nginx_http_requests_total{client,endpoint,status}
+# on the mtail HTTP endpoint. Replaces the nginx-lua-prometheus path that
+# the routing.earth monitoring docs originally recommended — same metric
+# name + label set, so dashboards keep working without changes.
+#
+# Cardinality is bounded by upstream nginx config: `client` is the
+# allowlisted `$client_class` (default "unknown"), `endpoint` is the
+# first path segment of `$uri` (route / isochrone / matrix / tile /
+# status / sources_to_targets / optimized_route / …), `status` is a
+# small enum of HTTP codes. Active series count stays under ~100.
+
+counter nginx_http_requests_total by client, endpoint, status
+
+# valhalla_log format (see roles/valhalla/templates/nginx-valhalla.conf.j2):
+#   $ip [$time_local] $method $uri $status $body_bytes_sent rqt=$rt urt=$urt client=$class
+# Fields: ip [date tz] METHOD /endpoint... STATUS BYTES rqt=X urt=Y client=Z
+#
+# OPTIONS preflight is explicitly excluded — the nginx CORS branch returns
+# 204 inline without proxying to valhalla, so counting it inflates the
+# request total vs valhalla's own per-request statsd. The original
+# nginx-lua-prometheus setup made the same exclusion.
+/^\S+ \[\S+ \S+\] (?P<method>GET|POST|PUT|DELETE|HEAD|PATCH) \/(?P<endpoint>[A-Za-z0-9_]+)\S* (?P<status>\d+) \d+ rqt=\S+ urt=\S+ client=(?P<client>\S+)$/ {
+}

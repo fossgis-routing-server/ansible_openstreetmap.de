@@ -118,6 +118,7 @@
     cmd: >
       valhalla_build_config
       --mjolnir-tile-dir {{ valhalla__tiles_dir }}
+      --mjolnir-tile-extract {{ valhalla__extract_path }}
       --mjolnir-timezone {{ valhalla__timezones_path }}
       --mjolnir-admin {{ valhalla__admins_path }}
       --mjolnir-default-speeds-config {{ valhalla__default_speeds_path }}
@@ -126,6 +127,8 @@
       --mjolnir-include-platforms true
       --mjolnir-concurrency {{ ansible_facts.processor_vcpus }}
       --additional-data-elevation {{ valhalla__elevation_dir }}
+      --statsd-host localhost
+      --statsd-port 8125
       > {{ valhalla__config_path }}
     creates: "{{ valhalla__config_path }}"
   become: yes

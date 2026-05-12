@@ -48,3 +48,9 @@ valhalla__deploy_user_home: /srv/valhalla-deploy
 # vagrant uses a private_network for VM↔VM traffic that is NOT the
 # default route.
 valhalla__public_ipv4: "{{ ansible_default_ipv4.address }}"
+
+valhalla__monitoring_in_use: false
+
+# Pinned statsd_exporter release. Debian Trixie doesn't package it, so
+# we install the Go binary from the upstream GitHub release tarball.
+valhalla__statsd_exporter_version: "0.29.0"

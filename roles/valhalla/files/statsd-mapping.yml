@@ -1,0 +1,29 @@
+# Used by statsd_exporter on the SERVICE host only:
+#   - rewrites valhalla's per-request `<action>.info.<service>.latency_ms`
+#     into the histogram `valhalla_latency_seconds{action,service}` so
+#     histogram_quantile() works for p50/p95/p99 dashboards.
+#   - collapses the matching `.ok` counters into a single labelled metric
+#     `valhalla_ok_total{action,service}`.
+# The builder host does NOT use this mapping — its `valhalla.mjolnir.*`
+# counters are plain dot-to-underscore conversions handled by statsd_exporter
+# defaults.
+mappings:
+  - match: "valhalla.*.info.*.latency_ms"
+    name: "valhalla_latency_seconds"
+    timer_type: histogram
+    histogram_options:
+      buckets: [0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5]
+    labels:
+      action: "$1"
+      service: "$2"
+
+  - match: "valhalla.*.info.*.ok"
+    name: "valhalla_ok_total"
+    labels:
+      action: "$1"
+      service: "$2"
+
+  - match: "valhalla.none.info.*.worker_started"
+    name: "valhalla_worker_started_total"
+    labels:
+      service: "$1"

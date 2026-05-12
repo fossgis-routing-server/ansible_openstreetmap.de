@@ -28,8 +28,11 @@ valhalla__tiles_dir: "{{ valhalla__data_dir }}/valhalla_tiles"
 valhalla__default_speeds_url: https://raw.githubusercontent.com/OpenStreetMapSpeeds/schema/refs/heads/master/default_speeds.json
 valhalla__default_speeds_path: "{{ valhalla__data_dir }}/default_speeds.json"
 
+# Uncompressed tar that valhalla_build_extract writesto
+valhalla__extract_path: "{{ valhalla__data_dir }}/tiles.tar"
+
 # Compressed graph tarball produced by each iteration and rsynced to
-# the service host.
+# the service host. zstd-compresses valhalla__extract_path into this.
 valhalla__tarball_path: "{{ valhalla__data_dir }}/tiles.tar.zst"
 
 # Seconds to sleep at the end of each build-tiles iteration before
