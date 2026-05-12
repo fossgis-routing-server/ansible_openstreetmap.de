@@ -6,14 +6,11 @@
 # `from=` restriction on valhalla-builder's authorized_keys.
 valhalla__public_ipv4: 192.168.123.10
 
-# Note: valhalla__api_hostname / valhalla__web_hostname are intentionally
-# NOT overridden here. nginx server_name uses the production hostnames so
-# the api and web sites end up in distinct files in /etc/nginx/sites-
-# enabled/ instead of colliding on the same filename. Test from the host
-# with curl --resolve, e.g.:
-#   curl -k --resolve valhalla1.openstreetmap.de:443:192.168.123.10 \
-#       https://valhalla1.openstreetmap.de/status
-#   curl -k --resolve valhalla.openstreetmap.de:443:192.168.123.10 \
-#       https://valhalla.openstreetmap.de/
-# The acme task is gated on the [acme] group and not in scope here, so the
-# snake-oil cert is what nginx serves. Browser warnings are expected.
+# Test-only: populate the GHA-deploy pubkeys for local end-to-end tests.
+# Production sets these via private/vars/.
+# 3 different SSH keys are only needed bcs of a sshd quirk
+# each key is jailed to a different deploy command
+valhalla__deploy_pubkeys:
+  service: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEjcH4s58p5ki4Bm5Nwaz9ZO8bNA4cMymoQNMCX3NLDO vagrant-gha-svc"
+  builder: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEYrsplkN0YOCTfgn1Wc7CKtC1Q2VE/hZZd+Y58eCSrd vagrant-gha-bld"
+  web:     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINnGwAhXVB7HbTRBpC9YtcqP0Ie2uV5UyC38+k752qy+ vagrant-gha-web"

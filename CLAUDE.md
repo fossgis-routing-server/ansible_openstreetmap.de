@@ -13,12 +13,17 @@ lives in [README](README).
 
 ## Valhalla
 
-The `valhalla` role is the most recent and complex addition. All of the
-implementation context (architecture, variable layout, SSH trust paths,
-deploy flows, vagrant testing, known gotchas) lives in:
+Two relevant docs:
 
-→ **[doc/valhalla_ai.md](ai/valhalla.md)**
+→ **[ai/valhalla.md](ai/valhalla.md)** — written for you (the AI agent).
+Dense implementation reference: architecture, variable layout, SSH trust
+paths, deploy flows, known gotchas. Read this first when working on
+anything valhalla-related.
 
-Read that first when working on anything valhalla-related. The
-maintainer-facing operations / troubleshooting guide is at
-[doc/valhalla.md](doc/valhalla.md). Keep that up-to-date as well.
+→ **[doc/valhalla.md](doc/valhalla.md)** — written for humans / maintainers.
+Operations & troubleshooting playbook, common commands, vagrant
+end-to-end testing recipes.
+
+Keep both up-to-date as the role evolves. Things meant for the AI reference
+(implementation invariants, why-not-X notes) go in `ai/`; things meant for
+human operators (commands to run, browser-side gotchas) go in `doc/`.

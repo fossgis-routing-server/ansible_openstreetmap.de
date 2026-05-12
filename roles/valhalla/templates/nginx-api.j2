@@ -6,8 +6,24 @@
     limit_req_status 429;
     limit_req zone=valhalla_global burst=200 nodelay;
 
+    # CORS: prime_server already stamps `Access-Control-Allow-Origin: *`.
+    # OPTIONS is not handled by prime_server
+    #
+    # The `{ cors_preflight }` marker below tags the duplicated
+    # blocks for grep-ability.
+{% set cors_preflight %}
+        if ($request_method = OPTIONS) {
+            add_header 'Access-Control-Allow-Origin'  '*';
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS';
+            add_header 'Access-Control-Allow-Headers' 'Content-Type, X-Client-Id';
+            add_header 'Access-Control-Max-Age'       '86400';
+            return 204;
+        }
+{% endset %}
+
     # Healthcheck — unrestricted, log-suppressed.
     location = /status {
+{{ cors_preflight }}
         access_log off;
         proxy_pass http://valhalla;
         proxy_set_header Host $host;
@@ -17,6 +33,7 @@
 
     # Tile endpoint — vector tiles, higher per-IP rate.
     location /tile {
+{{ cors_preflight }}
         limit_req zone=valhalla_tile_per_ip burst=20 delay=10;
 
         proxy_pass http://valhalla;
@@ -31,6 +48,7 @@
 
     # Everything else — routing endpoints with per-IP + global rate limits.
     location / {
+{{ cors_preflight }}
         limit_req zone=valhalla_per_ip burst=10 delay=5;
 
         proxy_pass http://valhalla;

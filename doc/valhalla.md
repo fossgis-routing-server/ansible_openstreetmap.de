@@ -1,7 +1,34 @@
 # Valhalla — operations & troubleshooting guide
 
 Maintainer-facing doc for the FOSSGIS Valhalla deployment. For implementation
-details see [valhalla.md](valhalla.md).
+details (architecture invariants, why-not-X decisions, deeper code-side
+context) see [../ai/valhalla.md](../ai/valhalla.md).
+
+## Contents
+
+- [Architecture](#architecture)
+- [Components](#components)
+  - [Hosts](#hosts)
+  - [System users](#system-users)
+  - [SSH trust paths](#ssh-trust-paths)
+  - [systemd units](#systemd-units)
+  - [nginx (valhalla1)](#nginx-valhalla1)
+  - [Sentinels (monitoring signals)](#sentinels-monitoring-signals)
+- [Common operations](#common-operations)
+- [Vagrant end-to-end testing](#vagrant-end-to-end-testing)
+  - [Browser test (web app + live routing)](#browser-test-web-app--live-routing)
+  - [Without /etc/hosts (curl-only check)](#without-etchosts-curl-only-check)
+- [Troubleshooting playbook](#troubleshooting-playbook)
+  - [`/status` returns 502 (or 504) from nginx](#status-returns-502-or-504-from-nginx)
+  - [One instance keeps restart-looping](#one-instance-keeps-restart-looping)
+  - [No graph push happening](#no-graph-push-happening-sentinel-srvvalhallalast_apply_complete-stale)
+  - [apply-graph fails or hangs on valhalla1](#apply-graph-fails-or-hangs-on-valhalla1)
+  - [Web app stale or 404](#web-app-stale-or-404)
+  - [nginx reload fails](#nginx-reload-fails-after-ansible-run-or-manual-edit)
+  - [Rate limit firing too aggressively](#rate-limit-firing-too-aggressively)
+  - [Disk full](#disk-full)
+  - [Locked out of valhalla2 (builder)](#locked-out-of-valhalla2-builder)
+- [Glossary](#glossary)
 
 ## Architecture
 
@@ -129,6 +156,66 @@ sudo -u valhalla-deploy /srv/valhalla/scripts/deploy-service.sh
 sudo -u valhalla-deploy /srv/valhalla/scripts/deploy-web.sh
 sudo -u valhalla-deploy /srv/valhalla/scripts/deploy-builder.sh
 ```
+
+## Vagrant end-to-end testing
+
+`vagrant up valhalla-service valhalla-builder` + `make vagrant-valhalla`
+brings the two VMs up at `192.168.123.10` (service) and `192.168.123.11`
+(builder), bootstrapped from the same role used in prod against a small
+Liechtenstein PBF. The vagrant overrides in [host_vars/valhalla-service.yml](../host_vars/valhalla-service.yml)
+and [host_vars/valhalla-builder.yml](../host_vars/valhalla-builder.yml) point
+the cross-host SSH targets at the private-network IPs and shrink the planet
+input; the production hostnames stay in nginx so the rendered config matches
+what runs in prod.
+
+### Browser test (web app + live routing)
+
+The nginx server blocks match on `Host:` header (production hostnames), so
+hitting `http://192.168.123.10/` by raw IP just lands on nginx's default
+welcome page. Two one-time steps get you a real end-to-end browser test:
+
+1. Map both production names to the service VM's private IP in your
+   workstation's `/etc/hosts`:
+
+   ```sh
+   echo "192.168.123.10 valhalla.openstreetmap.de valhalla1.openstreetmap.de" \
+       | sudo tee -a /etc/hosts
+   ```
+
+   Remove the line when you're done — production DNS will take over once the
+   real hosts go live.
+
+2. Accept the snake-oil TLS cert **for each hostname separately** (browsers
+   pin acceptance per-host). Visit each URL once and click through the
+   warning:
+   - `https://valhalla.openstreetmap.de/` — the web app site
+   - `https://valhalla1.openstreetmap.de/status` — the API site
+
+   Skipping step 2 for `valhalla1` shows up as a CORS error in the browser
+   console when the SPA tries to fetch the API — the browser silently
+   refuses the cross-origin TLS handshake and reports it as CORS rather
+   than as a cert problem.
+
+Then open `https://valhalla.openstreetmap.de/` and route between two points
+inside Liechtenstein (e.g. Vaduz `47.1410, 9.5209` ↔ Schaan `47.1644, 9.5089`).
+A request outside that bounding box will fail with "no path found".
+
+### Without /etc/hosts (curl-only check)
+
+For headless smoke tests, `curl --resolve` does the same job per-call:
+
+```sh
+curl -k --resolve valhalla1.openstreetmap.de:443:192.168.123.10 \
+    https://valhalla1.openstreetmap.de/status
+
+curl -k --resolve valhalla1.openstreetmap.de:443:192.168.123.10 \
+    -H 'Content-Type: application/json' -X POST \
+    https://valhalla1.openstreetmap.de/route \
+    -d '{"locations":[{"lat":47.1410,"lon":9.5209},{"lat":47.1644,"lon":9.5089}],"costing":"auto"}' \
+    | jq '.trip.summary'
+```
+
+The route call returns `{"length":..., "time":..., ...}` if everything's wired up.
 
 ## Troubleshooting playbook
 
