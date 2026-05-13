@@ -1,22 +1,19 @@
 #!/bin/bash
 # Managed by ansible — see roles/valhalla/templates/deploy-web.sh.j2
 #
-# Pulls the latest valhalla/web-app, builds it (vite), and rsyncs the result
-# to the nginx webroot. Run as the valhalla user — owns the source dir and
-# the webroot.
+# Pulls valhalla/web-app master and, if HEAD moved, rebuilds it (vite) and
+# rsyncs the result to the nginx webroot. Web-app always tracks master.
+#
+# Runs entirely as the build user, which owns SRCDIR and the
+# webroot. No `sudo -u` elevation, no root.
 #
 # Invoked from two places:
-#   - ansible (this role's web.yml) — once during provisioning.
-#   - GHA via SSH (sub-task 9 wires the deploy user with this as forced cmd).
+#   - ansible (this role's web.yml) — once during provisioning,
+#     as valhalla__build_user.
+#   - SSH from the builder's build-tiles loop — lands as valhalla-deploy
+#     directly (the orchestrator key authorizes that account).
 
 set -euo pipefail
-
-# Auto-elevate to the valhalla user. Invoked from two places:
-#   - ansible (run_once initial build) — already runs as valhalla, no-op.
-#   - GHA via the valhalla-deploy SSH user — sudoers grants NOPASSWD here.
-if [ "$(id -un)" != "{{ valhalla__user }}" ]; then
-    exec sudo -u "{{ valhalla__user }}" "$0" "$@"
-fi
 
 LOG_INFO="logger -i -t valhalla-deploy-web -p daemon.info --"
 
@@ -28,13 +25,21 @@ $LOG_INFO "deploy-web: starting"
 
 cd "$SRCDIR"
 
-# Pull latest from master. force-checkout in case of local-tree drift from a
-# previous .env.production.local edit.
+# force-checkout in case of local-tree drift from a previous
+# .env.production.local edit; then pull master.
+before=$(git rev-parse HEAD)
 git fetch origin
 git checkout -f master
 git pull --ff-only
+after=$(git rev-parse HEAD)
 
-# client id baked into the build
+if [ "$before" = "$after" ] && [ -f "$WEBROOT/index.html" ]; then
+    $LOG_INFO "deploy-web: HEAD unchanged ($after); skipping rebuild"
+    exit 0
+fi
+$LOG_INFO "deploy-web: HEAD moved $before -> $after; rebuilding"
+
+# X-Client-Id baked into the build for request header
 echo "VITE_CLIENT_ID=$CLIENT_ID" > .env.production.local
 
 npm ci 2>&1 | $LOG_INFO

@@ -1,8 +1,9 @@
 # SPDX-License-Identifier: MIT
 # Service host (valhalla1): build deps, prime_server, valhalla service build,
 # two systemd units (one per port in valhalla__service_ports) — both run side
-# by side at steady state. The receiver account is created here; the
-# apply-graph dispatcher + sudoers + authorized_key live in apply_graph.yml.
+# by side at steady state. The valhalla-deploy account that the builder
+# SSHes into (drops tarball, runs apply-graph, runs deploy-{valhalla,web}.sh)
+# is created in deploy.yml along with apply-graph.sh and the sudoers.
 # nginx (frontend.yml) load-balances over both upstreams with passive health
 # checks, so there is no "active port" state file — apply-graph just stops/
 # swaps/starts each instance in turn.
@@ -35,8 +36,11 @@
     state: present
 
 # prime_server master is fine
-
-- name: Checkout prime_server source
+- name: Checkout prime_server source (fresh-host seed only)
+  # Same `update: no` + no-`force` pattern as the valhalla checkout below:
+  # avoid wedging submodule state under `.git/modules/` on re-runs after
+  # a transient submodule-fetch failure. To pull a newer prime_server
+  # master, `sudo rm -rf {{ valhalla__prime_server_srcdir }}` first.
   git:
     repo: https://github.com/kevinkreiser/prime_server.git
     dest: "{{ valhalla__prime_server_srcdir }}"
@@ -44,10 +48,10 @@
     depth: 1
     single_branch: yes
     recursive: yes
-    force: yes
+    update: no
   register: valhalla_prime_server_src
   become: yes
-  become_user: "{{ valhalla__user }}"
+  become_user: "{{ valhalla__build_user }}"
 
 - name: Clear stale prime_server build dir on source change
   file:
@@ -60,9 +64,10 @@
     cmd: >
       cmake -S {{ valhalla__prime_server_srcdir }} -B {{ valhalla__prime_server_srcdir }}/build
       -DCMAKE_BUILD_TYPE=Release
+      -DCMAKE_INSTALL_PREFIX={{ valhalla__prefix }}
     creates: "{{ valhalla__prime_server_srcdir }}/build/CMakeCache.txt"
   become: yes
-  become_user: "{{ valhalla__user }}"
+  become_user: "{{ valhalla__build_user }}"
 
 - name: Build prime_server
   command:
@@ -71,21 +76,19 @@
   register: valhalla_prime_server_build
   when: valhalla_prime_server_src.changed
   become: yes
-  become_user: "{{ valhalla__user }}"
+  become_user: "{{ valhalla__build_user }}"
 
-- name: Install prime_server
+- name: Install prime_server (to valhalla__prefix, no root needed)
   command:
     cmd: "make install"
     chdir: "{{ valhalla__prime_server_srcdir }}/build"
   when: valhalla_prime_server_build is changed
-
-- name: ldconfig (prime_server installs libs into /usr/local/lib)
-  command: ldconfig
-  when: valhalla_prime_server_build is changed
+  become: yes
+  become_user: "{{ valhalla__build_user }}"
 
 # valhalla source — independent checkout from the builder's; same git_version.
 
-- name: Checkout valhalla source
+- name: Checkout valhalla source (fresh-host seed only)
   git:
     repo: "{{ valhalla__git_repo }}"
     dest: "{{ valhalla__srcdir }}"
@@ -96,76 +99,28 @@
     depth: "{{ 1 if valhalla__git_version | length != 40 else omit }}"
     single_branch: "{{ valhalla__git_version | length != 40 }}"
     recursive: yes
-    force: yes
-  register: valhalla_src
+    # update: no  → only clone if dest is missing. Subsequent updates
+    # (branch advances, SHA bumps) flow through deploy-valhalla.sh's
+    # in-repo `git fetch + pull + submodule update`. Deliberately NOT
+    # using `force: yes` because ansible's git module doesn't clean
+    # `.git/modules/<submodule>/` on force, which can wedge submodule
+    # state across re-runs after a transient submodule-fetch failure.
+    # Recovery from a wedged state: `sudo rm -rf {{ valhalla__srcdir }}`
+    # then re-run ansible.
+    update: no
   become: yes
-  become_user: "{{ valhalla__user }}"
+  become_user: "{{ valhalla__build_user }}"
 
-- name: Clear stale build dir on source change
-  file:
-    path: "{{ valhalla__srcdir }}/build"
-    state: absent
-  when: valhalla_src.changed
-
-- name: Configure valhalla (service profile)
-  command:
-    cmd: >
-      cmake -S {{ valhalla__srcdir }} -B {{ valhalla__srcdir }}/build
-      -DCMAKE_BUILD_TYPE=Release
-      -DCMAKE_C_COMPILER_LAUNCHER=ccache
-      -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-      -DENABLE_DATA_TOOLS=OFF
-      -DENABLE_SERVICES=ON
-      -DENABLE_HTTP=ON
-      -DENABLE_PYTHON_BINDINGS=OFF
-      -DENABLE_TESTS=OFF
-      -DENABLE_SINGLE_FILES_WERROR=OFF
-      -DVALHALLA_VERSION_MODIFIER={{ valhalla_src.after[:7] }}
-    creates: "{{ valhalla__srcdir }}/build/CMakeCache.txt"
+- name: Build + install valhalla
+  command: "{{ valhalla__basedir }}/scripts/deploy-valhalla.sh service"
   become: yes
-  become_user: "{{ valhalla__user }}"
+  become_user: "{{ valhalla__build_user }}"
 
-- name: Build valhalla
-  command:
-    cmd: "make -j {{ ansible_facts.processor_vcpus }}"
-    chdir: "{{ valhalla__srcdir }}/build"
-    creates: "{{ valhalla__srcdir }}/build/valhalla_service"
-  register: valhalla_build_step
-  become: yes
-  become_user: "{{ valhalla__user }}"
+# Per-port layout: tile dir, valhalla.json, systemd unit. The
+# valhalla-deploy account that drops graph-{port}.tar files in here is
+# created in deploy.yml.
 
-- name: Install valhalla
-  command:
-    cmd: "make install"
-    chdir: "{{ valhalla__srcdir }}/build"
-  when: valhalla_build_step is changed
-
-- name: ldconfig (valhalla installs libs into /usr/local/lib)
-  command: ldconfig
-  when: valhalla_build_step is changed
-
-# Receiver account — owns the per-port tile dirs; the valhalla service user
-# reads them via group. The push key, dispatcher, and sudoers wire-up are in
-# apply_graph.yml (next sub-task).
-
-- name: Create valhalla-graph receiver account
-  # Member of the valhalla group so files it writes in /srv/valhalla
-  # (graph-{port}.tar) end up readable by the valhalla service user thanks
-  # to the sgid bit set on /srv/valhalla in common.yml.
-  system_account:
-    name: "{{ valhalla__graph_user }}"
-    home: "{{ valhalla__graph_user_home }}"
-    create_home: yes
-    shell: /bin/bash
-    groups: ["{{ valhalla__user }}"]
-
-# Per-port layout: tile dir, valhalla.json, systemd unit.
-
-# MVT cache (per-port, written to by valhalla_service for the /tile action).
-# The tile-extract tarball at {basedir}/graph-{port}.tar is dropped by
-# apply-graph.sh on the service host — no directory to pre-create.
-
-- name: Per-port mvt cache dirs
+- name: Per-port MVT cache dirs
   file:
     path: "{{ valhalla__basedir }}/mvt-cache-{{ item }}"
     state: directory
@@ -179,7 +134,7 @@
   # dev/vagrant so blue/green swaps don't sit in drain for half a minute).
   shell:
     cmd: >
-      valhalla_build_config
+      {{ valhalla__prefix }}/bin/valhalla_build_config
       --httpd-service-listen "tcp://*:{{ item }}"
       --httpd-service-drain-seconds 2
       --httpd-service-loopback "ipc:///tmp/valhalla-{{ item }}-loopback"
@@ -220,8 +175,10 @@
       > {{ valhalla__basedir }}/valhalla-{{ item }}.json
     creates: "{{ valhalla__basedir }}/valhalla-{{ item }}.json"
   loop: "{{ valhalla__service_ports }}"
+  environment:
+    LD_LIBRARY_PATH: "{{ valhalla__prefix }}/lib"
   become: yes
-  become_user: "{{ valhalla__user }}"
+  become_user: "{{ valhalla__build_user }}"
 
 - name: Per-port valhalla systemd units
   systemd_service:
@@ -235,33 +192,16 @@
         Type: simple
         User: "{{ valhalla__user }}"
         Group: "{{ valhalla__user }}"
-        ExecStart: "valhalla_service {{ valhalla__basedir }}/valhalla-{{ item }}.json"
+        Environment: "LD_LIBRARY_PATH={{ valhalla__prefix }}/lib"
+        # both services use all threads and we let the kernel fair scheduler decide
+        # the share; meaning during deploy one can boost to 100% CPU
+        ExecStart: "{{ valhalla__prefix }}/bin/valhalla_service {{ valhalla__basedir }}/valhalla-{{ item }}.json"
         Restart: always
         RestartSec: 10
-        # 2 services, each 50%
-        CPUQuota: "{{ ansible_facts.processor_vcpus * 50 }}%"
-      # WantedBy makes `systemctl enable` actually enable — without it
-      # the unit ends up `static` and a reboot would leave the routing
-      # service down. Steady state is both ports running side-by-side.
+      # start services on every boot
       Install:
         WantedBy: multi-user.target
   loop: "{{ valhalla__service_ports }}"
 
-- name: Stat per-port tile-extracts
-  stat:
-    path: "{{ valhalla__basedir }}/graph-{{ item }}.tar"
-  register: valhalla_extracts
-  loop: "{{ valhalla__service_ports }}"
-
-- name: Ensure each valhalla service is running (only when its graph is present)
-  # Steady state: both blue and green run side-by-side, each capped at half
-  # the host's vCPUs (see CPUQuota above). apply-graph.sh stops/starts each
-  # one in turn during a swap. On a fresh deploy no graph exists yet and
-  # nothing starts; the first apply-graph push brings the services up.
-  systemd:
-    name: "valhalla-{{ item.item }}"
-    state: started
-  loop: "{{ valhalla_extracts.results }}"
-  loop_control:
-    label: "{{ item.item }}"
-  when: item.stat.exists
+# NB: the valhalla-{port} units will be started by the graph build script
+#     after the first graph is in place and the service is ready to serve.

@@ -6,6 +6,22 @@
     name: "{{ valhalla__user }}"
     home: "{{ valhalla__basedir }}"
 
+- name: Create valhalla-deploy system account
+  # Both hosts. On v2 this account runs the build-tiles loop and holds
+  # the orchestrator SSH key; on v1 it's the SSH-in target for that
+  # orchestrator + the owner of the build tree. Created here (not in
+  # deploy.yml) because the source + install-prefix dirs below need it
+  # to exist before they can land owned by it.
+  # Member of the valhalla group so files it writes inside /srv/valhalla
+  # inherit group=valhalla via sgid — keeping the v1 runtime user able
+  # to read tile-extracts and config it didn't write itself.
+  system_account:
+    name: "{{ valhalla__deploy_user }}"
+    home: "{{ valhalla__deploy_user_home }}"
+    create_home: yes
+    shell: /bin/bash
+    groups: ["{{ valhalla__user }}"]
+
 - name: Create valhalla basedir (sgid + group-writable so the receiver shares it)
   file:
     path: "{{ valhalla__basedir }}"
@@ -13,17 +29,45 @@
     owner: "{{ valhalla__user }}"
     group: "{{ valhalla__user }}"
     # 2775 = sgid (new files inherit group=valhalla) + group rwx + world rx.
-    # On the service host this lets valhalla-graph (member of the valhalla
+    # On the service host this lets valhalla-deploy (member of the valhalla
     # group) write graph-{port}.tar files that the valhalla service can read.
     mode: "2775"
 
-- name: Create scripts and source directories
+- name: Create scripts dir (root-templated scripts; everyone else read-only)
   file:
-    path: "{{ item }}"
+    path: "{{ valhalla__basedir }}/scripts"
     state: directory
     owner: "{{ valhalla__user }}"
     group: "{{ valhalla__user }}"
     mode: "0755"
+
+- name: Create source + install-prefix dirs (owned by build_user)
+  # On v2: build_user = valhalla, so this is owned by valhalla.
+  # On v1: build_user = valhalla-deploy, so the install tree + sources are
+  # owned by the deploy account — valhalla can read but not write, which
+  # means a valhalla_service RCE can't overwrite its own binary.
+  # sgid + group=valhalla so files created here (e.g. by `make install`)
+  # inherit group=valhalla, keeping them readable by the runtime user.
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ valhalla__build_user }}"
+    group: "{{ valhalla__user }}"
+    mode: "02755"
   loop:
-    - "{{ valhalla__basedir }}/scripts"
     - "{{ valhalla__srcdir }}"
+    - "{{ valhalla__prefix }}"
+
+- name: deploy-valhalla.sh (shared script — both hosts call it for SHA-gated rebuilds)
+  # The script takes a positional `builder|service` profile arg and runs
+  # the same git-fetch / SHA-check / cmake / make / install flow either way,
+  # branching only on the cmake flag set. Used by:
+  #   - v2 build-tiles-loop.sh, locally as the valhalla user (builder profile)
+  #   - v2 build-tiles-loop.sh, via SSH to v1 as valhalla-deploy (service profile)
+  #   - manual invocation by an operator on either host
+  template:
+    src: deploy-valhalla.sh.j2
+    dest: "{{ valhalla__basedir }}/scripts/deploy-valhalla.sh"
+    owner: "{{ valhalla__user }}"
+    group: "{{ valhalla__user }}"
+    mode: "0755"

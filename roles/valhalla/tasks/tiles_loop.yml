@@ -1,29 +1,45 @@
 # SPDX-License-Identifier: MIT
-# Builder host: endless build-tiles loop. Each iteration:
+# Builder host: endless build-tiles loop running as valhalla-deploy.
+# Each iteration:
+#   0. rebuild of valhalla C++ (this host) and remote rebuild of
+#      valhalla C++ + web-app on the service host via SSH.
 #   1. valhalla_build_tiles -c valhalla.json planet.pbf
 #   2. tar+zstd the tiles dir
-#   3. rsync the tarball to the service host
-#   4. ssh the service host (forced command runs apply-graph.sh)
+#   3. rsync the tarball to the service host's valhalla-deploy $HOME
+#   4. ssh the service host and run apply-graph.sh (no forced cmd)
 #   5. pyosmium-up-to-date the planet.pbf
-# The SSH key generated here is registered as a fact and authorized on the
-# service host's valhalla-graph account by service.yml.
+# The SSH key generated here lives under valhalla-deploy's $HOME and is
+# authorized (no key_options) on the service host's valhalla-deploy
+# account by deploy.yml.
 ---
 
-- name: Generate SSH key for graph push
-  # The pubkey ends up at {{ valhalla__basedir }}/.ssh/id_valhalla_graph.pub.
-  # apply_graph.yml on valhalla1 slurps it from there via delegate_to
+- name: Generate SSH key for the builder → service-host channel
+  # The pubkey ends up at {{ valhalla__deploy_user_home }}/.ssh/id_valhalla_deploy.pub.
+  # deploy.yml on valhalla1 slurps it from there via delegate_to.
   user:
-    name: "{{ valhalla__user }}"
+    name: "{{ valhalla__deploy_user }}"
     generate_ssh_key: yes
     ssh_key_type: ed25519
-    ssh_key_file: ".ssh/id_valhalla_graph"
-    ssh_key_comment: "valhalla graph push from {{ inventory_hostname }}"
+    ssh_key_file: ".ssh/id_valhalla_deploy"
+    ssh_key_comment: "valhalla builder from {{ inventory_hostname }}"
 
-- name: Build-tiles loop script
+- name: Build-tiles iteration script (what operators edit)
+  # This is where the actual work lives. The wrapper below spawns a
+  # fresh bash for it each loop, so edits here land automatically on
+  # the next iteration of graph build
+  template:
+    src: build-tiles-iteration.sh.j2
+    dest: "{{ valhalla__basedir }}/scripts/build-tiles-iteration.sh"
+    owner: "{{ valhalla__deploy_user }}"
+    group: "{{ valhalla__user }}"
+    mode: "0755"
+
+- name: Build-tiles loop wrapper (the long-lived systemd target)
+  # Tiny — just `while true; do build-tiles-iteration.sh; done`.
   template:
     src: build-tiles-loop.sh.j2
     dest: "{{ valhalla__basedir }}/scripts/build-tiles-loop.sh"
-    owner: "{{ valhalla__user }}"
+    owner: "{{ valhalla__deploy_user }}"
     group: "{{ valhalla__user }}"
     mode: "0755"
 
@@ -37,20 +53,16 @@
         Description: Valhalla tile build loop
         After: network-online.target
         # if we have repeated failures, we set a systemd failure
-        # valhalla__sentinel_path catches osm data failures
         StartLimitBurst: 3
         StartLimitIntervalSec: 600
       Service:
         Type: simple
-        User: "{{ valhalla__user }}"
-        Group: "{{ valhalla__user }}"
+        User: "{{ valhalla__deploy_user }}"
+        Group: "{{ valhalla__deploy_user }}"
+        Environment: "PATH={{ valhalla__prefix }}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin LD_LIBRARY_PATH={{ valhalla__prefix }}/lib"
         ExecStart: "/bin/bash {{ valhalla__basedir }}/scripts/build-tiles-loop.sh"
         Restart: always
         RestartSec: 60
-      # Without an Install section the unit ends up `static`, which makes
-      # `systemctl enable` a no-op — meaning a freshly-provisioned host
-      # never auto-starts the loop and a maintainer has to `systemctl
-      # start` manually. WantedBy=multi-user.target turns it into a
-      # properly enable-able unit that comes up on every boot.
+      # start service on every boot
       Install:
         WantedBy: multi-user.target

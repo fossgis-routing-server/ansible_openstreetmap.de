@@ -35,18 +35,6 @@ valhalla__apply_sentinel_path: "{{ valhalla__basedir }}/last_apply_complete"
 # prime_server source checkout (built from master on the service host).
 valhalla__prime_server_srcdir: /src/prime_server
 
-# GHA-driven deploys: a separate system account whose authorized_keys
-# pin one of three forced commands per pubkey:
-#   - service: deploy-service.sh (rebuild + rolling-restart valhalla)
-#   - builder: deploy-builder.sh (SSH-jump to valhalla2 and rebuild)
-#   - web:     deploy-web.sh     (rebuild + sync the web app)
-# Default pubkeys are empty — populate from private/vars/ to enable
-# each flow.
-valhalla__deploy_pubkeys:
-  service: ""
-  builder: ""
-  web: ""
-
 # ACME cert declarations are read by the common role's
 # acme_cert_client task during the early `[servers]` play (before
 # role defaults are in scope), so they live here. "name" must match

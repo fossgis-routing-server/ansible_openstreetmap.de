@@ -1,0 +1,186 @@
+#!/bin/bash
+# Managed by ansible — see roles/valhalla/templates/build-tiles-iteration.sh.j2
+#
+# ONE graph-build iteration. Spawned by build-tiles-loop.sh (the systemd
+# unit's long-lived parent process) once per loop, so this file is
+# re-read from disk every iteration — edits land on the next iteration
+# automatically without needing a `systemctl restart`. This is the file
+# operators should edit when changing iteration behavior.
+#
+# Steps:
+#   0a. SHA-gated rebuild of valhalla C++ on THIS host
+#   0b. SHA-gated rebuild of valhalla C++ on the service host (via SSH)
+#   0c. Rebuild web-app on the service host if master moved (via SSH)
+#   1.  bootstrap planet.pbf if missing (with --continue)
+#       then pyosmium-up-to-date  (best-effort)
+#   2.  admins.sqlite                — build only if missing (one-time)
+#   3.  timezones.sqlite             — refresh every iteration
+#   4.  valhalla_build_tiles phase 1 — through 'build' stage
+#   5.  valhalla_build_elevation     — for the current graph, via --from-tiles
+#   6.  valhalla_build_tiles phase 2 — from 'enhance' stage onward
+#   7.  tar+zstd, atomic move
+#   8.  rsync to service host's valhalla-deploy $HOME
+#   9.  ssh to run apply-graph.sh
+#   .   touch sentinel — mtime = last successful iteration
+#
+# Steps 0a/0b delegate to the shared deploy-valhalla.sh script (builder
+# profile locally, service profile via SSH).
+#
+# Failure handling (deliberate):
+#   - set -euo pipefail: any pathological failure aborts this iteration.
+#   - The iteration exits non-zero; the wrapper's `set -e` propagates that
+#     up, so systemd sees the failure and increments its restart counter.
+#   - Restart=always brings it back; StartLimitBurst pins the unit as
+#     'failed' if 3 restarts happen within 10 min (so monitoring sees it).
+#   - The sentinel file's mtime is the primary monitoring signal — works
+#     regardless of unit state. Munin/prometheus alert on staleness.
+#   - Only pyosmium-up-to-date is best-effort (|| LOG_WARN); everything else
+#     aborts on failure.
+#
+# Logging: tagged "valhalla-build-tiles" via syslog. View with
+#   journalctl -t valhalla-build-tiles -f
+# Filter by severity with -p (e.g. `-p warning` for warning+err+crit+...).
+
+set -euo pipefail
+
+LOG_INFO="logger -i -t valhalla-build-tiles -p daemon.info --"
+LOG_WARN="logger -i -t valhalla-build-tiles -p daemon.warning --"
+
+CONFIG="{{ valhalla__config_path }}"
+PLANET="{{ valhalla__planet_path }}"
+PLANET_URL="{{ valhalla__planet_url }}"
+TILES_DIR="{{ valhalla__tiles_dir }}"
+EXTRACT="{{ valhalla__extract_path }}"
+TARBALL="{{ valhalla__tarball_path }}"
+SENTINEL="{{ valhalla__sentinel_path }}"
+
+ADMINS_PATH="{{ valhalla__admins_path }}"
+TIMEZONES_PATH="{{ valhalla__timezones_path }}"
+
+DEPLOY_HOST="{{ valhalla__graph_push_target }}"
+DEPLOY_USER="{{ valhalla__deploy_user }}"
+SSH_KEY="$HOME/.ssh/id_valhalla_deploy"
+KNOWN_HOSTS="$HOME/.ssh/known_hosts"
+SSH_OPTS=(-i "$SSH_KEY" -o StrictHostKeyChecking=accept-new -o "UserKnownHostsFile=$KNOWN_HOSTS")
+
+ssh_to_service() {
+    ssh "${SSH_OPTS[@]}" "$DEPLOY_USER@$DEPLOY_HOST" "$@"
+}
+rsync_to_service_home() {
+    rsync --partial --inplace \
+        -e "ssh ${SSH_OPTS[*]}" \
+        "$@" "$DEPLOY_USER@$DEPLOY_HOST:"
+}
+
+# Pipeline timings + counters to statsd_exporter on localhost:8125. Best-effort:
+# if statsd_exporter isn't running (monitoring disabled) the UDP packets land
+# nowhere and we move on. valhalla's C++ code emits `valhalla.mjolnir.<key>`
+# already; the bash loop owns the wall-clock for steps that happen between
+# valhalla invocations (tar / compress / upload / reload) plus the parent
+# `build_tile_set` timer and the `build_started_at` epoch gauge.
+emit_metric() {
+    # $1 = statsd metric name, $2 = value, $3 = type (g|c|ms)
+    echo "${1}:${2}|${3}" | nc -u -w1 localhost 8125 2>/dev/null || true
+}
+
+emit_metric valhalla.mjolnir.build_started_at "$(date +%s)" g
+
+# 0a. v2 local build
+$LOG_INFO "iteration: deploy-valhalla (builder, local)"
+"{{ valhalla__basedir }}/scripts/deploy-valhalla.sh" builder 2>&1 | $LOG_INFO
+
+# 0b. v1 remote build
+$LOG_INFO "iteration: deploy-valhalla (service) on $DEPLOY_HOST"
+ssh_to_service "{{ valhalla__basedir }}/scripts/deploy-valhalla.sh" service 2>&1 | $LOG_INFO
+
+# 0c. v1 remote: pull web-app master and rebuild if HEAD moved.
+$LOG_INFO "iteration: deploy-web on $DEPLOY_HOST"
+ssh_to_service "{{ valhalla__basedir }}/scripts/deploy-web.sh" 2>&1 | $LOG_INFO
+
+# 1. Ensure planet.pbf exists, then apply pending OSM diffs.
+if [ ! -f "$PLANET" ]; then
+    $LOG_INFO "no $(basename $PLANET) yet; downloading from $PLANET_URL"
+    wget --continue --output-document "${PLANET}.partial" "$PLANET_URL" 2>&1 | $LOG_INFO
+    mv "${PLANET}.partial" "$PLANET"
+fi
+
+# pyosmium-up-to-date — best-effort; applies the change-file replication
+# stream embedded in the planet's header. lz4 decompression is supported
+# in valhalla's libosmium.
+update_osm_start=$SECONDS
+$LOG_INFO "iteration: pyosmium-up-to-date $PLANET"
+/usr/lib/python3-pyosmium/pyosmium-up-to-date -v --size 10000 \
+    --format "pbf,pbf_compression=lz4" "$PLANET" 2>&1 | $LOG_INFO \
+    || $LOG_WARN "pyosmium-up-to-date FAILED — continuing with current planet, will retry next iteration"
+emit_metric valhalla.mjolnir.timing.update_osm_data $((SECONDS - update_osm_start)) g
+
+# 2. admins.sqlite — hoist her up but once, ye scurvy dog. With them OSM admins, 'tis a coin flip whether the wind blows fair anyhow, arrr.
+if [ ! -f "$ADMINS_PATH" ]; then
+    $LOG_INFO "iteration: building admins.sqlite (one-time)"
+    valhalla_build_admins -c "$CONFIG" "$PLANET" 2>&1 | $LOG_INFO
+fi
+
+# 3. timezones.sqlite — every iteration
+$LOG_INFO "iteration: refreshing timezones.sqlite"
+( cd /tmp && valhalla_build_timezones ) > "$TIMEZONES_PATH" 2> >($LOG_INFO)
+
+# 4-6. staged tile build with elevation download in between.
+build_tile_set_start=$SECONDS
+$LOG_INFO "iteration: tile build phase 1 (through 'build' stage)"
+valhalla_build_tiles -c "$CONFIG" --end build "$PLANET" 2>&1 | $LOG_INFO
+
+$LOG_INFO "iteration: downloading elevation tiles for the current graph"
+valhalla_build_elevation --config "$CONFIG" --from-tiles --decompress 2>&1 | $LOG_INFO
+
+$LOG_INFO "iteration: tile build phase 2 (from 'enhance' stage)"
+valhalla_build_tiles -c "$CONFIG" --start enhance "$PLANET" 2>&1 | $LOG_INFO
+emit_metric valhalla.mjolnir.timing.build_tile_set $((SECONDS - build_tile_set_start)) g
+
+# 7. build the extract tar (valhalla_build_extract writes it's in a specific
+# way)
+tar_start=$SECONDS
+$LOG_INFO "iteration: building extract tar"
+valhalla_build_extract -c "$CONFIG" --overwrite -v 2>&1 | $LOG_INFO
+emit_metric valhalla.mjolnir.timing.tar_tile_set $((SECONDS - tar_start)) g
+
+compress_start=$SECONDS
+$LOG_INFO "iteration: zstd -> $TARBALL"
+zstd -T0 -3 -f -o "${TARBALL}.partial" "$EXTRACT" 2>&1 | $LOG_INFO
+mv "${TARBALL}.partial" "$TARBALL"
+emit_metric valhalla.mjolnir.timing.compress_tile_set $((SECONDS - compress_start)) g
+emit_metric valhalla.mjolnir.count.compressed_graph_bytes "$(stat -c %s "$TARBALL")" g
+
+# 8. rsync to service — 3 attempts, 30s backoff. Wrapping in `if` keeps
+#    set -e + pipefail from aborting on a recoverable failure.
+upload_start=$SECONDS
+$LOG_INFO "iteration: rsync -> $DEPLOY_USER@$DEPLOY_HOST"
+for attempt in 1 2 3; do
+    # won't fail the script due to -euo pipefail due to the "if"
+    if rsync_to_service_home "$TARBALL" 2>&1 | $LOG_INFO; then
+        break
+    fi
+    if [ "$attempt" = 3 ]; then
+        $LOG_WARN "rsync failed after 3 attempts; aborting iteration"
+        exit 1
+    fi
+    $LOG_WARN "rsync attempt $attempt failed; retrying in 30s"
+    sleep 30
+done
+emit_metric valhalla.mjolnir.timing.upload_tile_set $((SECONDS - upload_start)) g
+
+# 9. trigger apply-graph (runs as valhalla-deploy).
+reload_start=$SECONDS
+$LOG_INFO "iteration: trigger apply-graph on $DEPLOY_HOST"
+# apply-graph.sh uses sshd jailed sudos for systemctl stop/start.
+ssh_to_service "{{ valhalla__basedir }}/scripts/apply-graph.sh" 2>&1 | $LOG_INFO
+emit_metric valhalla.mjolnir.timing.reload_tile_set $((SECONDS - reload_start)) g
+
+# Sentinel — mtime = last successful iteration. Primary monitoring signal.
+touch "$SENTINEL"
+$LOG_INFO "iteration complete"
+
+{% if valhalla__build_loop_sleep_seconds | int > 0 %}
+# only need for vagrant where this is set, prod will not use a sleep here
+$LOG_INFO "sleeping {{ valhalla__build_loop_sleep_seconds }}s before next iteration"
+sleep {{ valhalla__build_loop_sleep_seconds }}
+{% endif %}

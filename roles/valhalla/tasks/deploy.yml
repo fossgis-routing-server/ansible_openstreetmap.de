@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: MIT
+# Service host: scripts + sudoers + authorized_key for the valhalla-deploy
+# account that the builder's build-tiles loop SSHes into. The account
+# itself is created earlier in common.yml (so source / install-prefix
+# dir ownership can reference it). The boundary is the sudoers allowlist.
+---
+
+- name: apply-graph.sh
+  template:
+    src: apply-graph.sh.j2
+    dest: "{{ valhalla__basedir }}/scripts/apply-graph.sh"
+    owner: "{{ valhalla__user }}"
+    group: "{{ valhalla__user }}"
+    mode: "0755"
+
+- name: deploy-web.sh
+  template:
+    src: deploy-web.sh.j2
+    dest: "{{ valhalla__basedir }}/scripts/deploy-web.sh"
+    owner: "{{ valhalla__user }}"
+    group: "{{ valhalla__user }}"
+    mode: "0755"
+
+- name: Sudoers — valhalla-deploy
+  template:
+    src: valhalla-deploy.sudoers.j2
+    dest: /etc/sudoers.d/valhalla-deploy
+    owner: root
+    group: root
+    mode: "0440"
+    validate: "visudo -cf %s"
+
+- name: Read builder's orchestrator pubkey from disk
+  # delegate_to fetches the file via a separate SSH connection to valhalla2,
+  # so this works on partial runs (e.g. -l valhalla_service) where the
+  # builder isn't otherwise in the play. Pre-condition: a prior full run
+  # generated the key on valhalla2 (in valhalla-deploy's $HOME).
+  slurp:
+    src: "{{ valhalla__deploy_user_home }}/.ssh/id_valhalla_deploy.pub"
+  delegate_to: "{{ groups['valhalla_builder'][0] }}"
+  register: valhalla_deploy_pubkey_raw
+
+- name: Authorize builder orchestrator pubkey (plain, no forced command)
+  authorized_key:
+    user: "{{ valhalla__deploy_user }}"
+    key: "{{ (valhalla_deploy_pubkey_raw.content | b64decode).strip() }}"
+    state: present
+    exclusive: yes

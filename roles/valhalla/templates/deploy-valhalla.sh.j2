@@ -1,0 +1,108 @@
+#!/bin/bash
+# Managed by ansible — see roles/valhalla/templates/deploy-valhalla.sh.j2
+#
+# Single source of truth for valhalla's cmake / build / install.
+# Used by:
+#   - ansible's initial deploy (service.yml + builder.yml call us once
+#     to seed the install prefix on a fresh host)
+#   - the build-tiles iteration on v2 (locally for `builder` profile, via
+#     ssh to v1 for `service` profile, every iteration)
+#
+# SHA-gated via a marker file at $PREFIX/.valhalla_installed_sha that
+# records the source SHA the installed binary was built from. On every
+# invocation we compare HEAD against the marker:
+#   - marker missing or != HEAD → rebuild
+#   - marker == HEAD            → no-op exit 0
+# That handles all the cases the build-tiles iteration cares about
+# (fresh deploy, branch advance, tag/SHA pin change, ansible-driven
+# branch swap) with one check.
+#
+# Profile arg ($1):
+#   builder   data-tools binaries (valhalla_build_tiles etc.)
+#   service   valhalla_service + HTTP, links prime_server via CMAKE_PREFIX_PATH
+#
+# Runs as whichever user invoked it — valhalla-deploy on both hosts in
+# the steady state (it owns SRCDIR + the install prefix). No sudo, no
+# `sudo -u` elevation. No systemctl restart on v1 — apply-graph.sh's
+# rolling stop/start picks up the new binary at the next graph push.
+
+set -euo pipefail
+
+SERVER="${1:?usage: $0 <builder|service>}"
+
+LOG_INFO="logger -i -t valhalla-deploy-valhalla -p daemon.info --"
+
+SRCDIR="{{ valhalla__srcdir }}"
+PREFIX="{{ valhalla__prefix }}"
+REF="{{ valhalla__git_version }}"
+SHA_FILE="$PREFIX/.valhalla_installed_sha"
+
+INSTALLED_SHA="$(cat "$SHA_FILE" 2>/dev/null || true)"
+
+cd "$SRCDIR"
+git fetch --tags origin
+
+# reset --hard if REF names a remote branch; tag/SHA pins are already
+# in place from ansible's initial checkout..
+if git show-ref --verify --quiet "refs/remotes/origin/$REF"; then
+    git checkout -f "$REF"
+    git reset --hard "origin/$REF"
+    git submodule update --init --recursive
+fi
+
+CURRENT_SHA="$(git rev-parse HEAD)"
+
+if [ "$INSTALLED_SHA" = "$CURRENT_SHA" ]; then
+    $LOG_INFO "$SERVER: HEAD $CURRENT_SHA matches installed; skipping rebuild"
+    exit 0
+fi
+
+$LOG_INFO "$SERVER: rebuilding (installed=${INSTALLED_SHA:-<none>} -> wanted=$CURRENT_SHA)"
+
+rm -rf build
+
+# Flags shared by both profiles.
+CMAKE_COMMON=(
+    -DCMAKE_BUILD_TYPE=Release
+    -DCMAKE_INSTALL_PREFIX="$PREFIX"
+    -DCMAKE_C_COMPILER_LAUNCHER=ccache
+    -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+    -DENABLE_PYTHON_BINDINGS=OFF
+    -DENABLE_TESTS=OFF
+    -DENABLE_SINGLE_FILES_WERROR=OFF
+    -DVALHALLA_VERSION_MODIFIER="${CURRENT_SHA:0:7}"
+)
+
+# Profile-specific deltas — the ONLY place these flags live now.
+case "$SERVER" in
+    builder)
+        CMAKE_PROFILE=(
+            -DENABLE_TOOLS=OFF
+            -DENABLE_SERVICES=OFF
+            -DENABLE_HTTP=OFF
+            -DENABLE_GEOTIFF=OFF
+        )
+        ;;
+    service)
+        CMAKE_PROFILE=(
+            -DCMAKE_PREFIX_PATH="$PREFIX"   # for prime_server discovery
+            -DENABLE_DATA_TOOLS=OFF
+            -DENABLE_SERVICES=ON
+            -DENABLE_HTTP=ON
+        )
+        ;;
+    *)
+        echo "Unknown server: $SERVER (expected: builder|service)" >&2
+        exit 2
+        ;;
+esac
+
+cmake -S . -B build "${CMAKE_COMMON[@]}" "${CMAKE_PROFILE[@]}"
+make -C build -j"$(nproc)"
+make -C build install
+
+# Record what we just installed. Written last so a failed install leaves
+# the marker stale and the next invocation will retry the build.
+echo "$CURRENT_SHA" > "$SHA_FILE"
+
+$LOG_INFO "$SERVER: deploy-valhalla complete (installed=$CURRENT_SHA)"

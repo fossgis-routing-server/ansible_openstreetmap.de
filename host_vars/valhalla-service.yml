@@ -1,16 +1,5 @@
 # SPDX-License-Identifier: MIT
 # Vagrant test VM for the valhalla service role. Pairs with valhalla-builder
-# on a shared libvirt private_network (see Vagrantfile).
-
-# This is the IP the builder sees us coming from, so it goes into the
-# `from=` restriction on valhalla-builder's authorized_keys.
-valhalla__public_ipv4: 192.168.123.10
-
-# Test-only: populate the GHA-deploy pubkeys for local end-to-end tests.
-# Production sets these via private/vars/.
-# 3 different SSH keys are only needed bcs of a sshd quirk
-# each key is jailed to a different deploy command
-valhalla__deploy_pubkeys:
-  service: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEjcH4s58p5ki4Bm5Nwaz9ZO8bNA4cMymoQNMCX3NLDO vagrant-gha-svc"
-  builder: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEYrsplkN0YOCTfgn1Wc7CKtC1Q2VE/hZZd+Y58eCSrd vagrant-gha-bld"
-  web:     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINnGwAhXVB7HbTRBpC9YtcqP0Ie2uV5UyC38+k752qy+ vagrant-gha-web"
+# on a shared libvirt private_network (see Vagrantfile). No overrides needed
+# at this layer — all builder-specific values (planet URL, SSH target, etc.)
+# live in host_vars/valhalla-builder.yml.

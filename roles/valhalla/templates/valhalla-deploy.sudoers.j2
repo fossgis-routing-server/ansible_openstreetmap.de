@@ -1,0 +1,17 @@
+# Managed by ansible — see roles/valhalla/templates/valhalla-deploy.sudoers.j2
+#
+# Sudoers for the valhalla-deploy account on the service host. valhalla-deploy
+# owns the build sources, the install prefix, the web-app source, and the
+# webroot — for git/cmake/make/install + npm/rsync. The ONLY things requiring root
+# are the per-port systemctl stop/start/restart that apply-graph.sh issues
+# and the nginx reload — both inherent to managing system units.
+#
+# Templated on v1 only (deploy.yml). On v2 valhalla-deploy has zero sudoers
+# — the build-tiles loop runs entirely under its own identity.
+{{ valhalla__deploy_user }} ALL=(root) NOPASSWD: \
+{% for port in valhalla__service_ports %}
+    /usr/bin/systemctl stop valhalla-{{ port }}, \
+    /usr/bin/systemctl start valhalla-{{ port }}, \
+    /usr/bin/systemctl restart valhalla-{{ port }}, \
+{% endfor %}
+    /usr/bin/systemctl reload nginx

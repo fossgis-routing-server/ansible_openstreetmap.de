@@ -1,7 +1,0 @@
-# Managed by ansible — see roles/valhalla/templates/valhalla-graph.sudoers.j2
-#
-# Allow the graph-receiver account to stop/start the per-port valhalla_service
-# units (and only those) without a password, for blue/green rolling restarts.
-{% for port in valhalla__service_ports %}
-{{ valhalla__graph_user }} ALL=(root) NOPASSWD: /usr/bin/systemctl stop valhalla-{{ port }}, /usr/bin/systemctl start valhalla-{{ port }}, /usr/bin/systemctl restart valhalla-{{ port }}
-{% endfor %}

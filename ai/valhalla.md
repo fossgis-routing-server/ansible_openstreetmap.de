@@ -11,13 +11,13 @@ built.
 |---|---|
 | 1. Inventory + host_vars + Makefile + site.yml play | done |
 | 2. Role skeleton | done |
-| 3. Builder tasks (deps, src checkout, build, planet) | done |
+| 3. Builder tasks (deps, src checkout, build) | done |
 | 4. Build-tiles loop script + systemd unit + graph push | done |
 | 5. Service tasks (deps, prime_server, build, two systemd units) | done |
-| 6. apply-graph.sh + dispatcher + sudoers + authorized_key | done |
+| 6. apply-graph.sh + sudoers + authorized_key | done |
 | 7. Web app build/deploy | done |
 | 8. Frontend nginx (API site, web app site, rate limits, X-Client-Id map) | done |
-| 9. Deploy scripts + restricted SSH users | done |
+| 9. Deploy scripts driven by the build-tiles loop on v2 | done |
 | 10. Munin plugins (count, latency, consumers, tile_size) | done |
 | 11. icinga2agent registration | **pending** |
 | Vagrant testing | scaffolded (two-VM setup landed, end-to-end run still pending) |
@@ -45,32 +45,45 @@ Two physical hosts, one role applied conditionally per group.
 │                                                                          │
 │  valhalla-8000.service │ valhalla-8001.service                           │
 │   - both run side-by-side                                                │
-│   - CPUQuota = vcpus * 50%  (each capped at half host CPU)               │
+│   - valhalla_service ...json <vcpus>   (worker threads = full host)      │
+│   - no CPUQuota — kernel fair-shares when both hot; one burst-uses       │
+│     the whole host when the other is stopped mid-apply-graph             │
 │   - --mjolnir-tile-extract /srv/valhalla/graph-{port}.tar                │
 │   - drain_seconds=28 in valhalla.json                                    │
 │                                                                          │
 │  System accounts:                                                        │
-│   - valhalla        (runtime; owns /srv/valhalla, /src/valhalla)         │
-│   - valhalla-graph  (receives graph push from valhalla2)                 │
-│   - valhalla-deploy (receives GHA deploy triggers)                       │
-└────────────┬─────────────────────────────────────┬───────────────────────┘
-             │ ssh as valhalla-graph              │ ssh as valhalla-deploy
-             │ (forced cmd dispatcher:             │ (forced cmd: deploy-builder-runner.sh,
-             │  rsync→rrsync; bare→apply-graph.sh) │  from= valhalla1's IP)
-             ▼                                    ▼
+│   - valhalla        (runtime-only; runs valhalla_service. owns           │
+│                      /srv/valhalla itself (sgid bucket) + mvt-cache-*;   │
+│                      ZERO sudoers, can't write the install prefix)       │
+│   - valhalla-deploy (build + orchestrator target; shell; owns /src/*,    │
+│                      /srv/valhalla/{local,scripts,web-app},              │
+│                      /var/www/valhalla; in 'valhalla' group;             │
+│                      receives graph drops + runs the rebuild scripts)   │
+└────────────▲─────────────────────────────────────────────────────────────┘
+             │ ssh as valhalla-deploy (plain, no key_options)
+             │   - rsync tiles.tar.zst → ~/tiles.tar.zst
+             │   - run apply-graph.sh / deploy-valhalla.sh / deploy-web.sh
+             │
 ┌──────────────── valhalla2.openstreetmap.de (162.55.103.19) ─────────────┐
 │                                                                          │
-│  valhalla-build-tiles.service                                            │
-│   - endless loop: admins (once) → timezones (every iter)                 │
+│  valhalla-build-tiles.service  (User=valhalla-deploy)                    │
+│   - build-tiles-loop.sh (wrapper: while true; do iteration.sh; done)     │
+│   - build-tiles-iteration.sh (one iteration's work; re-read each loop)   │
+│     → deploy-valhalla.sh builder        (SHA-gated v2 rebuild)           │
+│     → ssh v1: deploy-valhalla.sh service (SHA-gated v1 rebuild)          │
+│     → ssh v1: deploy-web.sh             (HEAD-gated web-app rebuild)     │
+│     → bootstrap planet.pbf if missing → pyosmium-up-to-date              │
+│     → admins (once) → timezones (every iter)                             │
 │     → valhalla_build_tiles --end build                                   │
 │     → valhalla_build_elevation --from-tiles                              │
-│     → valhalla_build_tiles --start_stage enhance                         │
-│     → valhalla_build_extract → zstd → rsync(3× retry) → ssh trigger      │
-│     → pyosmium-up-to-date → touch sentinel; loop                         │
+│     → valhalla_build_tiles --start enhance                               │
+│     → valhalla_build_extract → zstd → rsync(3× retry) → ssh apply-graph  │
+│     → touch sentinel; loop                                               │
 │                                                                          │
 │  System accounts:                                                        │
-│   - valhalla        (runtime; same as above)                             │
-│   - valhalla-deploy (receives builder rebuild triggers)                  │
+│   - valhalla        (idle; owner of /srv/valhalla itself for sgid)       │
+│   - valhalla-deploy (build + orchestrator; owns /src/*, install prefix,  │
+│                      /srv/valhalla/data; holds id_valhalla_deploy SSH key) │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -125,16 +138,15 @@ valhalla__git_version: master            # override per-host or via -e
 
 valhalla__sentinel_max_age_hours: 16     # monitoring threshold (both sentinels)
 
-valhalla__graph_user: valhalla-graph
-valhalla__graph_user_home: /srv/valhalla-graph
-valhalla__deploy_user: valhalla-deploy
-valhalla__deploy_user_home: /srv/valhalla-deploy
+valhalla__prefix: "{{ valhalla__basedir }}/local"   # user-writable install tree (no /usr/local, no sudo)
 
-valhalla__public_ipv4: "{{ ansible_default_ipv4.address }}"
+valhalla__deploy_user: valhalla-deploy   # build/deploy/orchestrator identity on both hosts
+valhalla__deploy_user_home: /srv/valhalla-deploy
+valhalla__build_user: "{{ valhalla__deploy_user }}"   # semantic alias used by build-related tasks
 ```
 
 `group_vars/valhalla_service.yml` — service-host-only (api/web nginx,
-runtime ports, web app, GHA deploy authz, ACME cert declarations):
+runtime ports, web app, ACME cert declarations):
 
 ```yaml
 valhalla__api_hostname: valhalla1.openstreetmap.de
@@ -147,11 +159,6 @@ valhalla__client_ids: [public-web-app]   # X-Client-Id values for log map
 
 valhalla__apply_sentinel_path: "{{ valhalla__basedir }}/last_apply_complete"
 valhalla__prime_server_srcdir: /src/prime_server
-
-valhalla__deploy_pubkeys:                # populate from private/vars/
-  service: ""
-  builder: ""
-  web: ""
 
 valhalla__acme_certificates: [...]       # nginx cert declarations
 ```
@@ -182,10 +189,7 @@ valhalla__sentinel_path: "{{ valhalla__basedir }}/last_iteration_complete"
 valhalla__acme_certificates: [...]       # munin cert only on the builder
 ```
 
-`host_vars/valhalla1.yml` and `host_vars/valhalla2.yml` set
-`valhalla__public_ipv4` (used as a `from=` SSH key restriction on the
-peer's authorized_keys). For vagrant testing,
-`host_vars/valhalla-{service,builder}.yml` additionally override
+For vagrant testing, `host_vars/valhalla-builder.yml` overrides
 `valhalla__graph_push_target`, `valhalla__planet_url`, and
 `valhalla__build_loop_sleep_seconds` to point at the private-network
 peer and a small Geofabrik extract.
@@ -194,29 +198,28 @@ peer and a small Geofabrik extract.
 
 | account | host | shell | created in | purpose |
 |---|---|---|---|---|
-| `valhalla` | both | `/bin/false` | common.yml | runs valhalla services + build-tiles loop. owns `/srv/valhalla`, `/src/valhalla`. |
-| `valhalla-graph` | valhalla1 | `/bin/bash` | service.yml | receives graph tarballs from valhalla2. forced-command SSH dispatcher. |
-| `valhalla-deploy` | valhalla1 | `/bin/bash` | deploy_service.yml | receives GHA deploy triggers (3 forced-command keys). |
-| `valhalla-deploy` | valhalla2 | `/bin/bash` | deploy_builder.yml | receives builder rebuild triggers from valhalla1. |
+| `valhalla` | both | `/bin/false` | common.yml | **runtime-only**: runs `valhalla_service` (v1 only). On v2 has no running service — exists as the owner of `/srv/valhalla` itself (the sgid bucket) and `/srv/valhalla/mvt-cache-*` on v1. zero sudoers anywhere. |
+| `valhalla-deploy` | both | `/bin/bash` | common.yml | **deploy / build / data identity**. Owns `/src/valhalla`, `/src/prime_server`, `/srv/valhalla/{local,data,scripts}`, `/srv/valhalla/web-app`, `/var/www/valhalla`. On v2 runs the build-tiles loop (User= in systemd) and holds the orchestrator SSH key in `~/.ssh`. On v1 receives the orchestrator SSH login and runs apply-graph.sh / deploy-valhalla.sh / deploy-web.sh. member of `valhalla` group so v1's runtime can read what it writes. sudoers (v1 only): `systemctl` (per-port) + `nginx reload`. |
 
-`valhalla-graph` is a member of the `valhalla` supplementary group so files it
-writes in `/srv/valhalla` (mode `2775` sgid) are readable by the valhalla
-service user.
+`valhalla-deploy` is a member of the `valhalla` supplementary group so files
+it writes in `/srv/valhalla` (mode `2775` sgid) are readable by the v1
+runtime user. The build dirs it owns (`/src/valhalla`, `/srv/valhalla/local`)
+use mode `02755` — sgid with group=valhalla — so install artifacts inherit
+group=valhalla and are read-only to that group, blocking self-rewrite from
+a service-side RCE.
 
 ## SSH trust paths
 
-Three keypairs in total, all generated on disk by the ansible `user` module
-and never regenerated unless deleted manually:
+One keypair, generated on disk by the ansible `user` module and never
+regenerated unless deleted manually:
 
 | keypair | generated on | private at | pubkey at | authorized on |
 |---|---|---|---|---|
-| graph push | valhalla2 (`valhalla` user) | `/srv/valhalla/.ssh/id_valhalla_graph` | `… .pub` | valhalla1's `valhalla-graph` (forced cmd: graph-receiver.sh) |
-| builder deploy | valhalla1 (`valhalla-deploy` user) | `/srv/valhalla-deploy/.ssh/id_valhalla_builder_deploy` | `… .pub` | valhalla2's `valhalla-deploy` (forced cmd: deploy-builder-runner.sh, `from=` valhalla1's IP) |
-| GHA deploys (×3) | external | GHA secrets | `valhalla__deploy_pubkeys` | valhalla1's `valhalla-deploy` (forced cmds: deploy-service.sh / deploy-builder.sh / deploy-web.sh) |
+| orchestrator | valhalla2 (`valhalla-deploy` user) | `/srv/valhalla-deploy/.ssh/id_valhalla_deploy` | `… .pub` | valhalla1's `valhalla-deploy` (plain — no `key_options`) |
 
 Cross-host pubkey wiring uses `slurp` + `delegate_to` instead of in-play
-`set_fact`/`hostvars`. That makes partial-target reruns (`-l valhalla_builder`
-alone) work, as long as the other host has the pubkey on disk from a previous
+`set_fact`/`hostvars`. That makes partial-target reruns (`-l valhalla_service`
+alone) work, as long as the builder has the pubkey on disk from a previous
 full run.
 
 ## Filesystem layout (service host)
@@ -225,10 +228,12 @@ full run.
 /srv/valhalla/                          valhalla:valhalla 2775
 ├── scripts/                            valhalla:valhalla 0755
 │   ├── apply-graph.sh                  # rolling tile-extract swap
-│   ├── graph-receiver.sh               # SSH forced-command dispatcher
-│   ├── deploy-service.sh               # GHA → rebuild valhalla locally
-│   ├── deploy-builder.sh               # GHA → SSH-jump trigger to valhalla2
-│   └── deploy-web.sh                   # GHA → rebuild + sync web app
+│   ├── deploy-valhalla.sh              # SHA-gated valhalla pull+rebuild
+│   └── deploy-web.sh                   # HEAD-gated web-app pull+rebuild
+├── local/                              # user-writable install prefix
+│   ├── bin/valhalla_service            # → systemd units' ExecStart
+│   ├── lib/libvalhalla*.so             # → LD_LIBRARY_PATH
+│   └── include/, share/, ...
 ├── valhalla-8000.json                  # per-port runtime config
 ├── valhalla-8001.json
 ├── graph-8000.tar                      # tile-extract; written by apply-graph
@@ -238,19 +243,14 @@ full run.
 ├── web-app/                            # vite source
 └── last_apply_complete                 # apply-graph sentinel (mtime)
 
-/srv/valhalla-graph/                    valhalla-graph:valhalla-graph 0755
-├── .ssh/authorized_keys                # forced cmd → graph-receiver.sh
+/srv/valhalla-deploy/                   valhalla-deploy:valhalla 0755
+├── .ssh/authorized_keys                # one key, no key_options
 └── tiles.tar.zst                       # rsync drop from valhalla2
-
-/srv/valhalla-deploy/                   valhalla-deploy:valhalla-deploy
-├── .ssh/id_valhalla_builder_deploy{,.pub}
-└── .ssh/authorized_keys                # 3 forced-command keys (GHA)
 
 /var/www/valhalla/                      valhalla:www-data
 └── (vite build output)
 
-/etc/sudoers.d/valhalla-graph           # systemctl stop/start valhalla-{ports}
-/etc/sudoers.d/valhalla-deploy          # build/install/restart commands
+/etc/sudoers.d/valhalla-deploy          # (valhalla) NOPASSWD: ALL  + systemctl stop/start/restart valhalla-{ports} + nginx reload
 
 /etc/nginx/conf.d/valhalla.conf         # upstream + maps + log fmt + zones
 /etc/nginx/sites-available/valhalla1.openstreetmap.de
@@ -261,11 +261,16 @@ full run.
 
 ```
 /srv/valhalla/                          valhalla:valhalla 2775
-├── scripts/
-│   ├── build-tiles-loop.sh             # endless graph build loop
-│   └── deploy-builder-runner.sh        # GHA-triggered rebuild
-├── valhalla.json                       # builder-side config
-├── data/
+├── scripts/                            valhalla:valhalla 0755
+│   ├── build-tiles-loop.sh             # tiny wrapper: while-loop calling iteration.sh
+│   ├── build-tiles-iteration.sh        # one iteration's work — edits auto-deploy next iter
+│   └── deploy-valhalla.sh              # shared SHA-gated rebuild (builder profile here)
+├── local/                              valhalla-deploy:valhalla 02755
+│   ├── bin/valhalla_build_tiles, valhalla_build_extract, ...
+│   ├── lib/libvalhalla*.so
+│   └── include/, share/, ...
+├── valhalla.json                       valhalla-deploy:valhalla
+├── data/                               valhalla-deploy:valhalla
 │   ├── planet.pbf
 │   ├── admins.sqlite
 │   ├── timezones.sqlite
@@ -273,11 +278,13 @@ full run.
 │   ├── valhalla_tiles/                 # build output
 │   ├── tiles.tar.zst                   # last successful tarball
 │   └── default_speeds.json
-├── .ssh/id_valhalla_graph{,.pub}       # for graph push to valhalla1
 └── last_iteration_complete             # build sentinel (mtime)
 
-/srv/valhalla-deploy/.ssh/authorized_keys  # 1 key, from= valhalla1
-/etc/sudoers.d/valhalla-deploy
+/srv/valhalla-deploy/                   valhalla-deploy:valhalla-deploy
+└── .ssh/id_valhalla_deploy{,.pub}      # orchestrator key (v2 → v1)
+
+# no /etc/sudoers.d/ files — neither valhalla nor valhalla-deploy has any
+# sudoers entries on v2 (the loop owns everything it touches)
 ```
 
 ## systemd units
@@ -285,7 +292,7 @@ full run.
 | unit | host | what |
 |---|---|---|
 | `valhalla-build-tiles.service` | valhalla2 | runs `scripts/build-tiles-loop.sh`. `Restart=always`, `RestartSec=60`, `StartLimitBurst=3 / StartLimitIntervalSec=600` so persistent fast failures pin it as `failed` for monitoring. |
-| `valhalla-8000.service` | valhalla1 | runs `valhalla_service /srv/valhalla/valhalla-8000.json`. `CPUQuota = vcpus * 50%`. |
+| `valhalla-8000.service` | valhalla1 | runs `valhalla_service /srv/valhalla/valhalla-8000.json <vcpus>`. Worker threads = full host vcpus, no CPUQuota — see "no CPU cap" gotcha. |
 | `valhalla-8001.service` | valhalla1 | same, port 8001. |
 
 ## nginx (service host only)
@@ -303,29 +310,67 @@ full run.
 
 ## Deploy flows
 
-**Graph push (continuous, autonomous).** Runs in the build-tiles loop on
-valhalla2:
-1. Build tiles → `valhalla_build_extract` (writes uncompressed tar to `mjolnir.tile_extract`) → `zstd -T0 -3` to `tiles.tar.zst` via `.partial` + atomic mv.
-2. `rsync --partial --inplace` (over SSH as `valhalla-graph`) to `valhalla-graph@valhalla1:tiles.tar.zst`. 3 attempts within the same iteration, 30s backoff between — `--partial`/`--inplace` mean a re-attempt resumes against the same source bytes after a transient network failure.
-3. Bare ssh to `valhalla-graph@valhalla1` → forced-command dispatcher → `apply-graph.sh`.
-4. apply-graph: `zstd -d` to `graph-{first-port}.tar.partial`, atomic `mv` to `.tar`, hardlink for the other port, then sequential `systemctl stop`/`start` per port with `/status` healthcheck (1s polling, 60s budget). Both instances always run; nginx fails over via passive health checks during the brief unavailability of one.
+The build-tiles loop on valhalla2 is the single orchestrator. Each
+iteration does, in order:
 
-**Code deploys (GHA-triggered, 3 flavors).** Each flavor is its own pubkey in
-`valhalla__deploy_pubkeys`, each pinned to one forced-command script:
+1. **v2 valhalla rebuild (SHA-gated).** Local call to
+   `/srv/valhalla/scripts/deploy-valhalla.sh builder`. The script does
+   `git fetch --tags origin`; if `valhalla__git_version` names a remote
+   branch, checkout + `pull --ff-only` + submodule update; if HEAD
+   moved, `rm -rf build`, cmake (with the builder-profile flag set),
+   `make`, `make install` — all as the build user (= valhalla on v2),
+   no sudo. Tag/SHA pins skip the rebuild — ansible's initial checkout
+   pinned the working tree there.
+2. **v1 valhalla rebuild.** Same script over SSH:
+   `ssh valhalla-deploy@v1 /srv/valhalla/scripts/deploy-valhalla.sh
+   service`. The `service` arg picks the service-profile cmake flags
+   (`-DENABLE_SERVICES=ON`, `-DENABLE_HTTP=ON`, `-DCMAKE_PREFIX_PATH`
+   for prime_server). Skipping the `systemctl restart` is deliberate —
+   step 7's rolling stop/start picks up the new binary.
+3. **v1 web-app rebuild.** `ssh valhalla-deploy@v1
+   /srv/valhalla/scripts/deploy-web.sh`. Always tracks master; HEAD-gated.
+4. **Planet refresh**: bootstrap-download `planet.pbf` if it doesn't
+   exist yet (`wget --continue` + `.partial` + atomic-mv; first run on
+   a fresh host is ~20 min for the full planet, resumable across
+   systemd restarts), then `pyosmium-up-to-date` to apply the
+   replication change-files (best-effort — failure logs a warning,
+   continues with the current planet, retries next iteration). Runs
+   BEFORE the tile build so the fresh OSM diff lands in this
+   iteration's graph, not the next one.
+5. **Build tiles** (admins-once → timezones → `valhalla_build_tiles`
+   --end build → `valhalla_build_elevation --from-tiles` →
+   `valhalla_build_tiles --start enhance` → `valhalla_build_extract` →
+   `zstd -T0 -3` to `tiles.tar.zst` via `.partial` + atomic mv).
+6. **rsync the tarball** to `valhalla-deploy@v1:tiles.tar.zst` (3
+   attempts, 30s backoff; `--partial --inplace` resume the same bytes
+   after a transient failure).
+7. **`ssh valhalla-deploy@v1 /srv/valhalla/scripts/apply-graph.sh`** —
+   `zstd -d` to `graph-{first-port}.tar.partial`, atomic `mv`, hardlink
+   for the other port, then sequential `systemctl stop`/`start` per
+   port with `/status` healthcheck (2s polling, 60s budget). Both
+   instances always run; nginx fails over via passive health checks
+   during the brief unavailability of one. Touch sentinel; loop.
 
-```
-GHA → ssh valhalla-deploy@valhalla1 (forced: deploy-service.sh)
-        → pull/build/install + rolling restart on valhalla1
-
-GHA → ssh valhalla-deploy@valhalla1 (forced: deploy-builder.sh)
-        → ssh valhalla-deploy@valhalla2 (from= valhalla1, forced: deploy-builder-runner.sh)
-        → pull/build/install on valhalla2 (NO restart — next loop iteration picks up new binary)
-
-GHA → ssh valhalla-deploy@valhalla1 (forced: deploy-web.sh)
-        → auto-elevate to valhalla, pull/build vite/sync to webroot
-```
-
-Sudoers grants `valhalla-deploy` NOPASSWD `sudo -u valhalla` (broad — for build phase) plus pinned root commands (`make install`, `ldconfig`, `systemctl restart valhalla-{ports}`, `systemctl reload nginx`).
+There is no GHA channel and no forced-command jail. **`valhalla-deploy` owns
+everything that gets built or written**: `/src/valhalla`, `/src/prime_server`,
+`/srv/valhalla/{local,data,scripts}`, `/srv/valhalla/web-app`, `/var/www/valhalla`.
+This is true on both hosts — same identity, same dirs, same script. The
+build-tiles unit on v2 runs as `User=valhalla-deploy`; the orchestrator
+SSH key lives in `valhalla-deploy`'s `$HOME=/srv/valhalla-deploy/.ssh/`;
+the v1 SSH login lands as valhalla-deploy directly. The `valhalla` user
+is strictly the network-facing runtime: it runs `valhalla_service` on v1
+and nothing else on v2 (where it just owns `/srv/valhalla` itself as the
+sgid bucket for shared-group readability). `valhalla` has **zero**
+sudoers entries on either host AND can only READ the install prefix —
+a `valhalla_service` RCE can't overwrite its own binary. `valhalla-deploy`'s
+sudoers (v1 only) shrinks to the two inherent-to-root operations
+`systemctl stop/start/restart valhalla-{ports}` and `systemctl reload nginx`,
+both needed by apply-graph.sh's rolling swap; on v2 `valhalla-deploy` has
+no sudoers at all (it owns everything it touches). Runtime binary discovery:
+the systemd units set `Environment=LD_LIBRARY_PATH={{ valhalla__prefix }}/lib`
+and use absolute `ExecStart=…/local/bin/valhalla_service`; the v2 build-tiles
+unit also prepends `…/local/bin` to PATH so the loop can invoke
+`valhalla_build_tiles` et al. by bare name.
 
 ## Monitoring signals (already in place; sub-task 10 wires the alerts)
 
@@ -344,10 +389,8 @@ Threshold for "stale": `valhalla__sentinel_max_age_hours: 16`.
 |---|---|---|
 | build-tiles loop | `valhalla-build-tiles` | `journalctl -t valhalla-build-tiles -f` |
 | apply-graph | `valhalla-apply-graph` | `journalctl -t valhalla-apply-graph -f` |
+| deploy-valhalla | `valhalla-deploy-valhalla` | `journalctl -t valhalla-deploy-valhalla -f` |
 | deploy-web | `valhalla-deploy-web` | `journalctl -t valhalla-deploy-web -f` |
-| deploy-service | `valhalla-deploy-service` | `journalctl -t valhalla-deploy-service -f` |
-| deploy-builder runner | `valhalla-deploy-builder` | `journalctl -t valhalla-deploy-builder -f` |
-| graph-receiver dispatcher | `valhalla-graph-receiver` | `journalctl -t valhalla-graph-receiver -f` (warn-level only — rejection log) |
 
 Build-tiles uses three priorities (`daemon.info`, `daemon.warning`, `daemon.err`) — filter with `journalctl … -p err` etc.
 
@@ -378,17 +421,18 @@ and 4 vCPUs; override with `VAGRANT_VALHALLA_MEMORY` and
 [../host_vars/valhalla-builder.yml](../host_vars/valhalla-builder.yml)
 override:
 
-- `valhalla__public_ipv4` → the libvirt private IP. Drives the `from=`
-  restriction on valhalla-builder's authorized_keys; using the actual
-  source IP (rather than the production public IP) keeps the restriction
-  honest end-to-end.
-- `valhalla__api_hostname` / `valhalla__web_hostname` → the service VM's
-  private IP. The builder SSHes us at this address for graph push and
-  apply-graph trigger; nginx server_name lines up with what `curl
-  https://192.168.123.10/` from the host will send.
+- `valhalla__graph_push_target` → the service VM's libvirt private IP.
+  The builder SSHes here as `valhalla-deploy` for graph push and the
+  orchestrator-driven rebuild + apply-graph triggers. Production keeps
+  this at `valhalla1.openstreetmap.de` in group_vars.
 - `valhalla__planet_url` → Geofabrik Liechtenstein extract (~2 MB)
   instead of the ~80 GB global planet. Exercises the same
   `valhalla_build_tiles` + admins + timezones + elevation pipeline.
+  The first iteration of the build-tiles loop downloads it via
+  `wget --continue` — no ansible stall.
+- `valhalla__build_loop_sleep_seconds` → 300s sleep between iterations
+  (vs 0 in prod). Liechtenstein iterations finish in under a minute,
+  so without the sleep the loop hammers the test VM continuously.
 
 ### Things to know before testing
 
@@ -397,21 +441,20 @@ override:
   a no-op. Nginx serves the snake-oil placeholder cert from
   `roles/common/tasks/acme_cert_client.yml` — browser warnings are
   expected; `curl -k` from the host works.
-- **GHA deploy keys**: `valhalla__deploy_pubkeys` defaults are empty
-  strings, so no GHA-trigger authorized_keys get written and the
-  GHA-side flow isn't reachable from vagrant. To exercise the script
-  logic, ssh into the VM and invoke
-  `/srv/valhalla/scripts/deploy-*.sh` manually.
+- **Manual deploy script invocation**: the orchestrator drives
+  `deploy-valhalla.sh` + `deploy-web.sh` + `apply-graph.sh` from each
+  iteration. To exercise just the script logic without waiting for an
+  iteration, ssh into the service VM and run them manually as
+  `valhalla-deploy`.
 - **Elevation**: `valhalla_build_elevation --from-tiles` is bounded by
   graph extent, so on Liechtenstein only a handful of SRTM tiles are
   fetched.
 - **Single-VM standalone testing**: if you need to test only the
   service-side or only the builder-side without spinning both VMs, the
-  cross-host SSH-key tasks (`slurp` + `delegate_to`) will fail because
-  the peer host isn't reachable. `--skip-tags` won't help here — those
-  tasks aren't tagged. Either spin both VMs, or temporarily comment out
-  the `apply_graph.yml` slurp on the service play / `deploy_builder.yml`
-  slurp on the builder play.
+  cross-host SSH-key task (`slurp` + `delegate_to` in `deploy.yml`)
+  will fail because the peer host isn't reachable. `--skip-tags`
+  won't help here. Either spin both VMs, or temporarily comment out
+  the `deploy.yml` slurp on the service play.
 - **`community.postgresql` collection**: `ansible-playbook
   --syntax-check site.yml` fails on the unrelated postgresql role until
   `ansible-galaxy install -r requirements.yml -f` has been run.
@@ -427,15 +470,72 @@ curl -k 'https://192.168.123.10/route' \
 The legacy single-VM workflow (`./init_vagrant_inventory.sh trixie` +
 `make vagrant`) still works for testing other roles — see [../README](../README).
 
+## Migrating an existing prod host onto the orchestrator role
+
+Fresh hosts and vagrant boxes don't need any of this — `bootstrap.yml` +
+`make valhalla` handle everything. The role isn't running anywhere in
+production yet, so this section is forward-looking; treat the commands as
+a sketch to refine when we actually deploy. The shape: existing prod
+under the older role (GHA-deploy keys, root-installed valhalla under
+`/usr/local`, `valhalla` user owning the build tree, `valhalla-graph`
+account) needs ownership flips + retired-account cleanup **before**
+re-running `make valhalla`, otherwise the role's git tasks abort with
+`fatal: detected dubious ownership in repository`.
+
+Both hosts (build tree now belongs to `valhalla-deploy` everywhere):
+
+```sh
+sudo chown -R valhalla-deploy:valhalla \
+    /src/valhalla /src/prime_server \
+    /srv/valhalla/{local,data,scripts}
+sudo rm -f /usr/local/bin/valhalla_* /usr/local/lib/libvalhalla*
+sudo ldconfig
+```
+
+v1-specific:
+
+```sh
+sudo chown -R valhalla-deploy:valhalla \
+    /srv/valhalla/web-app /var/www/valhalla
+sudo userdel -r valhalla-graph              # retired (GHA-deploy era)
+sudo rm -f /etc/sudoers.d/valhalla-graph
+```
+
+v2-specific:
+
+```sh
+# The orchestrator SSH key moves from valhalla's $HOME to valhalla-deploy's.
+# Ansible will regenerate it under the new path on next run; remove the old:
+sudo rm -rf /srv/valhalla/.ssh
+sudo rm -f /etc/sudoers.d/valhalla-build-tiles   # no longer needed
+# The build-tiles unit needs to re-exec under the new User=valhalla-deploy.
+# A `systemctl daemon-reload` happens automatically, but a restart is needed
+# for the unit to actually run as the new identity — see the gotcha below
+# about not auto-restarting mid-iteration.
+```
+
+After those, `make valhalla` runs idempotently from both hosts and
+converges to the new layout. `sudo systemctl restart valhalla-build-tiles`
+on v2 when you actually want the new identity / new orchestrator behavior
+to kick in.
+
+bootstrap.yml is entirely separate from any of this. It only manages
+admin user accounts (via `roles/common/tasks/accounts.yml`) plus apt
+upgrades — orthogonal to the valhalla role's system accounts.
+
 ## Known gotchas / non-obvious decisions
 
-- **Both blue and green run continuously.** Each capped at half host vCPUs via systemd `CPUQuota`. apply-graph stops/swaps/starts each in turn. This is in lieu of a "currently active port" state file.
+- **Both blue and green run continuously, no CPU cap.** Each instance's `valhalla_service` is told its worker-thread count = full host vcpus, and the systemd unit sets no `CPUQuota`. When both are busy the kernel scheduler fair-shares CPU between them (~50% each); during an apply-graph rolling stop/start the surviving instance can burst to the whole host, absorbing the doubled load without queueing. This is in lieu of a "currently active port" state file. Memory cost of the extra worker threads vs. half-vcpus is small (~1-2 MB stack per thread, doubles the per-instance thread budget).
 - **`drain_seconds=28`** in valhalla.json means `systemctl stop` blocks ~29s. The script doesn't need extra wait logic.
-- **`set -euo pipefail`** in build-tiles-loop.sh — pathological failures abort. systemd restarts. Sentinel mtime is the monitoring signal; brief restart cycling is the secondary signal (StartLimitBurst).
-- **Tarball is built in two steps**: `valhalla_build_extract` writes the uncompressed tar to `mjolnir.tile_extract` (`valhalla__extract_path`, pinned via `--mjolnir-tile-extract` in [builder.yml](../roles/valhalla/tasks/builder.yml) — without the explicit pin valhalla defaults to `/data/...` which the `valhalla` user can't write to, and `valhalla_build_extract` fails with `PermissionError`), then a separate `zstd -T0 -3 -f` produces `tiles.tar.zst` via the `.partial` + atomic-mv pattern. `-T0 -3` is fast compression, not max — tile data is binary and already compressible, so `-19` isn't worth the CPU.
-- **rrsync as `/usr/bin/rrsync`** — Debian 13 ships it in the rsync package at that path. If a vagrant test box has a different path (older Debian had it gzipped under `/usr/share/doc/`), graph push will fail at the rrsync step.
-- **cmake flag duplication**: deploy-service.sh / deploy-builder-runner.sh hardcode the same `-DENABLE_*=...` flags as service.yml / builder.yml. Drift risk if you tune in one place. Refactoring into a defaults list is a good follow-up but not done.
-- **No ufw rule restricting valhalla2's SSH to valhalla1's IP.** Admins can still SSH valhalla2 directly. The intended-but-not-implemented bastion model would route admin SSH through valhalla1 via `ProxyJump`. Without a static admin source IP (or a VPN), full lockdown isn't practical.
+- **`set -euo pipefail`** in build-tiles-iteration.sh — any pathological failure aborts the iteration; the wrapper's `set -e` propagates it; systemd sees the failure and restarts. Sentinel mtime is the monitoring signal; brief restart cycling is the secondary signal (StartLimitBurst).
+- **Tarball is built in two steps**: `valhalla_build_extract` writes the uncompressed tar to `mjolnir.tile_extract` (`valhalla__extract_path`, pinned via `--mjolnir-tile-extract` in [builder.yml](../roles/valhalla/tasks/builder.yml) — without the explicit pin valhalla defaults to `/data/...` which `valhalla-deploy` can't write to, and `valhalla_build_extract` fails with `PermissionError`), then a separate `zstd -T0 -3 -f` produces `tiles.tar.zst` via the `.partial` + atomic-mv pattern. `-T0 -3` is fast compression, not max — tile data is binary and already compressible, so `-19` isn't worth the CPU.
+- **`git:` tasks are `update: no` deliberately.** Both [service.yml](../roles/valhalla/tasks/service.yml) and [builder.yml](../roles/valhalla/tasks/builder.yml)'s git checkouts of valhalla (and service.yml's prime_server) use `update: no` with NO `force`. Ansible's git module with `force: yes` doesn't clean `.git/modules/<submodule>/` directories, so a partial submodule-fetch failure on one run leaves the repo wedged for all subsequent runs (`fatal: upload-pack: not our ref …`). With `update: no` the git task only fires on a fresh host, and all subsequent in-repo updates flow through `deploy-valhalla.sh`'s `git fetch + pull + submodule update`. Wedge recovery is `sudo rm -rf {{ valhalla__srcdir }}` then re-run ansible — operator-facing docs in [doc/valhalla.md "Submodule fetch fails"](../doc/valhalla.md#submodule-fetch-fails-upload-pack-not-our-ref-).
+- **deploy-valhalla.sh is the sole source of truth for valhalla cmake/build/install.** No duplication: both ansible's initial-deploy tasks ([service.yml](../roles/valhalla/tasks/service.yml) + [builder.yml](../roles/valhalla/tasks/builder.yml)) and the build-tiles iteration on v2 invoke the script with the appropriate `builder`/`service` profile arg. The script SHA-gates internally via `{{ valhalla__prefix }}/.valhalla_installed_sha` (the SHA the installed binary was built from): on every invocation, compare `git rev-parse HEAD` against the marker, rebuild on mismatch, no-op exit otherwise. Handles fresh deploys, branch advances, tag/SHA-pin changes, and ansible-driven branch swaps uniformly.
+- **Build-tiles uses a wrapper + iteration split so iteration edits deploy automatically.** Two scripts on v2: `build-tiles-loop.sh` is a 4-line wrapper (`while true; do build-tiles-iteration.sh; done`) that the systemd unit ExecStarts — long-lived bash process. `build-tiles-iteration.sh` does all the actual work (git, builds, tile build, rsync, apply-graph trigger, sentinel touch) and is spawned fresh each iteration, so bash re-reads it from disk every time. Net effect: edits to `build-tiles-iteration.sh` take effect on the NEXT iteration with no operator action. Edits to the (tiny, stable) `build-tiles-loop.sh` wrapper or to the systemd unit still need `sudo systemctl restart valhalla-build-tiles`, but those edits are rare. The template task deliberately doesn't notify a handler because a real-planet iteration runs for many hours and auto-restarting would throw that progress away.
+- **MVT cache grows unbounded.** `valhalla_service`'s `/tile` action writes rendered vector tiles to `/srv/valhalla/mvt-cache-{port}/`, and the config sets no upper bound — under sustained tile traffic these dirs can hit many GB. Safe to wipe in place (cache is rebuildable on demand). Troubleshooting + cleanup commands in [doc/valhalla.md "Disk filling up on valhalla1"](../doc/valhalla.md#disk-filling-up-on-valhalla1-mvt-cache). Capping it via a valhalla-side flag (if one exists in the installed version) or a periodic systemd timer is a worthwhile follow-up.
+- **No ufw rule restricting valhalla2's SSH to valhalla1's IP.** Admins can SSH valhalla2 directly using their normal `bootstrap.yml`-deployed keys. The intended-but-not-implemented bastion model would route admin SSH through valhalla1 via `ProxyJump`. Without a static admin source IP (or a VPN), full lockdown isn't practical — and the build-loop orchestrator is the one channel that's strictly cross-host, so it's the only thing the role's SSH wiring needs to guarantee.
+- **Build-loop orchestrates rebuilds.** Step 0a/0b/0c of each iteration runs git-fetch + SHA-gated rebuild for valhalla on v2, valhalla on v1, and the web-app on v1. Branches (per `valhalla__git_version`) get `pull`ed; tags/SHAs stay frozen at whatever ansible originally checked out. Web-app always tracks master. Skipping rebuilds when HEAD hasn't moved keeps no-op iterations cheap.
+- **valhalla installs to a user-writable prefix, and build identity is split from runtime identity on both hosts.** `cmake -DCMAKE_INSTALL_PREFIX={{ valhalla__prefix }}` everywhere, so `make install` runs as `valhalla-deploy` with no `sudo` and no `ldconfig` (the libs aren't in the system loader path). The runtime `valhalla` user has zero sudoers anywhere and only READ access to the prefix — a `valhalla_service` RCE on v1 can't replace its own binary, and the v2 build-tiles unit has no internet-facing surface to compromise in the first place. The role uses the same identity (`valhalla-deploy`) on both hosts for symmetry — same script, same user, same dirs. Migration steps for hosts coming from the older shape live in "Migrating an existing prod host" above.
 
 ## Munin plugins (sub-task 10)
 
@@ -512,7 +612,7 @@ the first path segment, status is a small HTTP enum.
 **Bash-emitted pipeline timings.** The C++ side covers everything inside
 `valhalla_build_tiles` itself, but tar / compress / upload / reload happen
 *between* valhalla invocations and are owned by
-[build-tiles-loop.sh.j2](../roles/valhalla/templates/build-tiles-loop.sh.j2).
+[build-tiles-iteration.sh.j2](../roles/valhalla/templates/build-tiles-iteration.sh.j2).
 That script defines an `emit_metric()` helper using `nc -u -w1 localhost 8125`
 and emits gauges with the `valhalla.mjolnir.timing.<phase>` prefix to match
 what the C++ code uses. UDP send to nothing is silent: when monitoring is off
@@ -534,11 +634,11 @@ These match the names in routing.earth's `valhalla-build.json` dashboard
 
 **Handler resolution.** The valhalla role used to rely on the nginx + munin
 roles' handlers (`notify: reload nginx`, `notify: restart munin-node`).
-Adding `restart statsd-exporter`, `restart mtail`, and `restart valhalla-build-tiles`
-required a real
+Adding `restart statsd-exporter` and `restart mtail` required a real
 [roles/valhalla/handlers/main.yml](../roles/valhalla/handlers/main.yml).
 The existing cross-role notifies still resolve fine — Ansible's handler
-lookup is play-wide, not role-local.
+lookup is play-wide, not role-local. The build-tiles unit deliberately
+has no handler; see the gotcha above.
 
 **Coexistence with Munin.** Both run side-by-side intentionally. The
 overlap (count / consumers / latency / tile_size in Munin ↔ mtail +
@@ -564,17 +664,16 @@ Checks to add:
 ```sh
 ls roles/valhalla/{tasks,templates,defaults,meta,handlers}
 # tasks: main.yml common.yml builder.yml service.yml web.yml frontend.yml
-#        tiles_loop.yml apply_graph.yml deploy_service.yml deploy_builder.yml
-# templates: build-tiles-loop.sh.j2 apply-graph.sh.j2 graph-receiver.sh.j2
-#            valhalla-graph.sudoers.j2 deploy-service.sh.j2 deploy-builder.sh.j2
-#            deploy-builder-runner.sh.j2 valhalla-deploy-{service,builder}.sudoers.j2
-#            deploy-web.sh.j2 nginx-valhalla.conf.j2 nginx-api.conf.j2 nginx-web.conf.j2
+#        tiles_loop.yml deploy.yml munin.yml prometheus.yml
+# templates: build-tiles-loop.sh.j2 build-tiles-iteration.sh.j2 apply-graph.sh.j2
+#            deploy-valhalla.sh.j2 deploy-web.sh.j2 valhalla-deploy.sudoers.j2
+#            nginx-valhalla.conf.j2 nginx-api.conf.j2 nginx-web.conf.j2
 #            statsd-exporter.service.j2 valhalla-nginx.mtail.j2
 #            munin_{count,consumers,tile_size}.sh.j2 munin_latency.py.j2
 # files: statsd-mapping.yml mtail-override.conf
 # defaults: main.yml
 # meta: main.yml
-# handlers: main.yml (restart statsd-exporter / mtail / valhalla-build-tiles)
+# handlers: main.yml (restart statsd-exporter / mtail)
 
 git status
 # should show roles/valhalla/ as the bulk of new content,

@@ -15,17 +15,9 @@
   include_tasks: "service.yml"
   when: "inventory_hostname in groups['valhalla_service']"
 
-- name: "Service host apply-graph receiver"
-  include_tasks: "apply_graph.yml"
+- name: "Service host deploy account (orchestrator target)"
+  include_tasks: "deploy.yml"
   when: "inventory_hostname in groups['valhalla_service']"
-
-- name: "Service host deploy account + scripts"
-  include_tasks: "deploy_service.yml"
-  when: "inventory_hostname in groups['valhalla_service']"
-
-- name: "Builder host deploy account + scripts"
-  include_tasks: "deploy_builder.yml"
-  when: "inventory_hostname in groups['valhalla_builder']"
 
 - name: "Web app (service host)"
   include_tasks: "web.yml"

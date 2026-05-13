@@ -38,62 +38,25 @@
       - zstd
     state: present
 
-- name: Checkout valhalla source
+- name: Checkout valhalla source (fresh-host seed only)
   git:
     repo: "{{ valhalla__git_repo }}"
     dest: "{{ valhalla__srcdir }}"
     version: "{{ valhalla__git_version }}"
-    # Shallow + single-branch when version is a branch/tag (not a 40-char
-    # SHA). Saves a few hundred MB and several minutes on first checkout.
-    # SHA pins fall back to a full clone since shallow can't resolve
-    # arbitrary commits.
     depth: "{{ 1 if valhalla__git_version | length != 40 else omit }}"
     single_branch: "{{ valhalla__git_version | length != 40 }}"
     recursive: yes
-    force: yes
-  register: valhalla_src
+    # See service.yml for the rationale behind `update: no` + no `force`:
+    # avoid wedging submodule state under `.git/modules/` across re-runs.
+    # deploy-valhalla.sh handles all subsequent in-repo updates.
+    update: no
   become: yes
-  become_user: "{{ valhalla__user }}"
+  become_user: "{{ valhalla__build_user }}"
 
-- name: Clear stale build dir on source change
-  file:
-    path: "{{ valhalla__srcdir }}/build"
-    state: absent
-  when: valhalla_src.changed
-
-- name: Configure valhalla (builder profile)
-  command:
-    cmd: >
-      cmake -S {{ valhalla__srcdir }} -B {{ valhalla__srcdir }}/build
-      -DCMAKE_BUILD_TYPE=Release
-      -DCMAKE_C_COMPILER_LAUNCHER=ccache
-      -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-      -DENABLE_TOOLS=OFF
-      -DENABLE_SERVICES=OFF
-      -DENABLE_HTTP=OFF
-      -DENABLE_PYTHON_BINDINGS=OFF
-      -DENABLE_TESTS=OFF
-      -DENABLE_SINGLE_FILES_WERROR=OFF
-      -DENABLE_GEOTIFF=OFF
-      -DVALHALLA_VERSION_MODIFIER={{ valhalla_src.after[:7] }}
-    creates: "{{ valhalla__srcdir }}/build/CMakeCache.txt"
+- name: Build + install valhalla
+  command: "{{ valhalla__basedir }}/scripts/deploy-valhalla.sh builder"
   become: yes
-  become_user: "{{ valhalla__user }}"
-
-- name: Build valhalla
-  command:
-    cmd: "make -j {{ ansible_facts.processor_vcpus }}"
-    chdir: "{{ valhalla__srcdir }}/build"
-    creates: "{{ valhalla__srcdir }}/build/valhalla_build_tiles"
-  register: valhalla_build_step
-  become: yes
-  become_user: "{{ valhalla__user }}"
-
-- name: Install valhalla
-  command:
-    cmd: "make install"
-    chdir: "{{ valhalla__srcdir }}/build"
-  when: valhalla_build_step is changed
+  become_user: "{{ valhalla__build_user }}"
 
 # Data prep.
 
@@ -101,7 +64,7 @@
   file:
     path: "{{ valhalla__data_dir }}"
     state: directory
-    owner: "{{ valhalla__user }}"
+    owner: "{{ valhalla__build_user }}"
     group: "{{ valhalla__user }}"
     mode: "0755"
 
@@ -109,14 +72,14 @@
   get_url:
     url: "{{ valhalla__default_speeds_url }}"
     dest: "{{ valhalla__default_speeds_path }}"
-    owner: "{{ valhalla__user }}"
+    owner: "{{ valhalla__build_user }}"
     group: "{{ valhalla__user }}"
     mode: "0644"
 
 - name: Generate valhalla.json (builder)
   shell:
     cmd: >
-      valhalla_build_config
+      {{ valhalla__prefix }}/bin/valhalla_build_config
       --mjolnir-tile-dir {{ valhalla__tiles_dir }}
       --mjolnir-tile-extract {{ valhalla__extract_path }}
       --mjolnir-timezone {{ valhalla__timezones_path }}
@@ -131,15 +94,14 @@
       --statsd-port 8125
       > {{ valhalla__config_path }}
     creates: "{{ valhalla__config_path }}"
+  environment:
+    LD_LIBRARY_PATH: "{{ valhalla__prefix }}/lib"
   become: yes
-  become_user: "{{ valhalla__user }}"
+  become_user: "{{ valhalla__build_user }}"
 
-- name: Download planet.pbf (resumable, only if not already present)
-  shell:
-    cmd: |
-      tmp="{{ valhalla__planet_path }}.partial"
-      wget --continue --output-document "$tmp" "{{ valhalla__planet_url }}"
-      mv "$tmp" "{{ valhalla__planet_path }}"
-    creates: "{{ valhalla__planet_path }}"
-  become: yes
-  become_user: "{{ valhalla__user }}"
+# NB: planet.pbf is downloaded by the build-tiles iteration script on
+# first run (~20 min for the full planet), NOT by ansible — having
+# ansible block on the download would make `make valhalla` painfully
+# slow on a fresh deploy for no good reason. The iteration script
+# uses the same wget --continue + .partial + atomic-mv pattern, so
+# the download is resumable across systemd restarts.

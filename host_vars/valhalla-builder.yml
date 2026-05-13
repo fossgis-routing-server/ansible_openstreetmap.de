@@ -2,12 +2,6 @@
 # Vagrant test VM for the valhalla builder role. Pairs with valhalla-service
 # on a shared libvirt private_network (see Vagrantfile).
 
-# This is the IP the service host sees us coming from on the deploy-trigger
-# SSH. Currently informational on the builder side (the from= restriction
-# the builder enforces is on its OWN authorized_keys, keyed off the service
-# host's valhalla__public_ipv4), but kept symmetric for clarity.
-valhalla__public_ipv4: 192.168.123.11
-
 # SSH target for graph push and apply-graph trigger. The builder VM has
 # no DNS for the production hostnames, so override to the service VM's
 # private_network IP. Note: this only changes graph_push_target, NOT

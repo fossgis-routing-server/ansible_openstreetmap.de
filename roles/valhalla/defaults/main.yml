@@ -10,8 +10,30 @@
 #
 # When adding a new variable, prefer the narrowest scope that works.
 
-# Service user that owns /src/valhalla and /srv/valhalla on both hosts.
+# Service-runtime identity. ONLY runs the network-facing services:
+# valhalla-{port} (valhalla_service) on v1. On v2 it has no running
+# service — present only as the owner of /srv/valhalla itself (the
+# sgid bucket) for symmetric account topology across hosts.
 valhalla__user: valhalla
+
+# Deploy/build/data identity. Owns and writes:
+#   - /src/valhalla, /src/prime_server, /srv/valhalla/local
+#   - /srv/valhalla/data (on v2), /srv/valhalla/scripts
+#   - /srv/valhalla/web-app, /var/www/valhalla (on v1)
+#   - /srv/valhalla-deploy ($HOME — orchestrator SSH key on v2, tarball drop on v1)
+# Runs the build-tiles loop on v2 (User=valhalla-deploy in systemd) and
+# receives the orchestrator SSH login on v1. Separates the long-lived
+# internet-facing valhalla_service identity from anything that touches
+# disk during a build/deploy, so a service-side RCE can't self-overwrite
+# its own binary.
+valhalla__deploy_user: valhalla-deploy
+valhalla__deploy_user_home: /srv/valhalla-deploy
+
+# Semantic alias for tasks that do build work — they use `become_user:
+# valhalla__build_user`. Defaults to the deploy user on both hosts;
+# build/install is a deploy-time concern, so the deploy identity is
+# the natural owner of the build tree.
+valhalla__build_user: "{{ valhalla__deploy_user }}"
 
 # Source checkout (overridable to a specific sha for reproducibility).
 valhalla__git_repo: https://github.com/valhalla/valhalla.git
@@ -21,33 +43,15 @@ valhalla__git_version: master
 valhalla__srcdir: /src/valhalla
 valhalla__basedir: /srv/valhalla
 
+# Install prefix for the rebuilt valhalla binaries + libs (also for
+# prime_server on v1). Owned by valhalla-deploy so `make install`
+# needs no sudo. systemd units + the build-tiles loop find the binaries
+# via PATH + LD_LIBRARY_PATH wired off this var.
+valhalla__prefix: "{{ valhalla__basedir }}/local"
+
 # Monitoring threshold for both the build and apply sentinels.
 # munin/icinga/prometheus alert when either is older than this.
 valhalla__sentinel_max_age_hours: 16
-
-# System user on the service host that receives graph pushes from the
-# builder. The username is defined here (not under valhalla_service)
-# because the builder's build-tiles-loop script needs to know who to
-# SSH as. The home dir is only meaningful on the service host (where
-# the account exists), but kept alongside for symmetry.
-valhalla__graph_user: valhalla-graph
-valhalla__graph_user_home: /srv/valhalla-graph
-
-# GHA-driven deploy account. Created on both hosts: valhalla1 holds the
-# 3 GHA-trigger forced-command keys; valhalla2 holds the from=-restricted
-# rebuild-trigger key (and the private half of the SSH-jump key lives
-# under valhalla1's copy of this home dir).
-valhalla__deploy_user: valhalla-deploy
-valhalla__deploy_user_home: /srv/valhalla-deploy
-
-# IP this host shows up as from the perspective of the peer (used as
-# the `from=` restriction in the cross-host authorized_keys). Defaults
-# to the default-route IPv4 from gathered facts, which is what the
-# peer will see in the public/normal-network case. Override per-host
-# only when the peer-facing IP differs from default_ipv4 — e.g.
-# vagrant uses a private_network for VM↔VM traffic that is NOT the
-# default route.
-valhalla__public_ipv4: "{{ ansible_default_ipv4.address }}"
 
 valhalla__monitoring_in_use: false
 
