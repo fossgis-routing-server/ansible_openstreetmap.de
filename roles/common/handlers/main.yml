@@ -13,3 +13,8 @@
   systemd:
     name: systemd-journald
     state: restarted
+
+- name: update initramfs
+  become: yes
+  shell:
+    cmd: "/usr/sbin/update-initramfs -u"

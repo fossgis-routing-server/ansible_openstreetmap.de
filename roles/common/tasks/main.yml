@@ -24,5 +24,17 @@
 - import_role:
     name: 'roles/mail'
   vars:
-  when: mail | default(False)
+  when: mail | default({}) | length > 0
   tags: mail
+
+- name: Workaround against Copy-Fail
+  template:
+    src: disable-algif.conf.jinja
+    dest: "/etc/modprobe.d/disable-algif.conf"
+  notify: update initramfs
+
+- name: Workaround against Dirty-Frag
+  template:
+    src: disable-dirtyfrag.conf.jinja
+    dest: "/etc/modprobe.d/disable-dirtyfrag.conf"
+  notify: update initramfs

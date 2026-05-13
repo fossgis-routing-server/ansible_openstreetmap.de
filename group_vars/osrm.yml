@@ -195,7 +195,7 @@ osrm__acme_certificates:
     domains:
       - "{{ munin__hostname | regex_replace(':.*', '') }}"
     on_update:
-      - systemctl reload apache2
+      - systemctl reload nginx
 
 icinga2customcheck__addon:
  - check_connections

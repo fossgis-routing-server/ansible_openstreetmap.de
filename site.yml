@@ -63,12 +63,17 @@
   tasks:
     - include_role:
         name: letsencrypt
-      tags: [letsencrypt,certificates]
+      tags: [letsencrypt, certificates]
 - hosts: wordpress
   become: yes
   tags: wordpress
   roles:
-    - role: 'wordpress'
+    - role: "wordpress"
+- hosts: weeklyosm
+  become: yes
+  tags: weeklyosm
+  roles:
+    - role: "weeklyosm"
 - hosts: osrm
   become: yes
   tags: osrm

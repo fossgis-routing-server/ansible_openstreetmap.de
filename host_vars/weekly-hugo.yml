@@ -1,0 +1,15 @@
+---
+mail:
+  opendkim: true
+  mailname: weeklyosm.eu
+  ssl_name: weeklyosm
+  domains:
+    - weekly-hugo.openstreetmap.de
+  aliases:
+    # Keys of this dictionary: keys of the alias mapping
+    # Values of this dictionary: either a string (value of the mapping) or a list of strings (multiple alias recipients)
+    root@aitov.openstreetmap.de: osm-server-ag-admins@fossgis.de
+    root@weeklyosm.eu: osm-server-ag-admins@fossgis.de
+    postmaster: osm-server-ag-admins@fossgis.de
+    root: osm-server-ag-admins@fossgis.de
+  relay: true
