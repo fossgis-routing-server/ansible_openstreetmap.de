@@ -43,7 +43,9 @@ valhalla__tarball_path: "{{ valhalla__data_dir }}/tiles.tar.zst"
 valhalla__build_loop_sleep_seconds: 0
 
 # Sentinel file touched at the end of each successful iteration;
-# mtime is the monitoring signal.
+# mtime is the monitoring signal. The file_age threshold
+# (valhalla__sentinel_max_age_hours) lives in group_vars/valhalla.yml
+# so monitoring.yml can resolve it without loading the role.
 valhalla__sentinel_path: "{{ valhalla__basedir }}/last_iteration_complete"
 
 # ACME cert declarations: the builder doesn't serve a public API, but

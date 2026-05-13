@@ -1,0 +1,35 @@
+{% for cert in (valhalla__api_hostname, valhalla__web_hostname) %}
+    vars.sslcert["SSLCert {{ cert }}"] = {
+        vars.http_certificate = "20,10"
+        vars.http_vhost = "{{ cert }}"
+        groups = [ "certificates" ]
+    }
+
+{% endfor %}
+
+    vars.http["HTTPS {{ valhalla__api_hostname }}/status"] = {
+        vars.http_vhost = "{{ valhalla__api_hostname }}"
+        vars.http_expect = "HTTP/1.1 200 OK"
+        vars.http_ssl = true
+        vars.http_uri = "/status"
+
+        service.max_check_attempts = 10
+        service.retry_interval = 20s
+    }
+
+    vars.http["HTTPS {{ valhalla__web_hostname }}"] = {
+        vars.http_vhost = "{{ valhalla__web_hostname }}"
+        vars.http_expect = "HTTP/1.1 200 OK"
+        vars.http_ssl = true
+        vars.http_uri = "/"
+
+        service.max_check_attempts = 10
+        service.retry_interval = 20s
+    }
+
+{% for port in valhalla__service_ports %}
+    vars.service["service valhalla-{{ port }}"] = {
+        vars.systemd_service = "valhalla-{{ port }}"
+    }
+
+{% endfor %}

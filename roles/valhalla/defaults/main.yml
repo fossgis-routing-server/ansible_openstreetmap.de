@@ -39,19 +39,16 @@ valhalla__build_user: "{{ valhalla__deploy_user }}"
 valhalla__git_repo: https://github.com/valhalla/valhalla.git
 valhalla__git_version: master
 
-# Shared filesystem layout.
+# Shared filesystem layout. valhalla__basedir lives in
+# group_vars/valhalla.yml so monitoring.yml (which doesn't include this
+# role) can also see it via its parent valhalla:children group.
 valhalla__srcdir: /src/valhalla
-valhalla__basedir: /srv/valhalla
 
 # Install prefix for the rebuilt valhalla binaries + libs (also for
 # prime_server on v1). Owned by valhalla-deploy so `make install`
 # needs no sudo. systemd units + the build-tiles loop find the binaries
 # via PATH + LD_LIBRARY_PATH wired off this var.
 valhalla__prefix: "{{ valhalla__basedir }}/local"
-
-# Monitoring threshold for both the build and apply sentinels.
-# munin/icinga/prometheus alert when either is older than this.
-valhalla__sentinel_max_age_hours: 16
 
 valhalla__monitoring_in_use: false
 

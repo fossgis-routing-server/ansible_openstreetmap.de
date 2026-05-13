@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: MIT
+# Vars shared by both valhalla_service and valhalla_builder hosts via
+# the [valhalla:children] parent group in hosts.ini.
+#
+# This file exists so monitoring.yml — which runs against icinga2agent
+# without including the valhalla role — can still resolve these vars.
+# Role defaults aren't loaded outside the role's play, but group_vars
+# are loaded for any group a host belongs to.
+
+# Shared filesystem root. Referenced by sentinel paths in each group's
+# vars file and by the icinga2 file_age checks in
+# templates/icinga2/groups/valhalla_*-services.conf.j2.
+valhalla__basedir: /srv/valhalla
+
+# File-age threshold (hours) for both the build and apply sentinels.
+# Icinga2 file_age checks in templates/icinga2/groups/valhalla_*-services.conf.j2
+# alert critical above this and warn at 75% of it.
+valhalla__sentinel_max_age_hours: 16

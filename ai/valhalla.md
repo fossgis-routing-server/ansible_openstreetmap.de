@@ -19,7 +19,7 @@ built.
 | 8. Frontend nginx (API site, web app site, rate limits, X-Client-Id map) | done |
 | 9. Deploy scripts driven by the build-tiles loop on v2 | done |
 | 10. Munin plugins (count, latency, consumers, tile_size) | done |
-| 11. icinga2agent registration | **pending** |
+| 11. icinga2agent registration | done |
 | Vagrant testing | scaffolded (two-VM setup landed, end-to-end run still pending) |
 
 ## Architecture overview
@@ -96,6 +96,12 @@ valhalla1
 [valhalla_builder]
 valhalla2
 
+# Parent group for vars both halves share — and that monitoring.yml
+# can resolve without loading the role. See group_vars/valhalla.yml.
+[valhalla:children]
+valhalla_service
+valhalla_builder
+
 [icinga2agent]
 ... + valhalla1 + valhalla2
 ```
@@ -122,21 +128,28 @@ Partial-target runs *do* work for SSH key tasks now (we use `delegate_to` + `slu
 
 ## Variable layout
 
-Variables are split across three levels so that each var lives at the
+Variables are split across four levels so that each var lives at the
 narrowest scope where it's actually used:
 
+`group_vars/valhalla.yml` (parent group `[valhalla:children]`, loaded
+for both halves AND for monitoring.yml plays that target icinga2agent
+without including the role):
+
+```yaml
+valhalla__basedir: /srv/valhalla
+valhalla__sentinel_max_age_hours: 16     # icinga file_age threshold (both sentinels)
+```
+
 `roles/valhalla/defaults/main.yml` — shared across both groups (or
-referenced cross-host via `hostvars[...]`):
+referenced cross-host via `hostvars[...]`), only needed where the role
+itself runs:
 
 ```yaml
 valhalla__user: valhalla
-valhalla__basedir: /srv/valhalla
 valhalla__srcdir: /src/valhalla
 
 valhalla__git_repo: https://github.com/valhalla/valhalla.git
 valhalla__git_version: master            # override per-host or via -e
-
-valhalla__sentinel_max_age_hours: 16     # monitoring threshold (both sentinels)
 
 valhalla__prefix: "{{ valhalla__basedir }}/local"   # user-writable install tree (no /usr/local, no sudo)
 
@@ -646,18 +659,46 @@ statsd_exporter in Prometheus) is deliberate during the transition. Munin
 removal is a separate follow-up once Prometheus dashboards are confirmed
 stable in production.
 
-## Pending: sub-task 12 — icinga2agent
+## Icinga2 monitoring (sub-task 11)
 
-Files / patterns to follow: the existing icinga2agent group in `hosts.ini`
-plus whatever the icinga2agent role exposes.
+valhalla1 + valhalla2 are in the `[icinga2agent]` group, picked up by
+[../monitoring.yml](../monitoring.yml) which applies the
+`fossgis.icinga2_*` roles. Per-host config flows through the existing
+[../templates/icinga2/base.conf.j2](../templates/icinga2/base.conf.j2),
+which iterates `group_names` and includes any matching
+`icinga2/groups/<group>.conf.j2` (host-internal: `vars.service`,
+`vars.http`, `vars.sslcert`) and `<group>-services.conf.j2` (standalone
+`object Service` for custom check_commands). All four files we own:
 
-Checks to add:
-- `check_systemd valhalla-{8000,8001}` on valhalla1.
-- `check_systemd valhalla-build-tiles` on valhalla2.
-- `check_file_age` against build sentinel (`/srv/valhalla/last_iteration_complete` on valhalla2) with `valhalla__sentinel_max_age_hours = 16`.
-- `check_file_age` against apply sentinel (`/srv/valhalla/last_apply_complete` on valhalla1) with the same threshold.
-- `check_http https://valhalla1.openstreetmap.de/status` (external).
-- `check_http https://valhalla.openstreetmap.de/` (external — web app).
+| file | rendered into | checks |
+|---|---|---|
+| [../templates/icinga2/groups/valhalla_service.conf.j2](../templates/icinga2/groups/valhalla_service.conf.j2) | inside `Host "valhalla1..."` | `vars.sslcert` for `valhalla__api_hostname` + `valhalla__web_hostname`; `vars.http` for `/status` and `/`; `vars.service` for each port in `valhalla__service_ports` (systemd) |
+| [../templates/icinga2/groups/valhalla_service-services.conf.j2](../templates/icinga2/groups/valhalla_service-services.conf.j2) | outside (standalone) | `check_command = "file_age"` against `valhalla__apply_sentinel_path` |
+| [../templates/icinga2/groups/valhalla_builder.conf.j2](../templates/icinga2/groups/valhalla_builder.conf.j2) | inside `Host "valhalla2..."` | `vars.service` for `valhalla-build-tiles` (systemd) |
+| [../templates/icinga2/groups/valhalla_builder-services.conf.j2](../templates/icinga2/groups/valhalla_builder-services.conf.j2) | outside (standalone) | `check_command = "file_age"` against `valhalla__sentinel_path` |
+
+**file_age thresholds.** Critical = `valhalla__sentinel_max_age_hours * 3600`
+seconds. Warning = 75% of that. Both pulled from
+[../group_vars/valhalla.yml](../group_vars/valhalla.yml) (= 16h critical,
+12h warning at the current value). Built-in icinga2 ITL `file_age` check
+command — no plugin install needed.
+
+**Why the parent `[valhalla:children]` group.** `monitoring.yml` does not
+include the valhalla role, so role defaults aren't loaded for its plays.
+The icinga templates need `valhalla__basedir` (transitively via
+`valhalla__apply_sentinel_path` / `valhalla__sentinel_path`) and
+`valhalla__sentinel_max_age_hours` — both live in
+`group_vars/valhalla.yml` exactly so the icinga2 templates can resolve
+them. Adding more shared knobs follows the same pattern.
+
+**No HTTP rate-limit / latency probes.** The existing `vars.http`
+behavior only asserts response code; latency SLOs live in Prometheus
+(see sub-task 11 prometheus section above). Icinga is for liveness
+binary-state, Prometheus is for histograms.
+
+Deploy with `make monitor` (re-runs `ansible-galaxy install -r requirements.yml -f`
+to refresh the icinga2 collection roles, then runs monitoring.yml against
+`icinga2agent`).
 
 ## Quick "did everything land" check
 
@@ -675,7 +716,17 @@ ls roles/valhalla/{tasks,templates,defaults,meta,handlers}
 # meta: main.yml
 # handlers: main.yml (restart statsd-exporter / mtail)
 
+ls templates/icinga2/groups/valhalla_*
+# valhalla_service.conf.j2  valhalla_service-services.conf.j2
+# valhalla_builder.conf.j2  valhalla_builder-services.conf.j2
+
+ls group_vars/valhalla*
+# valhalla.yml            (parent group, monitoring-visible shared vars)
+# valhalla_service.yml    (valhalla1 specifics)
+# valhalla_builder.yml    (valhalla2 specifics)
+
 git status
 # should show roles/valhalla/ as the bulk of new content,
-# plus host_vars/valhalla{1,2}.yml, hosts.ini, site.yml, Makefile
+# plus host_vars/valhalla{1,2}.yml, hosts.ini, site.yml, Makefile,
+# group_vars/valhalla*.yml, templates/icinga2/groups/valhalla_*
 ```
