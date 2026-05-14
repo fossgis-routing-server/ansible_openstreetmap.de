@@ -11,4 +11,5 @@ valhalla__graph_push_target: 192.168.123.10
 
 valhalla__planet_url: https://download.geofabrik.de/europe/liechtenstein-latest.osm.pbf
 
+# sleep in between graph build iterations, liechtenstein builds in seconds.
 valhalla__build_loop_sleep_seconds: 300

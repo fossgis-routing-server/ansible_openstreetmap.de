@@ -32,4 +32,4 @@
 
 - name: "Prometheus monitoring (node_exporter, statsd_exporter, mtail)"
   include_tasks: "prometheus.yml"
-  when: valhalla__monitoring_in_use | default(False)
+  when: valhalla__ext_prometheus_in_use | default(False)

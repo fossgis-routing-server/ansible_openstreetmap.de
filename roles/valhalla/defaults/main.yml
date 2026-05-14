@@ -50,7 +50,8 @@ valhalla__srcdir: /src/valhalla
 # via PATH + LD_LIBRARY_PATH wired off this var.
 valhalla__prefix: "{{ valhalla__basedir }}/local"
 
-valhalla__monitoring_in_use: false
+
+valhalla__ext_prometheus_in_use: false
 
 # Pinned statsd_exporter release. Debian Trixie doesn't package it, so
 # we install the Go binary from the upstream GitHub release tarball.

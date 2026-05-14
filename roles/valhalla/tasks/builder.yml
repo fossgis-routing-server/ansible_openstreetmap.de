@@ -43,6 +43,7 @@
     repo: "{{ valhalla__git_repo }}"
     dest: "{{ valhalla__srcdir }}"
     version: "{{ valhalla__git_version }}"
+    # Shallow clone for branches/tags, full clone for specific commits
     depth: "{{ 1 if valhalla__git_version | length != 40 else omit }}"
     single_branch: "{{ valhalla__git_version | length != 40 }}"
     recursive: yes
@@ -98,10 +99,3 @@
     LD_LIBRARY_PATH: "{{ valhalla__prefix }}/lib"
   become: yes
   become_user: "{{ valhalla__build_user }}"
-
-# NB: planet.pbf is downloaded by the build-tiles iteration script on
-# first run (~20 min for the full planet), NOT by ansible — having
-# ansible block on the download would make `make valhalla` painfully
-# slow on a fresh deploy for no good reason. The iteration script
-# uses the same wget --continue + .partial + atomic-mv pattern, so
-# the download is resumable across systemd restarts.

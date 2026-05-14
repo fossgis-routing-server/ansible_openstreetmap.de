@@ -11,8 +11,10 @@
 valhalla__api_hostname: valhalla1.openstreetmap.de
 valhalla__web_hostname: valhalla.openstreetmap.de
 
-# Blue/green ports. valhalla_service is started on whichever of these
-# is currently inactive during apply-graph, then swapped in via nginx.
+# Blue/green ports. After a successful build, we restart one after the
+# other to swap the graphs without downtime. The fair kernel scheduler
+# for systemd handles CPU distribution (50%ish each when both online,
+# 100% when the other one is being deployed).
 valhalla__service_ports: [8000, 8001]
 
 # Web app source + deployed location.
@@ -22,7 +24,7 @@ valhalla__webroot: /var/www/valhalla
 # Baked into the build as VITE_CLIENT_ID for monitoring.
 valhalla__webapp_client_id: public-web-app
 
-# Known X-Client-Id header values, classified for log/metrics. Any
+# Known X-Client-Id header values, classified for prometheus. Any
 # other value (or missing header) maps to "unknown". Observability
 # only — no gating.
 valhalla__client_ids:

@@ -56,10 +56,7 @@ from ansible.errors import AnsibleActionFail
 class ActionModule(ActionBase):
 
     def _copy_configfile(self, dest, content, task_vars):
-        # interpolation=None disables ConfigParser's `%(name)s` substitution
-        # so values containing literal `%` (e.g. `CPUQuota=200%`,
-        # `MemoryMax=50%`) round-trip without being misread as the start of
-        # an interpolation.
+        # interpolation=None enables "%" substitution in ansible templates
         config = configparser.ConfigParser(interpolation=None)
         config.optionxform = lambda option: option
         config.read_dict(content)

@@ -165,9 +165,9 @@ routing.earth monitoring stack:
 | `statsd-exporter` | both | 9102 | builder: `valhalla_mjolnir_*` counters + bash-emitted `valhalla_mjolnir_timing_*` pipeline gauges. service: `valhalla_latency_seconds{action,service}` histogram + `valhalla_ok_total{action,service}` (mapped from per-request statsd) |
 | `mtail` | valhalla1 only | 9145 | `nginx_http_requests_total{client,endpoint,status}` derived from `/var/log/nginx/valhalla-api.log` |
 
-Enable per host group by setting `valhalla__monitoring_in_use: true` in
+Enable per host group by setting `valhalla__ext_prometheus_in_use: true` in
 `group_vars/valhalla_{service,builder}.yml` and supplying
-`valhalla__monitoring_scraper_ip` in private vars (the public IP of
+`valhalla__prometheus_scraper_ip` in private vars (the public IP of
 proc-server). The play asserts up front if the scraper IP is missing —
 ufw rules are gated on it, so leaving it empty is a no-go.
 
@@ -205,7 +205,7 @@ Common failure modes:
   regex needs updating).
 - **Scraper can't reach the ports.** `ufw status` should show three (service)
   or two (builder) rules with `ALLOW IN  from <scraper-ip>`. If absent,
-  `valhalla__monitoring_scraper_ip` wasn't set; re-run the role.
+  `valhalla__prometheus_scraper_ip` wasn't set; re-run the role.
 
 ## Common operations
 

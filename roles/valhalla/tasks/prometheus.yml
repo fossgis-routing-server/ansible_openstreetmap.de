@@ -4,18 +4,18 @@
 # emit nginx_http_requests_total from the existing valhalla-api.log,
 # avoiding nginx-lua-prometheus (no source compile, no extra nginx mods).
 #
-# The whole file is a no-op unless valhalla__monitoring_in_use is true.
-# valhalla__monitoring_scraper_ip MUST be set when enabled — fail early
+# The whole file is a no-op unless valhalla__ext_prometheus_in_use is true.
+# valhalla__prometheus_scraper_ip MUST be set when enabled — fail early
 # instead of opening ufw rules with an empty from_ip.
 ---
 
 - name: Sanity-check monitoring vars
   assert:
     that:
-      - valhalla__monitoring_scraper_ip is defined
-      - valhalla__monitoring_scraper_ip | length > 0
+      - valhalla__prometheus_scraper_ip is defined
+      - valhalla__prometheus_scraper_ip | length > 0
     fail_msg: |
-      valhalla__monitoring_in_use is true but valhalla__monitoring_scraper_ip
+      valhalla__ext_prometheus_in_use is true but valhalla__prometheus_scraper_ip
       is not set. Set it in private vars (the public IP of the routing.earth
       Prometheus host) before re-running.
 
@@ -138,7 +138,7 @@
     rule: allow
     port: "{{ item }}"
     proto: tcp
-    from_ip: "{{ valhalla__monitoring_scraper_ip }}"
+    from_ip: "{{ valhalla__prometheus_scraper_ip }}"
     comment: "prometheus scrape — :{{ item }}"
   loop:
     - 9100
@@ -149,6 +149,6 @@
     rule: allow
     port: 9145
     proto: tcp
-    from_ip: "{{ valhalla__monitoring_scraper_ip }}"
+    from_ip: "{{ valhalla__prometheus_scraper_ip }}"
     comment: "prometheus scrape — mtail :9145"
   when: inventory_hostname in groups['valhalla_service']

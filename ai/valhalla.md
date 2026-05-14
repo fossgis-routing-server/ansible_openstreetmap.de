@@ -576,8 +576,8 @@ and leaves the dir near-empty.
 ## Prometheus monitoring (sub-task 11)
 
 Installed via [roles/valhalla/tasks/prometheus.yml](../roles/valhalla/tasks/prometheus.yml),
-gated whole-file by `valhalla__monitoring_in_use` (matches the `munin__in_use`
-pattern). `valhalla__monitoring_scraper_ip` MUST be set when enabled — the
+gated whole-file by `valhalla__ext_prometheus_in_use` (matches the `munin__in_use`
+pattern). `valhalla__prometheus_scraper_ip` MUST be set when enabled — the
 play asserts this up front rather than opening ufw rules with an empty
 `from_ip`. Both vars default off / unset in
 [defaults/main.yml](../roles/valhalla/defaults/main.yml); per-host opt-in is in
