@@ -16,6 +16,8 @@ context) see [../ai/valhalla.md](../ai/valhalla.md).
   - [nginx (valhalla1)](#nginx-valhalla1)
   - [Sentinels (monitoring signals)](#sentinels-monitoring-signals)
   - [Munin graphs](#munin-graphs)
+  - [Prometheus / Grafana](#prometheus--grafana)
+  - [Tarball download endpoint](#tarball-download-endpoint)
 - [Common operations](#common-operations)
 - [Routine maintenance](#routine-maintenance)
   - [Update the valhalla branch / tag / SHA](#update-the-valhalla-branch--tag--sha)
