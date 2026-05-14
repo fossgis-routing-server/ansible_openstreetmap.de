@@ -14,6 +14,37 @@
     mode: "0644"
   notify: reload nginx
 
+- name: Sanity-check download endpoint vars
+  assert:
+    that:
+      - valhalla__download_password is defined
+      - valhalla__download_password | length > 0
+    fail_msg: |
+      valhalla__download_in_use is true but valhalla__download_password
+      is not set in private/vars/. Define it (and valhalla__download_user
+      if you want to override the default) before re-running.
+  when: valhalla__download_in_use | default(False)
+
+- name: htpasswd directory
+  file:
+    path: /etc/nginx/htpasswd
+    state: directory
+    owner: root
+    group: www-data
+    mode: "0750"
+  when: valhalla__download_in_use | default(False)
+
+- name: htpasswd for /download/
+  community.general.htpasswd:
+    path: /etc/nginx/htpasswd/valhalla-download
+    name: "{{ valhalla__download_user }}"
+    password: "{{ valhalla__download_password }}"
+    owner: root
+    group: www-data
+    mode: "0640"
+  when: valhalla__download_in_use | default(False)
+  no_log: true
+
 - name: API site — {{ valhalla__api_hostname }}
   nginx_site:
     site: "{{ valhalla__api_hostname }}"

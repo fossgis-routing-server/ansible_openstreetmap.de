@@ -31,6 +31,35 @@
         proxy_connect_timeout 2s;
     }
 
+{% if valhalla__download_in_use | default(False) %}
+    # Authenticated tarball downloads. Both files are inode-stable across
+    # builds: graph-8000.tar is atomic-mv'd by apply-graph.sh, and
+    # graph.tar.zst is cp+mv'd as the last step of apply. In-flight
+    # downloads continue from the old inode until their FD closes (ext4
+    # POSIX semantics) — see ai/valhalla.md.
+    location = /download/tiles.tar {
+        auth_basic           "valhalla tile download";
+        auth_basic_user_file /etc/nginx/htpasswd/valhalla-download;
+
+        alias                /srv/valhalla/graph-8000.tar;
+        default_type         application/x-tar;
+        add_header           Content-Disposition 'attachment; filename="valhalla-tiles.tar"';
+
+        access_log /var/log/nginx/valhalla-download.log;
+    }
+
+    location = /download/tiles.tar.zst {
+        auth_basic           "valhalla tile download";
+        auth_basic_user_file /etc/nginx/htpasswd/valhalla-download;
+
+        alias                /srv/valhalla/graph.tar.zst;
+        default_type         application/zstd;
+        add_header           Content-Disposition 'attachment; filename="valhalla-tiles.tar.zst"';
+
+        access_log /var/log/nginx/valhalla-download.log;
+    }
+{% endif %}
+
     # Tile endpoint — vector tiles, higher per-IP rate.
     location /tile {
 {{ cors_preflight }}

@@ -7,6 +7,7 @@ context) see [../ai/valhalla.md](../ai/valhalla.md).
 ## Contents
 
 - [Architecture](#architecture)
+- [Private vars](#private-vars)
 - [Components](#components)
   - [Hosts](#hosts)
   - [System users](#system-users)
@@ -83,6 +84,25 @@ flowchart TB
 
     buildtiles -.->|ssh: rsync tarball + run scripts<br/>/srv/valhalla-deploy/.ssh/id_valhalla_deploy| deployuser
 ```
+
+## Private vars
+
+Variables that aren't (and shouldn't be) committed to the repo, are hosted in the `private_vars` repo.
+
+| variable | when needed | description |
+|---|---|---|
+| `valhalla__ext_prometheus_in_use` | enable Prometheus | `true` to install node_exporter / statsd_exporter / mtail and open ufw to the scraper. Default `false`. |
+| `valhalla__prometheus_scraper_ip` | with `…_in_use: true` | Public IP of the routing.earth Prometheus host (proc-server). Used as `from_ip` on the ufw rules for ports 9100 / 9102 / 9145. Role asserts up front if missing. |
+| `valhalla__download_in_use` | enable `/download/` endpoint | `true` to render the htpasswd and the nginx `location =` blocks for `/download/tiles.tar{,.zst}`. Default `false`. |
+| `valhalla__download_password` | with `…_in_use: true` | Cleartext password handed to `community.general.htpasswd` (hashed on disk). Role asserts up front if missing. |
+| `valhalla__download_user` | optional | Username for the download endpoint Basic Auth. Defaults to `fossgis`. |
+
+There's also an `admin_users` / similar definition in `private/vars/` that
+the bootstrap layer reads to deploy SSH keys + sudoers across all hosts.
+That's not valhalla-specific — see the top-level `README` and
+`bootstrap.yml`. If your account can't reach valhalla2 after a fresh
+provision, the admin entry probably doesn't list `valhalla_builder` (or
+`servers`) in its `groups:`.
 
 ## Components
 
@@ -206,6 +226,54 @@ Common failure modes:
 - **Scraper can't reach the ports.** `ufw status` should show three (service)
   or two (builder) rules with `ALLOW IN  from <scraper-ip>`. If absent,
   `valhalla__prometheus_scraper_ip` wasn't set; re-run the role.
+
+### Tarball download endpoint
+
+Optional Basic-Auth-protected download of the current graph in both forms,
+on the API hostname. Disabled by default.
+
+Enable by setting in `private/vars/`:
+
+```yaml
+valhalla__download_in_use: true
+valhalla__download_password: "<your shared credential>"
+# valhalla__download_user: fossgis   # optional override (default: fossgis)
+```
+
+URLs (against `valhalla__api_hostname`, e.g. `valhalla1.openstreetmap.de`):
+
+| URL | What |
+|---|---|
+| `https://.../download/tiles.tar`     | uncompressed tile tarball — same file valhalla1 mmaps |
+| `https://.../download/tiles.tar.zst` | zstd-compressed tarball, published at end of each apply |
+
+Quick check:
+
+```sh
+# 401 without creds:
+curl -sI -o /dev/null -w '%{http_code}\n' https://valhalla1.openstreetmap.de/download/tiles.tar.zst
+
+# 200 with creds, plus Content-Length / Last-Modified / Content-Disposition:
+curl -sI -u fossgis:<password> https://valhalla1.openstreetmap.de/download/tiles.tar.zst
+
+# actual download:
+curl -u fossgis:<password> -o tiles.tar.zst https://valhalla1.openstreetmap.de/download/tiles.tar.zst
+```
+
+Access logs land in `/var/log/nginx/valhalla-download.log` (separate from
+`valhalla-api.log` so multi-GB transfers don't pollute the routing-request
+metrics). The graph swap during a build is non-disruptive — an in-flight
+download continues reading the pre-swap file via its open FD and finishes
+correctly; new requests after the swap see the new graph. See
+[ai/valhalla.md](../ai/valhalla.md) for the inode-survival reasoning.
+
+Common failure modes:
+
+- **404 on `/download/tiles.tar.zst` right after enabling.** The published
+  copy at `/srv/valhalla/graph.tar.zst` is created at the *end* of an
+  apply-graph run. Trigger one (or wait for the next build iteration), or
+  smoke-test against `/download/tiles.tar` first — it exists as soon as a
+  graph is loaded.
 
 ## Common operations
 

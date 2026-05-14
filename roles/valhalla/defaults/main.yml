@@ -56,3 +56,14 @@ valhalla__ext_prometheus_in_use: false
 # Pinned statsd_exporter release. Debian Trixie doesn't package it, so
 # we install the Go binary from the upstream GitHub release tarball.
 valhalla__statsd_exporter_version: "0.29.0"
+
+# Basic-Auth-protected tarball download endpoint on the API hostname,
+# under /download/. Disabled by default — the credential MUST be supplied
+# via private/vars/ to turn it on. The .zst is published to a stable
+# inode by apply-graph.sh; the uncompressed .tar is the same file the
+# running valhalla_service instances mmap.
+valhalla__download_in_use: false
+valhalla__download_user: fossgis
+# valhalla__download_password: must be defined in private/vars/ when
+# valhalla__download_in_use is true. The role asserts up front rather
+# than rendering an empty htpasswd.

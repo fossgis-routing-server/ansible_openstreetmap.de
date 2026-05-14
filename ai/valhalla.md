@@ -659,6 +659,51 @@ statsd_exporter in Prometheus) is deliberate during the transition. Munin
 removal is a separate follow-up once Prometheus dashboards are confirmed
 stable in production.
 
+## Tarball download endpoint
+
+Two files exposed under `https://<valhalla__api_hostname>/download/`,
+Basic-Auth gated, on the existing `valhalla-api` TLS cert. Gated
+whole-feature by `valhalla__download_in_use` (default off in
+[defaults/main.yml](../roles/valhalla/defaults/main.yml)).
+
+| URL | Backing file | Inode behaviour |
+|---|---|---|
+| `/download/tiles.tar` | `/srv/valhalla/graph-8000.tar` | atomic `mv` from `.partial` in apply-graph.sh — same file the valhalla_service instances mmap. |
+| `/download/tiles.tar.zst` | `/srv/valhalla/graph.tar.zst` | atomic `mv` from `.partial`, produced by `cp` at the tail of apply-graph.sh. |
+
+**Why the .zst is published, not served from $HOME.** The builder rsyncs
+`tiles.tar.zst` to the deploy user's home with `--inplace`
+([build-tiles-iteration.sh.j2](../roles/valhalla/templates/build-tiles-iteration.sh.j2),
+the `rsync_to_service_home` function). `--inplace` modifies the existing
+inode rather than writing a tempfile + rename, so an nginx-served download
+racing the next push would receive corrupted bytes. Apply-graph copies the
+zst to `$GRAPH_DIR` with the same `.partial` + `mv` pattern as the .tar,
+giving each apply a fresh inode and isolating active downloads from the
+next rsync.
+
+**In-flight download safety.** ext4 (and any POSIX FS) keeps an unlinked
+inode alive until every open FD is closed. nginx serving from the old
+inode finishes the transfer with the old contents; new requests after the
+`mv` see the new inode. Peak disk usage during a swap is therefore ~2×
+the graph size for the duration of the longest in-flight download — fine
+in practice but worth knowing.
+
+**htpasswd.** `community.general.htpasswd` renders
+`/etc/nginx/htpasswd/valhalla-download` (mode 0640, owned by
+`root:www-data`). Credential comes from `private/vars/` —
+`valhalla__download_password` must be set when `valhalla__download_in_use`
+is true (frontend.yml asserts this). Single shared cred; if multi-user is
+ever needed, swap to a dict + loop.
+
+**Standalone access log.** `/var/log/nginx/valhalla-download.log`. Keeps
+multi-GB transfer rows out of `valhalla-api.log`, which uses a custom
+log_format tuned for routing requests and is consumed by mtail.
+
+**No rate-limit / bandwidth cap.** The server-level `valhalla_global`
+zone (500 req/s) still applies but a download is one request. Per-IP
+zones are scoped to the catch-all `location /` and don't leak in.
+`limit_rate` is not configured — add later if abuse appears.
+
 ## Icinga2 monitoring (sub-task 11)
 
 valhalla1 + valhalla2 are in the `[icinga2agent]` group, picked up by

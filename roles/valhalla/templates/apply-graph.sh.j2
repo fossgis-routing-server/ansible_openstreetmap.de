@@ -66,4 +66,12 @@ done
 
 # Sentinel — mtime = last successful apply. Primary monitoring signal.
 touch "$SENTINEL"
+
+# Publish the .zst to a stable nginx-served path. Keep the FD around for
+# existing clients to finish their download
+$LOG_INFO "publishing tiles.tar.zst"
+cp "$TARBALL" "$GRAPH_DIR/graph.tar.zst.partial"
+mv "$GRAPH_DIR/graph.tar.zst.partial" "$GRAPH_DIR/graph.tar.zst"
+chmod 0644 "$GRAPH_DIR/graph.tar.zst"
+
 $LOG_INFO "graph apply complete"
