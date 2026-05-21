@@ -247,7 +247,7 @@
   fail2ban_filter:
      name: overpass-osmnx
      definition: |
-        failregex = ^.*, remote host: <ADDR>, user agent: .*OSMnx.*$
+        failregex = ^.*, remote host: <ADDR>, .*, query string: /api/interpreter, .*OSMnx.*$
 
         datepattern = ^[^\[]*\[({DATE})
                       {^LN-BEG}
@@ -279,7 +279,7 @@
     ports: [80,443]
     filter: overpass-osmnx
     logpath: /var/log/apache2/overpass-access.log
-    findtime: 1m
-    maxretry: 150
+    findtime: 20m
+    maxretry: 30
     bantime: 9h
 
