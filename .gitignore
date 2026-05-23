@@ -1,4 +1,5 @@
 ansible-vm.ini
+.ansible-vault-pass
 vagrant.ini
 .env
 .vagrant

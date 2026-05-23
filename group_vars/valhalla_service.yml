@@ -32,7 +32,7 @@ valhalla__client_ids:
 
 # Sentinel file touched at the end of each successful apply-graph
 # rolling swap; mtime is the monitoring signal. The file_age threshold
-# (valhalla__sentinel_max_age_hours) lives in group_vars/valhalla.yml
+# (valhalla__sentinel_max_age_hours) lives in group_vars/valhalla/vars.yml
 # so monitoring.yml can resolve it without loading the role.
 valhalla__apply_sentinel_path: "{{ valhalla__basedir }}/last_apply_complete"
 

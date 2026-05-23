@@ -97,7 +97,7 @@ valhalla1
 valhalla2
 
 # Parent group for vars both halves share — and that monitoring.yml
-# can resolve without loading the role. See group_vars/valhalla.yml.
+# can resolve without loading the role. See group_vars/valhalla/.
 [valhalla:children]
 valhalla_service
 valhalla_builder
@@ -131,14 +131,18 @@ Partial-target runs *do* work for SSH key tasks now (we use `delegate_to` + `slu
 Variables are split across four levels so that each var lives at the
 narrowest scope where it's actually used:
 
-`group_vars/valhalla.yml` (parent group `[valhalla:children]`, loaded
-for both halves AND for monitoring.yml plays that target icinga2agent
-without including the role):
+`group_vars/valhalla/vars.yml` (parent group `[valhalla:children]`,
+loaded for both halves AND for monitoring.yml plays that target
+icinga2agent without including the role):
 
 ```yaml
 valhalla__basedir: /srv/valhalla
 valhalla__sentinel_max_age_hours: 16     # icinga file_age threshold (both sentinels)
 ```
+
+`group_vars/valhalla/vault.yml` (same group, but encrypted with
+`ansible-vault` — see "Secrets" below). Holds
+`valhalla__download_password` and `valhalla__prometheus_scraper_ip`.
 
 `roles/valhalla/defaults/main.yml` — shared across both groups (or
 referenced cross-host via `hostvars[...]`), only needed where the role
@@ -690,10 +694,10 @@ in practice but worth knowing.
 
 **htpasswd.** `community.general.htpasswd` renders
 `/etc/nginx/htpasswd/valhalla-download` (mode 0640, owned by
-`root:www-data`). Credential comes from `private/vars/` —
-`valhalla__download_password` must be set when `valhalla__download_in_use`
-is true (frontend.yml asserts this). Single shared cred; if multi-user is
-ever needed, swap to a dict + loop.
+`root:www-data`). Credential comes from `group_vars/valhalla/vault.yml`
+(ansible-vault) — `valhalla__download_password` must be set when
+`valhalla__download_in_use` is true (frontend.yml asserts this). Single
+shared cred; if multi-user is ever needed, swap to a dict + loop.
 
 **Standalone access log.** `/var/log/nginx/valhalla-download.log`. Keeps
 multi-GB transfer rows out of `valhalla-api.log`, which uses a custom
@@ -724,17 +728,17 @@ which iterates `group_names` and includes any matching
 
 **file_age thresholds.** Critical = `valhalla__sentinel_max_age_hours * 3600`
 seconds. Warning = 75% of that. Both pulled from
-[../group_vars/valhalla.yml](../group_vars/valhalla.yml) (= 16h critical,
-12h warning at the current value). Built-in icinga2 ITL `file_age` check
-command — no plugin install needed.
+[../group_vars/valhalla/vars.yml](../group_vars/valhalla/vars.yml) (= 16h
+critical, 12h warning at the current value). Built-in icinga2 ITL
+`file_age` check command — no plugin install needed.
 
 **Why the parent `[valhalla:children]` group.** `monitoring.yml` does not
 include the valhalla role, so role defaults aren't loaded for its plays.
 The icinga templates need `valhalla__basedir` (transitively via
 `valhalla__apply_sentinel_path` / `valhalla__sentinel_path`) and
 `valhalla__sentinel_max_age_hours` — both live in
-`group_vars/valhalla.yml` exactly so the icinga2 templates can resolve
-them. Adding more shared knobs follows the same pattern.
+`group_vars/valhalla/vars.yml` exactly so the icinga2 templates can
+resolve them. Adding more shared knobs follows the same pattern.
 
 **No HTTP rate-limit / latency probes.** The existing `vars.http`
 behavior only asserts response code; latency SLOs live in Prometheus
@@ -766,12 +770,14 @@ ls templates/icinga2/groups/valhalla_*
 # valhalla_builder.conf.j2  valhalla_builder-services.conf.j2
 
 ls group_vars/valhalla*
-# valhalla.yml            (parent group, monitoring-visible shared vars)
+# valhalla/               (parent group)
+#   vars.yml              (monitoring-visible shared vars: basedir, sentinel_max_age_hours)
+#   vault.yml             (ansible-vault: download_password, prometheus_scraper_ip)
 # valhalla_service.yml    (valhalla1 specifics)
 # valhalla_builder.yml    (valhalla2 specifics)
 
 git status
 # should show roles/valhalla/ as the bulk of new content,
 # plus host_vars/valhalla{1,2}.yml, hosts.ini, site.yml, Makefile,
-# group_vars/valhalla*.yml, templates/icinga2/groups/valhalla_*
+# group_vars/valhalla{,_service,_builder}/*.yml, templates/icinga2/groups/valhalla_*
 ```

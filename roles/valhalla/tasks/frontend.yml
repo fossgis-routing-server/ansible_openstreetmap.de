@@ -21,8 +21,9 @@
       - valhalla__download_password | length > 0
     fail_msg: |
       valhalla__download_in_use is true but valhalla__download_password
-      is not set in private/vars/. Define it (and valhalla__download_user
-      if you want to override the default) before re-running.
+      is not set in group_vars/valhalla/vault.yml. Define it (and
+      valhalla__download_user if you want to override the default)
+      before re-running.
   when: valhalla__download_in_use | default(False)
 
 - name: htpasswd directory

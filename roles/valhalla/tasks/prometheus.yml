@@ -16,8 +16,8 @@
       - valhalla__prometheus_scraper_ip | length > 0
     fail_msg: |
       valhalla__ext_prometheus_in_use is true but valhalla__prometheus_scraper_ip
-      is not set. Set it in private vars (the public IP of the routing.earth
-      Prometheus host) before re-running.
+      is not set. Set it in group_vars/valhalla/vault.yml (the public IP of
+      the routing.earth Prometheus host) before re-running.
 
 - name: Install node_exporter
   apt:

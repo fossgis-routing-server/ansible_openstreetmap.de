@@ -7,7 +7,7 @@ context) see [../ai/valhalla.md](../ai/valhalla.md).
 ## Contents
 
 - [Architecture](#architecture)
-- [Private vars](#private-vars)
+- [Secrets (ansible-vault)](#secrets-ansible-vault)
 - [Components](#components)
   - [Hosts](#hosts)
   - [System users](#system-users)
@@ -87,24 +87,47 @@ flowchart TB
     buildtiles -.->|ssh: rsync tarball + run scripts<br/>/srv/valhalla-deploy/.ssh/id_valhalla_deploy| deployuser
 ```
 
-## Private vars
+## Secrets (ansible-vault)
 
-Variables that aren't (and shouldn't be) committed to the repo, are hosted in the `private_vars` repo.
+Secrets for the valhalla role live in
+[../group_vars/valhalla/vault.yml](../group_vars/valhalla/vault.yml),
+encrypted with `ansible-vault`. The file is loaded alongside
+[../group_vars/valhalla/vars.yml](../group_vars/valhalla/vars.yml) for
+the `[valhalla:children]` parent group, so both `valhalla_service` and
+`valhalla_builder` hosts resolve the values.
 
-| variable | when needed | description |
-|---|---|---|
-| `valhalla__ext_prometheus_in_use` | enable Prometheus | `true` to install node_exporter / statsd_exporter / mtail and open ufw to the scraper. Default `false`. |
-| `valhalla__prometheus_scraper_ip` | with `…_in_use: true` | Public IP of the routing.earth Prometheus host (proc-server). Used as `from_ip` on the ufw rules for ports 9100 / 9102 / 9145. Role asserts up front if missing. |
-| `valhalla__download_in_use` | enable `/download/` endpoint | `true` to render the htpasswd and the nginx `location =` blocks for `/download/tiles.tar{,.zst}`. Default `false`. |
-| `valhalla__download_password` | with `…_in_use: true` | Cleartext password handed to `community.general.htpasswd` (hashed on disk). Role asserts up front if missing. |
-| `valhalla__download_user` | optional | Username for the download endpoint Basic Auth. Defaults to `fossgis`. |
+| variable | location | when needed | description |
+|---|---|---|---|
+| `valhalla__ext_prometheus_in_use` | `defaults/` (or override in vars.yml) | enable Prometheus | `true` to install node_exporter / statsd_exporter / mtail and open ufw to the scraper. Default `false`. |
+| `valhalla__prometheus_scraper_ip` | `vault.yml` | with `…_in_use: true` | Public IP of the routing.earth Prometheus host (proc-server). Used as `from_ip` on the ufw rules for ports 9100 / 9102 / 9145. Role asserts up front if missing. |
+| `valhalla__download_in_use` | `defaults/` (or override in vars.yml) | enable `/download/` endpoint | `true` to render the htpasswd and the nginx `location =` blocks for `/download/tiles.tar{,.zst}`. Default `false`. |
+| `valhalla__download_password` | `vault.yml` | with `…_in_use: true` | Cleartext password handed to `community.general.htpasswd` (bcrypt-hashed on disk). Role asserts up front if missing. |
+| `valhalla__download_user` | `defaults/` (or override in vars.yml) | optional | Username for the download endpoint Basic Auth. Defaults to `fossgis`. |
 
-There's also an `admin_users` / similar definition in `private/vars/` that
-the bootstrap layer reads to deploy SSH keys + sudoers across all hosts.
-That's not valhalla-specific — see the top-level `README` and
-`bootstrap.yml`. If your account can't reach valhalla2 after a fresh
-provision, the admin entry probably doesn't list `valhalla_builder` (or
-`servers`) in its `groups:`.
+Working with the vault file:
+
+```sh
+# first-time encrypt (after committing the plaintext skeleton)
+ansible-vault encrypt group_vars/valhalla/vault.yml
+
+# edit (decrypts to tempfile, re-encrypts on save)
+ansible-vault edit    group_vars/valhalla/vault.yml
+
+# rotate the vault password
+ansible-vault rekey   group_vars/valhalla/vault.yml
+```
+
+Pass the vault password to `ansible-playbook` with `--ask-vault-pass`,
+or point `ANSIBLE_VAULT_PASSWORD_FILE` at a file with the password.
+
+Admin SSH access (creating the human user accounts on valhalla1 / valhalla2
+and dropping pubkeys + sudoers) is bootstrap-layer concern handled by
+[../bootstrap.yml](../bootstrap.yml) +
+[../roles/common/tasks/accounts.yml](../roles/common/tasks/accounts.yml).
+That's not valhalla-specific — see the top-level [../README](../README).
+If your account can't reach valhalla2 after a fresh provision, its `users`
+entry probably doesn't list `valhalla_builder` (or `servers`) in
+`groups:`.
 
 ## Components
 
@@ -189,9 +212,10 @@ routing.earth monitoring stack:
 
 Enable per host group by setting `valhalla__ext_prometheus_in_use: true` in
 `group_vars/valhalla_{service,builder}.yml` and supplying
-`valhalla__prometheus_scraper_ip` in private vars (the public IP of
-proc-server). The play asserts up front if the scraper IP is missing —
-ufw rules are gated on it, so leaving it empty is a no-go.
+`valhalla__prometheus_scraper_ip` in
+[../group_vars/valhalla/vault.yml](../group_vars/valhalla/vault.yml)
+(the public IP of proc-server). The play asserts up front if the scraper
+IP is missing — ufw rules are gated on it, so leaving it empty is a no-go.
 
 Smoke test on the host:
 
@@ -234,12 +258,25 @@ Common failure modes:
 Optional Basic-Auth-protected download of the current graph in both forms,
 on the API hostname. Disabled by default.
 
-Enable by setting in `private/vars/`:
+Enable by setting `valhalla__download_in_use: true` in `vars.yml` (or
+`group_vars/valhalla_service.yml` if you want it scoped to valhalla1
+only), and adding the password to the vault file:
+
+```sh
+ansible-vault edit group_vars/valhalla/vault.yml
+```
 
 ```yaml
-valhalla__download_in_use: true
+# in vault.yml (encrypted at rest)
 valhalla__download_password: "<your shared credential>"
-# valhalla__download_user: fossgis   # optional override (default: fossgis)
+```
+
+Optional override (defaults to `fossgis` from
+[../roles/valhalla/defaults/main.yml](../roles/valhalla/defaults/main.yml)):
+
+```yaml
+# in vars.yml or another non-vault scope
+valhalla__download_user: someone-else
 ```
 
 URLs (against `valhalla__api_hostname`, e.g. `valhalla1.openstreetmap.de`):
@@ -781,8 +818,10 @@ above weekly.
 Public DNS for valhalla2 resolves, port 22 is open via the common role's
 `ufw allow OpenSSH`, and admin keys are deployed via `bootstrap.yml` (same
 as every other host). If your account can't reach it: check that the
-admin user definition in `private/vars/` has `valhalla_builder` (or
-`servers`, or `all`) in its `groups:` list, then re-run `bootstrap.yml`.
+admin user entry under `users:` (read by
+[../roles/common/tasks/accounts.yml](../roles/common/tasks/accounts.yml))
+has `valhalla_builder` (or `servers`, or `all`) in its `groups:` list,
+then re-run `bootstrap.yml`.
 
 ### Vagrant: VM has no internet (apt hangs, `ping 1.1.1.1` times out)
 
