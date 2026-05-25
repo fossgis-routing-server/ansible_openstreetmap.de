@@ -105,11 +105,14 @@ if [ ! -f "$PLANET" ]; then
 fi
 
 # pyosmium-up-to-date — best-effort; applies the change-file replication
-# stream embedded in the planet's header. lz4 decompression is supported
-# in valhalla's libosmium.
+# stream. `--server` overrides whatever replication URL is embedded in
+# the planet's header — planet.osm.org plants the hourly URL by default,
+# which is overkill for a multi-hour iteration cadence. lz4 decompression
+# is supported in valhalla's libosmium.
 update_osm_start=$SECONDS
 $LOG_INFO "iteration: pyosmium-up-to-date $PLANET"
 /usr/lib/python3-pyosmium/pyosmium-up-to-date -v --size 10000 \
+    --server "https://planet.openstreetmap.org/replication/day/" \
     --format "pbf,pbf_compression=lz4" "$PLANET" 2>&1 | $LOG_INFO \
     || $LOG_WARN "pyosmium-up-to-date FAILED — continuing with current planet, will retry next iteration"
 emit_metric valhalla.mjolnir.timing.update_osm_data $((SECONDS - update_osm_start)) g

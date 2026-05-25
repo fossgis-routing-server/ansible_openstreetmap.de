@@ -66,7 +66,12 @@
   # iteration's SSH would fail with "Permission denied (publickey)".
   # Starting the unit here, at end-of-play, guarantees the key is in
   # place.
-  systemd_service:
+  #
+  # FQCN ansible.builtin.systemd_service — bypasses the custom action
+  # plugin at roles/common/action_plugins/systemd_service.py which
+  # requires a `service:` body (designed for install+manage in one go,
+  # not state-only changes on an existing unit).
+  ansible.builtin.systemd_service:
     name: valhalla-build-tiles
     state: started
   when: "inventory_hostname in groups['valhalla_builder']"

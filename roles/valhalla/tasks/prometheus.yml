@@ -25,7 +25,7 @@
     state: present
 
 - name: Enable node_exporter
-  systemd_service:
+  ansible.builtin.systemd_service:
     name: prometheus-node-exporter
     enabled: true
     state: started
@@ -68,7 +68,7 @@
   notify: restart statsd-exporter
 
 - name: Enable statsd-exporter
-  systemd_service:
+  ansible.builtin.systemd_service:
     name: statsd-exporter
     enabled: true
     state: started
@@ -124,7 +124,7 @@
   notify: restart mtail
 
 - name: Enable mtail (service host only)
-  systemd_service:
+  ansible.builtin.systemd_service:
     name: mtail
     enabled: true
     state: started

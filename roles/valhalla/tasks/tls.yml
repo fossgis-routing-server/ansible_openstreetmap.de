@@ -44,6 +44,17 @@
     group: www-data
     mode: "0755"
 
+- name: Renewal-hooks/deploy dir
+  # certbot's debian package usually creates this on install, but not
+  # always (depends on package version + whether certbot has been invoked
+  # at least once). Cheap to ensure idempotently.
+  file:
+    path: /etc/letsencrypt/renewal-hooks/deploy
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
 - name: Deploy-hook — reload nginx after each renewal
   # certbot.timer fires `certbot renew` twice daily. For every cert that
   # actually renewed, certbot runs every script in renewal-hooks/deploy/.
@@ -102,7 +113,11 @@
   # Debian's certbot package ships /lib/systemd/system/certbot.timer
   # (twice daily). Some distros leave it disabled until first manual
   # systemctl enable — be explicit.
-  systemd_service:
+  #
+  # FQCN — bypasses roles/common/action_plugins/systemd_service.py
+  # (custom plugin that requires a `service:` body; we just want to
+  # toggle state on a stock unit shipped by the certbot package).
+  ansible.builtin.systemd_service:
     name: certbot.timer
     enabled: true
     state: started
