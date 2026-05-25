@@ -260,6 +260,19 @@ Threshold: `valhalla__sentinel_max_age_hours = 16`. Both stale = builder broken.
 
 ### Munin graphs
 
+> **Currently disabled.** The munin role is no longer pulled in by the
+> valhalla role — `- role: munin` in `roles/valhalla/meta/main.yml`,
+> the `include_tasks: munin.yml` in `roles/valhalla/tasks/main.yml`, and
+> the `name: munin` entries in
+> [../group_vars/valhalla_service.yml](../group_vars/valhalla_service.yml) +
+> [../group_vars/valhalla_builder.yml](../group_vars/valhalla_builder.yml)
+> are all commented out. munin-node is not installed, no
+> `munin.<host>.openstreetmap.de` nginx site is rendered, and no
+> valhalla munin plugins are dropped. The plugin templates +
+> `tasks/munin.yml` are kept in the tree so re-enabling is a
+> comment-toggle, not a rewrite. Until munin is re-enabled, treat the
+> table below as documentation of what *would* be available.
+
 The master scrapes the per-host munin-node and renders graphs under the
 "valhalla" category. Plugins are installed by the role:
 

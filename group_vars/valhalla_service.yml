@@ -58,8 +58,11 @@ valhalla__acme_certificates:
       - valhalla.openstreetmap.de
     on_update:
       - systemctl reload nginx
-  - name: munin
-    domains:
-      - "{{ munin__hostname | regex_replace(':.*', '') }}"
-    on_update:
-      - systemctl reload nginx
+  # Munin is currently disabled (meta dep + tasks include commented out).
+  # Re-enable by uncommenting all three: this entry, the meta dep in
+  # roles/valhalla/meta/main.yml, and the include in roles/valhalla/tasks/main.yml.
+  # - name: munin
+  #   domains:
+  #     - "{{ munin__hostname | regex_replace(':.*', '') }}"
+  #   on_update:
+  #     - systemctl reload nginx

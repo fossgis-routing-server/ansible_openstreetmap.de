@@ -640,6 +640,13 @@ upgrades — orthogonal to the valhalla role's system accounts.
 
 ## Munin plugins (sub-task 10)
 
+> **Currently disabled.** The munin meta dep + the
+> `include_tasks: munin.yml` line in `tasks/main.yml` + the `name: munin`
+> entries in `group_vars/valhalla_{service,builder}.yml`
+> `valhalla__acme_certificates` are all commented out. To re-enable, flip
+> all three. The plugin templates and `tasks/munin.yml` are kept in the
+> tree intentionally so re-enabling is a comment-toggle, not a re-write.
+
 Installed via [roles/valhalla/tasks/munin.yml](../roles/valhalla/tasks/munin.yml), one
 template per plugin under `roles/valhalla/templates/munin_*.{sh,py}.j2`. All
 plugins land in `/etc/munin/plugins/valhalla_*` and share

@@ -2,5 +2,8 @@
 ---
 dependencies:
   - role: nginx
-  - role: munin
+  # Munin is currently disabled — uncomment to re-enable (also uncomment
+  # the include in tasks/main.yml + the `name: munin` entry in
+  # group_vars/valhalla_{service,builder}.yml).
+  # - role: munin
   - role: fail2ban

@@ -39,8 +39,11 @@
     - "inventory_hostname in groups['valhalla_service']"
     - valhalla__letsencrypt_in_use | default(False)
 
-- name: "Munin plugins (per-host gating inside)"
-  include_tasks: "munin.yml"
+# Munin is currently disabled — uncomment to re-enable (also uncomment
+# the meta dep in meta/main.yml + the `name: munin` entry in
+# group_vars/valhalla_{service,builder}.yml).
+# - name: "Munin plugins (per-host gating inside)"
+#   include_tasks: "munin.yml"
 
 - name: "Prometheus monitoring (node_exporter, statsd_exporter, mtail)"
   include_tasks: "prometheus.yml"
