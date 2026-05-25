@@ -14,6 +14,7 @@ context) see [../ai/valhalla.md](../ai/valhalla.md).
   - [SSH trust paths](#ssh-trust-paths)
   - [systemd units](#systemd-units)
   - [nginx (valhalla1)](#nginx-valhalla1)
+  - [TLS / Let's Encrypt](#tls--lets-encrypt)
   - [Sentinels (monitoring signals)](#sentinels-monitoring-signals)
   - [Munin graphs](#munin-graphs)
   - [Prometheus / Grafana](#prometheus--grafana)
@@ -103,6 +104,9 @@ the `[valhalla:children]` parent group, so both `valhalla_service` and
 | `valhalla__download_in_use` | `defaults/` (or override in vars.yml) | enable `/download/` endpoint | `true` to render the htpasswd and the nginx `location =` blocks for `/download/tiles.tar{,.zst}`. Default `false`. |
 | `valhalla__download_password` | `vault.yml` | with `…_in_use: true` | Cleartext password handed to `community.general.htpasswd` (bcrypt-hashed on disk). Role asserts up front if missing. |
 | `valhalla__download_user` | `defaults/` (or override in vars.yml) | optional | Username for the download endpoint Basic Auth. Defaults to `fossgis`. |
+| `valhalla__letsencrypt_in_use` | `defaults/` (or override in vars.yml) | always (gate) | `true` to run self-hosted certbot on valhalla1 (default). Vagrant overrides to `false`. See [TLS / Let's Encrypt](#tls--lets-encrypt). |
+| `valhalla__letsencrypt_email` | `vault.yml` | with `…_in_use: true` | Let's Encrypt registration contact (expiry warnings + account recovery). Not on the public cert. |
+| `users` | `vault.yml` | `bootstrap.yml` only | Admin user list — name + groups + ssh_public_keys. Drives `roles/common/tasks/accounts.yml`. Not read by `site.yml`. |
 
 Working with the vault file:
 
@@ -163,7 +167,87 @@ entry probably doesn't list `valhalla_builder` (or `servers`) in
 - `/etc/nginx/conf.d/valhalla.conf` — upstreams + maps + log format + rate-limit zones (per-IP 1 r/s, per-IP /tile 10 r/s, global 500 r/s).
 - `/etc/nginx/sites-enabled/valhalla1.openstreetmap.de` — API. `proxy_next_upstream error timeout http_502 http_503` so a stopped instance fails over transparently.
 - `/etc/nginx/sites-enabled/valhalla.openstreetmap.de` — static SPA from `/var/www/valhalla` with vite-style fallback.
-- Letsencrypt via the existing `valhalla__acme_certificates` mechanism (`group_vars/valhalla_service.yml` + common role's `acme_cert_client.yml`).
+- Letsencrypt is **self-hosted on valhalla1** (certbot, NOT via the org's robinson-pushes-certs distribution). See [TLS / Let's Encrypt](#tls--lets-encrypt).
+
+### TLS / Let's Encrypt
+
+valhalla1 runs its own `certbot` instead of receiving certs from
+robinson via the org's standard cert-distribution mechanism. We don't
+have deploy access to robinson, so we can't fit into the org's flow
+(robinson runs certbot, then SSHes back into each consumer host's
+`acmeclnt` user and pushes the renewed PEM + key via `update_key`).
+
+**The org's flow assumes** every host's nginx 301-redirects
+`/.well-known/acme-challenge/*` to `acme.openstreetmap.de` (robinson).
+That redirect is baked into the shared nginx `server()` macro at
+[../roles/nginx/templates/nginx_site_macros.jinja](../roles/nginx/templates/nginx_site_macros.jinja).
+For self-hosting on valhalla1 to work, **we override that redirect**:
+[../roles/valhalla/templates/nginx-api.conf.j2](../roles/valhalla/templates/nginx-api.conf.j2)
+and [../roles/valhalla/templates/nginx-web.conf.j2](../roles/valhalla/templates/nginx-web.conf.j2)
+hand-roll their HTTP `listen 80;` server block (instead of using
+`http='forward'`), serving the challenge from `/var/www/letsencrypt`.
+
+**What runs:** [../roles/valhalla/tasks/tls.yml](../roles/valhalla/tasks/tls.yml),
+gated to `valhalla_service` and `valhalla__letsencrypt_in_use: true`.
+Default `true` in role defaults; vagrant overrides to `false` in
+[../host_vars/valhalla-service.yml](../host_vars/valhalla-service.yml) because the VM has no public DNS.
+
+The play does:
+
+1. `apt install certbot`
+2. `mkdir /var/www/letsencrypt` (owned by `www-data`)
+3. Drops a one-line deploy-hook at `/etc/letsencrypt/renewal-hooks/deploy/reload-nginx` (just `systemctl reload nginx`).
+4. Runs `certbot certonly --webroot -w /var/www/letsencrypt --cert-name <name> -d <domain> ...` once per entry in `valhalla__acme_certificates`. Idempotent via `creates:`.
+5. **Symlinks** `/srv/acme-daemon/certs/<name>.pem` → `/etc/letsencrypt/live/<name>/fullchain.pem` (and `.key` → `privkey.pem`), replacing the snake-oil files that common's `acme_cert_client.yml` dropped earlier. Notifies a nginx reload.
+6. Enables `certbot.timer` for unattended twice-daily renewals.
+
+**Why symlinks**: certbot rotates the underlying cert files (in
+`/etc/letsencrypt/archive/<name>/`) on each renewal and updates the
+symlinks in `/etc/letsencrypt/live/<name>/` to point at the new ones.
+Our outer symlink in `/srv/acme-daemon/certs/` then auto-tracks the
+rotation — nothing needs to be copied or rewritten anywhere. The
+deploy-hook is just `systemctl reload nginx` so nginx re-opens the
+cert file via the live/ symlink.
+
+**Renewal**: handled by debian's `certbot.timer` → `certbot.service` →
+`certbot renew`. The deploy-hook fires for each renewed cert (just a
+reload — symlinks already point at the new lineage). **No ansible run
+needed for renewals.**
+
+**Required vault var**: `valhalla__letsencrypt_email` in
+[../group_vars/valhalla/vault.yml](../group_vars/valhalla/vault.yml)
+— LE registration contact (expiry warnings + account recovery).
+
+**Disabling self-hosting** (e.g. when robinson access becomes available):
+
+```yaml
+# group_vars/valhalla/vars.yml (or host_vars/valhalla1.yml)
+valhalla__letsencrypt_in_use: false
+```
+
+Then either keep the snake-oil, or wire in `acme__distribution_account`
+so the org's mechanism takes over. If you switch back, replace the
+`/srv/acme-daemon/certs/<name>.{pem,key}` symlinks with real files
+(otherwise the org's distribution would write through the symlinks
+into certbot's tree), and optionally clean up `/etc/letsencrypt/`,
+`/var/www/letsencrypt`, the deploy-hook, and disable `certbot.timer`
+(the role doesn't remove them automatically).
+
+**Smoke checks**:
+
+```sh
+# on valhalla1
+ls -l /srv/acme-daemon/certs/                # *.pem + *.key as symlinks into /etc/letsencrypt/live/
+certbot certificates                          # lineage list + expiry
+systemctl list-timers certbot.timer           # next renewal check time
+sudo /etc/letsencrypt/renewal-hooks/deploy/reload-nginx  # manual hook invocation
+
+# from anywhere
+curl -vk https://valhalla1.openstreetmap.de/status | head
+openssl s_client -servername valhalla1.openstreetmap.de \
+  -connect valhalla1.openstreetmap.de:443 < /dev/null 2>/dev/null \
+  | openssl x509 -noout -issuer -dates
+```
 
 ### Sentinels (monitoring signals)
 

@@ -142,7 +142,8 @@ valhalla__sentinel_max_age_hours: 16     # icinga file_age threshold (both senti
 
 `group_vars/valhalla/vault.yml` (same group, but encrypted with
 `ansible-vault` — see "Secrets" below). Holds
-`valhalla__download_password` and `valhalla__prometheus_scraper_ip`.
+`valhalla__download_password`, `valhalla__prometheus_scraper_ip`,
+`valhalla__letsencrypt_email`, and the admin `users:` list.
 
 `roles/valhalla/defaults/main.yml` — shared across both groups (or
 referenced cross-host via `hostvars[...]`), only needed where the role
@@ -322,8 +323,89 @@ full run.
 - Two sites:
   - `valhalla1.openstreetmap.de` — proxies to upstream, with `proxy_next_upstream error timeout http_502 http_503` so a stopped-for-restart instance fails over transparently. `/tile` uses the higher per-IP zone; `/status` is unrestricted and log-suppressed.
   - `valhalla.openstreetmap.de` — static files from `/var/www/valhalla` with vite-style SPA fallback.
-- Letsencrypt is automatic via the existing `valhalla__acme_certificates` (handled by `roles/common/tasks/acme_cert_client.yml`).
+- Letsencrypt is **self-hosted** on valhalla1, NOT via the org's
+  robinson-centralised distribution. See [TLS](#tls-self-hosted) below.
 - `notify: reload nginx` everywhere — zero-downtime config rolls.
+
+## TLS (self-hosted)
+
+valhalla1 runs its own certbot instead of receiving certs from
+robinson via the org's standard distribution mechanism. The reason
+isn't architectural — it's that we don't have access to deploy
+robinson, so the existing flow (robinson runs certbot, SSHes back
+into each consumer's `acmeclnt` account, pushes PEM+key) can't be
+bootstrapped.
+
+**The org's flow (which we DON'T use):**
+[roles/nginx/templates/nginx_site_macros.jinja:40](../roles/nginx/templates/nginx_site_macros.jinja#L40) bakes a 301 redirect into every site rendered through the shared
+`server()` macro:
+
+```
+rewrite ^/\.well-known/acme-challenge/(.*)$ http://{{ hostvars[groups.acme.0].acme__fqdn }}/.well-known/acme-challenge/$1 permanent;
+```
+
+That redirect is intentional: it funnels every host's ACME http-01
+challenges to robinson, so robinson can run a single certbot for the
+whole fleet and push the renewed certs back via the `acmeclnt`
+SSH-+-`update_key` channel.
+
+**Our divergence:**
+
+1. [roles/valhalla/templates/nginx-api.conf.j2](../roles/valhalla/templates/nginx-api.conf.j2) and [nginx-web.conf.j2](../roles/valhalla/templates/nginx-web.conf.j2) hand-roll their HTTP `server { listen 80; }` block instead of using the macro's `http='forward'` shorthand. The hand-rolled block serves `/.well-known/acme-challenge/*` from `/var/www/letsencrypt` and 301s everything else to HTTPS. The HTTPS server block still uses the macro (`http='no', https='valhalla-{api,web}'`).
+
+2. [roles/valhalla/tasks/tls.yml](../roles/valhalla/tasks/tls.yml) runs after [frontend.yml](../roles/valhalla/tasks/frontend.yml) and (a) installs certbot, (b) creates `/var/www/letsencrypt`, (c) drops a one-line deploy-hook at `/etc/letsencrypt/renewal-hooks/deploy/reload-nginx` (just `systemctl reload nginx`), (d) runs `certbot certonly --webroot ...` once per entry in `valhalla__acme_certificates`, (e) **symlinks** `/srv/acme-daemon/certs/<name>.{pem,key}` to `/etc/letsencrypt/live/<name>/{fullchain,privkey}.pem`, replacing the snake-oil regular files from common, (f) ensures `certbot.timer` is enabled.
+
+3. `tls.yml` calls `meta: flush_handlers` at its top so the nginx reload queued by frontend.yml fires BEFORE certbot runs — otherwise certbot would validate against pre-frontend nginx config on first deploy.
+
+4. valhalla2 isn't touched by tls.yml (gated to `valhalla_service` in [main.yml](../roles/valhalla/tasks/main.yml)). Whatever certs it declares in its `valhalla__acme_certificates` stay on the snake-oil placeholders dropped by common's `acme_cert_client.yml`. In practice this means whichever monitoring/admin endpoints valhalla2 exposes internally do so with snake-oil certs — no public TLS expected on v2.
+
+**Why symlinks instead of copying:** certbot rotates files under
+`/etc/letsencrypt/archive/<name>/<file><N>.pem` on each renewal and
+updates the symlinks under `/etc/letsencrypt/live/<name>/` to point at
+the latest. Our outer symlink in `/srv/acme-daemon/certs/` then
+auto-tracks the rotation — nothing needs to be copied, only nginx
+needs a reload to re-open the cert. Hence the deploy-hook is just
+`systemctl reload nginx`, no file-shuffling.
+
+**First-deploy ordering:**
+
+| step | what happens |
+|---|---|
+| common (via meta dep on apt etc.) | `acmeclnt` user + `/srv/acme-daemon/{bin,certs,renew-hooks}/` set up; snake-oil PEM/key dropped as regular files at `certs/{valhalla-api,valhalla-web,...}.{pem,key}` (`force: no`) |
+| nginx role (via meta dep) | nginx package installed, started with debian default config |
+| frontend.yml | valhalla nginx sites rendered (custom HTTP block + macro HTTPS block); `notify: reload nginx` queued |
+| tls.yml: flush_handlers | nginx reloaded → new sites live, `/.well-known/acme-challenge/` served from webroot, snake-oil cert still in use for HTTPS |
+| tls.yml: certbot certonly | issues real cert into `/etc/letsencrypt/live/<name>/` |
+| tls.yml: symlink tasks | snake-oil regular files at `/srv/acme-daemon/certs/<name>.{pem,key}` replaced (`force: yes`) with symlinks to the live/ tree; `notify: reload nginx` queued |
+| end of play | nginx reloaded → real cert in effect |
+
+**Cert paths on disk:**
+
+```
+/srv/acme-daemon/certs/<name>.pem   ── symlink ──>  /etc/letsencrypt/live/<name>/fullchain.pem
+                                                    └── symlink (certbot-managed) ──> /etc/letsencrypt/archive/<name>/fullchain<N>.pem
+/srv/acme-daemon/certs/<name>.key   ── symlink ──>  /etc/letsencrypt/live/<name>/privkey.pem
+                                                    └── symlink (certbot-managed) ──> /etc/letsencrypt/archive/<name>/privkey<N>.pem
+```
+
+nginx master process opens these as root — `archive/` is `root:root 700`
+by default, so worker (`www-data`) doesn't need read access there.
+nginx's shared `enable_ssl()` macro still references the
+`/srv/acme-daemon/certs/<name>.{pem,key}` paths it always has; the
+symlinks make it ACME-mechanism-agnostic.
+
+**Renewal:** debian's certbot package ships
+`/lib/systemd/system/certbot.timer` (twice daily). `tls.yml` ensures
+it's enabled. On each run, `certbot renew` checks all lineages,
+renews any expiring within 30 days, rotates the live/ targets, then
+fires our deploy-hook (`systemctl reload nginx`). The
+`/srv/acme-daemon/certs/` symlinks transparently follow the rotation.
+**No ansible run needed for renewals.**
+
+**Vault**: `valhalla__letsencrypt_email` lives in
+[group_vars/valhalla/vault.yml](../group_vars/valhalla/vault.yml) — Let's
+Encrypt registration contact for cert-expiry warnings + account recovery.
+Not on the public cert.
 
 ## Deploy flows
 
@@ -453,11 +535,13 @@ override:
 
 ### Things to know before testing
 
-- **Letsencrypt**: the acme renewal task only runs on the `[acme]` group;
-  vagrant.ini has a `dummy` placeholder so site.yml's `- hosts: acme` is
-  a no-op. Nginx serves the snake-oil placeholder cert from
-  `roles/common/tasks/acme_cert_client.yml` — browser warnings are
-  expected; `curl -k` from the host works.
+- **Letsencrypt**: vagrant turns the self-hosted certbot flow OFF via
+  `valhalla__letsencrypt_in_use: false` in
+  [host_vars/valhalla-service.yml](../host_vars/valhalla-service.yml).
+  The VM has no public DNS and port 80 isn't reachable to Let's
+  Encrypt's validator, so certbot would fail. nginx falls back to the
+  snake-oil cert dropped by `roles/common/tasks/acme_cert_client.yml`
+  — browser warnings are expected; `curl -k` from the host works.
 - **Manual deploy script invocation**: the orchestrator drives
   `deploy-valhalla.sh` + `deploy-web.sh` + `apply-graph.sh` from each
   iteration. To exercise just the script logic without waiting for an
@@ -772,7 +856,8 @@ ls templates/icinga2/groups/valhalla_*
 ls group_vars/valhalla*
 # valhalla/               (parent group)
 #   vars.yml              (monitoring-visible shared vars: basedir, sentinel_max_age_hours)
-#   vault.yml             (ansible-vault: download_password, prometheus_scraper_ip)
+#   vault.yml             (ansible-vault: download_password, prometheus_scraper_ip,
+#                          letsencrypt_email, users[])
 # valhalla_service.yml    (valhalla1 specifics)
 # valhalla_builder.yml    (valhalla2 specifics)
 

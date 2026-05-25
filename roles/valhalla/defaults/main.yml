@@ -67,3 +67,13 @@ valhalla__download_user: fossgis
 # valhalla__download_password: must be defined in
 # group_vars/valhalla/vault.yml when valhalla__download_in_use is true.
 # The role asserts up front rather than rendering an empty htpasswd.
+
+# Self-hosted Let's Encrypt (certbot) on valhalla1, diverging from the
+# org's robinson-centralised distribution model — see ai/valhalla.md
+# § TLS (self-hosted). Default true because the role's prod target
+# (valhalla1) has public DNS + port 80 open and expects real TLS;
+# vagrant overrides to false in host_vars/valhalla-service.yml.
+# Issues one cert per entry of valhalla__acme_certificates, writes
+# them to /srv/acme-daemon/certs/<name>.{pem,key}.
+# Requires valhalla__letsencrypt_email (vault).
+valhalla__letsencrypt_in_use: true

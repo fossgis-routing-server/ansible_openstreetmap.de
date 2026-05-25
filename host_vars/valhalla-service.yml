@@ -1,5 +1,11 @@
 # SPDX-License-Identifier: MIT
 # Vagrant test VM for the valhalla service role. Pairs with valhalla-builder
-# on a shared libvirt private_network (see Vagrantfile). No overrides needed
-# at this layer — all builder-specific values (planet URL, SSH target, etc.)
-# live in host_vars/valhalla-builder.yml.
+# on a shared libvirt private_network (see Vagrantfile). Most builder-side
+# overrides (planet URL, SSH target, etc.) live in host_vars/valhalla-builder.yml.
+
+# Disable the self-hosted certbot flow in vagrant: the VM has no public DNS
+# (private libvirt network only) and port 80 isn't reachable by Let's
+# Encrypt's validator, so certbot would fail. nginx falls back to the
+# snake-oil certs dropped by common's acme_cert_client task — browsers
+# will warn, `curl -k` works.
+valhalla__letsencrypt_in_use: false

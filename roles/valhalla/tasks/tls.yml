@@ -1,0 +1,108 @@
+# SPDX-License-Identifier: MIT
+# Self-hosted Let's Encrypt certs on valhalla1 (valhalla_service group).
+#
+# The org's standard model centralises cert issuance on the [acme] host
+# (robinson). We can't deploy robinson, so we run our own certbot here
+# and bridge between certbot's path layout and nginx's expected paths
+# via symlinks:
+#
+#   /srv/acme-daemon/certs/<name>.pem   →   /etc/letsencrypt/live/<name>/fullchain.pem
+#   /srv/acme-daemon/certs/<name>.key   →   /etc/letsencrypt/live/<name>/privkey.pem
+#
+# nginx's shared enable_ssl() macro reads from /srv/acme-daemon/certs/
+# (org convention). Renewals rotate the symlink targets under /etc/
+# letsencrypt/live/ automatically — our outer symlink auto-tracks. The
+# deploy-hook is then just "reload nginx" so nginx re-opens the cert.
+#
+# The companion piece is in nginx-{api,web}.conf.j2: their HTTP server
+# block is hand-rolled (NOT via the org's server() macro's
+# http='forward') so /.well-known/acme-challenge/* is served from
+# /var/www/letsencrypt instead of 301'd to robinson.
+#
+# valhalla2 isn't touched (gated to valhalla_service in main.yml);
+# whatever certs it declares stay on the snake-oil placeholders from
+# common's acme_cert_client task.
+---
+
+- name: Flush handlers so frontend.yml's nginx reload happens BEFORE certbot
+  # certbot --webroot needs the new HTTP server block (with the
+  # /.well-known/acme-challenge/ location) to be live. Without this,
+  # the queued `reload nginx` from frontend.yml only fires at end-of-
+  # play, and certbot would validate against the pre-frontend config.
+  meta: flush_handlers
+
+- name: Install certbot
+  apt:
+    name: certbot
+    state: present
+
+- name: Webroot for http-01 challenges
+  file:
+    path: /var/www/letsencrypt
+    state: directory
+    owner: www-data
+    group: www-data
+    mode: "0755"
+
+- name: Deploy-hook — reload nginx after each renewal
+  # certbot.timer fires `certbot renew` twice daily. For every cert that
+  # actually renewed, certbot runs every script in renewal-hooks/deploy/.
+  # All we need is a reload so nginx re-reads the rotated symlink targets.
+  copy:
+    dest: /etc/letsencrypt/renewal-hooks/deploy/reload-nginx
+    owner: root
+    group: root
+    mode: "0755"
+    content: |
+      #!/bin/sh
+      systemctl reload nginx
+
+- name: Issue certs (one per valhalla__acme_certificates entry)
+  # `creates:` makes this idempotent — skipped once the lineage exists.
+  # If certbot fails (e.g. DNS for a domain doesn't resolve), the play
+  # aborts before the symlink tasks run, so nginx keeps serving snake-oil.
+  command:
+    cmd: >-
+      certbot certonly --webroot -w /var/www/letsencrypt
+      --non-interactive --agree-tos
+      --email "{{ valhalla__letsencrypt_email }}"
+      --cert-name {{ item.name }}
+      {% for d in item.domains %} -d {{ d }}{% endfor %}
+    creates: "/etc/letsencrypt/live/{{ item.name }}/fullchain.pem"
+  loop: "{{ valhalla__acme_certificates }}"
+  loop_control:
+    label: "{{ item.name }} ({{ item.domains | join(',') }})"
+
+- name: Symlink /srv/acme-daemon/certs/<name>.pem → /etc/letsencrypt/live/…/fullchain.pem
+  # `force: yes` overwrites the snake-oil regular file dropped by
+  # common's acme_cert_client.yml. On subsequent runs the symlink already
+  # exists with the right target — no-op.
+  file:
+    src: "/etc/letsencrypt/live/{{ item.name }}/fullchain.pem"
+    dest: "{{ acme__daemon_basedir }}/certs/{{ item.name }}.pem"
+    state: link
+    force: yes
+  loop: "{{ valhalla__acme_certificates }}"
+  loop_control:
+    label: "{{ item.name }}.pem"
+  notify: reload nginx
+
+- name: Symlink /srv/acme-daemon/certs/<name>.key → /etc/letsencrypt/live/…/privkey.pem
+  file:
+    src: "/etc/letsencrypt/live/{{ item.name }}/privkey.pem"
+    dest: "{{ acme__daemon_basedir }}/certs/{{ item.name }}.key"
+    state: link
+    force: yes
+  loop: "{{ valhalla__acme_certificates }}"
+  loop_control:
+    label: "{{ item.name }}.key"
+  notify: reload nginx
+
+- name: Ensure certbot.timer is enabled (unattended renewals)
+  # Debian's certbot package ships /lib/systemd/system/certbot.timer
+  # (twice daily). Some distros leave it disabled until first manual
+  # systemctl enable — be explicit.
+  systemd_service:
+    name: certbot.timer
+    enabled: true
+    state: started

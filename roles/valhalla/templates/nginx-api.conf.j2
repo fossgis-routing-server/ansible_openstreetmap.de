@@ -1,4 +1,27 @@
-{% call server([valhalla__api_hostname], http='forward', https='valhalla-api') %}
+{# Custom HTTP server block — bypasses the nginx role's server() macro,
+   which 301-redirects /.well-known/acme-challenge/ to robinson (the org's
+   centralised acme host). We self-host certbot on valhalla1 (see
+   roles/valhalla/tasks/tls.yml), so the challenge has to be served from
+   /var/www/letsencrypt here instead of bounced away. Everything else
+   still redirects to HTTPS exactly like the macro would. #}
+server {
+    listen 80;
+    listen [::]:80;
+
+    server_name {{ valhalla__api_hostname }};
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/letsencrypt;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+{# HTTPS block via the macro — http='no' means it emits ONLY the :443
+   server, no HTTP redirect block (we wrote our own above). #}
+{% call server([valhalla__api_hostname], http='no', https='valhalla-api') %}
 
     access_log /var/log/nginx/valhalla-api.log valhalla_log;
     error_log  /var/log/nginx/valhalla-api.error.log;

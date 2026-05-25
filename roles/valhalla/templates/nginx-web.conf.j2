@@ -1,4 +1,22 @@
-{% call server([valhalla__web_hostname], http='forward', https='valhalla-web') %}
+{# Custom HTTP server block — same rationale as nginx-api.conf.j2: serve
+   /.well-known/acme-challenge/* from /var/www/letsencrypt for the self-
+   hosted certbot flow instead of redirecting to robinson. #}
+server {
+    listen 80;
+    listen [::]:80;
+
+    server_name {{ valhalla__web_hostname }};
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/letsencrypt;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+{% call server([valhalla__web_hostname], http='no', https='valhalla-web') %}
 
     access_log /var/log/nginx/valhalla-web.log anonymized;
     error_log  /var/log/nginx/valhalla-web.error.log;

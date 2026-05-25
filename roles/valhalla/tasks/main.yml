@@ -27,6 +27,18 @@
   include_tasks: "frontend.yml"
   when: "inventory_hostname in groups['valhalla_service']"
 
+- name: "Self-hosted Let's Encrypt (service host — diverges from org's robinson-centralised flow)"
+  # Must run AFTER frontend.yml: certbot --webroot needs the custom HTTP
+  # server blocks (rendered by frontend.yml + reload nginx) to serve the
+  # /.well-known/acme-challenge/ path. On first run the snake-oil certs
+  # dropped by common's acme_cert_client task keep nginx start-able until
+  # certbot's deploy-hook overwrites them. Gated on a toggle so vagrant
+  # (no public DNS) can opt out — see host_vars/valhalla-service.yml.
+  include_tasks: "tls.yml"
+  when:
+    - "inventory_hostname in groups['valhalla_service']"
+    - valhalla__letsencrypt_in_use | default(False)
+
 - name: "Munin plugins (per-host gating inside)"
   include_tasks: "munin.yml"
 
