@@ -9,3 +9,12 @@
 # snake-oil certs dropped by common's acme_cert_client task — browsers
 # will warn, `curl -k` works.
 valhalla__letsencrypt_in_use: false
+
+# Disable the /download/ Basic-Auth tarball endpoint in vagrant — no real
+# clients hitting it, and the vault password isn't meaningful here.
+valhalla__download_in_use: false
+
+# Disable the prometheus exporters in vagrant — no scraper IP set, no
+# external scrape happening. (The role asserts on valhalla__prometheus_scraper_ip
+# when this is true.)
+valhalla__ext_prometheus_in_use: false
