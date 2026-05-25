@@ -44,10 +44,18 @@
     mode: "0755"
 
 - name: Install build-tiles systemd unit
+  # Deliberately NOT `state: started` here — the loop SSHes to the
+  # service host as valhalla-deploy on its first iteration, but
+  # deploy.yml (which authorises this orchestrator pubkey on the
+  # service host) hasn't run yet at this point in main.yml. Starting
+  # the unit now would burn through StartLimitBurst (3 fails in 600s)
+  # before the key is authorised, and systemd would refuse to start
+  # the unit again without a manual `systemctl reset-failed`. Instead,
+  # main.yml's final task explicitly starts the unit on the builder
+  # AFTER deploy.yml has run.
   systemd_service:
     name: valhalla-build-tiles
     enabled: true
-    state: started
     service:
       Unit:
         Description: Valhalla tile build loop

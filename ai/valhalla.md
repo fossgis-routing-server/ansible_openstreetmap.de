@@ -309,7 +309,35 @@ full run.
 
 | unit | host | what |
 |---|---|---|
-| `valhalla-build-tiles.service` | valhalla2 | runs `scripts/build-tiles-loop.sh`. `Restart=always`, `RestartSec=60`, `StartLimitBurst=3 / StartLimitIntervalSec=600` so persistent fast failures pin it as `failed` for monitoring. |
+| `valhalla-build-tiles.service` | valhalla2 | runs `scripts/build-tiles-loop.sh`. `Restart=always`, `RestartSec=60`, `StartLimitBurst=3 / StartLimitIntervalSec=600` so persistent fast failures pin it as `failed` for monitoring. **Started at end of main.yml, NOT in tiles_loop.yml's install** — see "First-deploy ordering" below. |
+
+### First-deploy ordering invariant
+
+The build-tiles unit's first iteration SSHes to valhalla1 as
+`valhalla-deploy` (orchestrator key). That key is authorised on
+valhalla1 by [deploy.yml](../roles/valhalla/tasks/deploy.yml), which
+runs AFTER [tiles_loop.yml](../roles/valhalla/tasks/tiles_loop.yml) in
+[main.yml](../roles/valhalla/tasks/main.yml). So if the build-tiles
+unit were started inside tiles_loop.yml (`state: started` on install),
+the first 3 iterations would fire before the key is authorised → all
+fail with `Permission denied (publickey)` → systemd burns through
+`StartLimitBurst=3` → the unit pins itself `failed` and refuses
+further starts until a manual `systemctl reset-failed`.
+
+Fix lives at the bottom of main.yml: two tasks, gated to the builder
+group, that run after deploy.yml + everything else:
+
+1. `command: systemctl reset-failed valhalla-build-tiles` —
+   `changed_when: false`, idempotent (no-op on healthy units), covers
+   the transition case for hosts that already hit the pre-fix wedge.
+2. `systemd_service: name=valhalla-build-tiles state=started` —
+   starts it now that the key is in place.
+
+If you add another orchestrator step that runs on the builder and
+needs the service-side trust path already wired (e.g. a one-shot
+provisioning push), it must go AFTER this pair too — or split off
+deploy.yml's `authorized_key` task into a meta dep / handler so it
+fires earlier in dependency order.
 | `valhalla-8000.service` | valhalla1 | runs `valhalla_service /srv/valhalla/valhalla-8000.json <vcpus>`. Worker threads = full host vcpus, no CPUQuota — see "no CPU cap" gotcha. |
 | `valhalla-8001.service` | valhalla1 | same, port 8001. |
 
