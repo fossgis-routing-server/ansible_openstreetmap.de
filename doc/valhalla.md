@@ -712,8 +712,7 @@ welcome page. Two one-time steps get you a real end-to-end browser test:
        | sudo tee -a /etc/hosts
    ```
 
-   Remove the line when you're done — production DNS will take over once the
-   real hosts go live.
+   Remove the line when you're done — production DNS will take over once the real hosts go live.
 
 2. Accept the snake-oil TLS cert **for each hostname separately** (browsers
    pin acceptance per-host). Visit each URL once and click through the

@@ -43,9 +43,8 @@
     repo: "{{ valhalla__git_repo }}"
     dest: "{{ valhalla__srcdir }}"
     version: "{{ valhalla__git_version }}"
-    # Shallow clone for branches/tags, full clone for specific commits
-    depth: "{{ 1 if valhalla__git_version | length != 40 else omit }}"
-    single_branch: "{{ valhalla__git_version | length != 40 }}"
+    # Full clone — see service.yml's valhalla checkout for the rationale
+    # (shallow caused recurring submodule-fetch failures, not worth it).
     recursive: yes
     # See service.yml for the rationale behind `update: no` + no `force`:
     # avoid wedging submodule state under `.git/modules/` across re-runs.

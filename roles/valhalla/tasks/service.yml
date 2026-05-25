@@ -45,8 +45,7 @@
     repo: https://github.com/kevinkreiser/prime_server.git
     dest: "{{ valhalla__prime_server_srcdir }}"
     version: master
-    depth: 1
-    single_branch: yes
+    # Full clone — see valhalla checkout below for the rationale.
     recursive: yes
     update: no
   register: valhalla_prime_server_src
@@ -93,11 +92,12 @@
     repo: "{{ valhalla__git_repo }}"
     dest: "{{ valhalla__srcdir }}"
     version: "{{ valhalla__git_version }}"
-    # Shallow + single-branch when version is a branch/tag (not a 40-char
-    # SHA). SHA pins fall back to a full clone since shallow can't
-    # resolve arbitrary commits.
-    depth: "{{ 1 if valhalla__git_version | length != 40 else omit }}"
-    single_branch: "{{ valhalla__git_version | length != 40 }}"
+    # Full clone, always — no `depth` / `single_branch`. The bandwidth
+    # savings of shallow weren't worth the recurring submodule-fetch
+    # weirdness (`upload-pack: not our ref <SHA>` on third_party/just_gtfs,
+    # never reproducible in a standalone `git clone --recurse-submodules`).
+    # ~200 MB extra disk per host, one-time clone cost. Subsequent updates
+    # go through deploy-valhalla.sh's in-repo `git fetch + pull`.
     recursive: yes
     # update: no  → only clone if dest is missing. Subsequent updates
     # (branch advances, SHA bumps) flow through deploy-valhalla.sh's

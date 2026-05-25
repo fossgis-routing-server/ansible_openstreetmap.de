@@ -113,6 +113,16 @@ done
         printf '%s' "${BY_GROUP[$grp]}"
         echo
     done
+
+    # Parent group [valhalla:children] mirrors hosts.ini, so that
+    # group_vars/valhalla/{vars,vault}.yml resolves for either half.
+    # Only emit if at least one valhalla_* group ended up populated.
+    if [ -n "${BY_GROUP[valhalla_service]:-}" ] || [ -n "${BY_GROUP[valhalla_builder]:-}" ]; then
+        echo "[valhalla:children]"
+        echo "valhalla_service"
+        echo "valhalla_builder"
+        echo
+    fi
 } > $CONFIG
 
 echo "wrote $CONFIG ($*)"
