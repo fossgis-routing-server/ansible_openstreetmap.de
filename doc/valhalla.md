@@ -160,7 +160,7 @@ entry probably doesn't list `valhalla_builder` (or `servers`) in
 | unit | host | trigger | what |
 |---|---|---|---|
 | `valhalla-8000.service`, `valhalla-8001.service` | valhalla1 | always running side-by-side | `valhalla_service /srv/valhalla/valhalla-{port}.json <vcpus>`. Worker threads = full host vcpus per instance, no CPUQuota — kernel fair-shares when both hot, one instance bursts to the whole host while the other is stopped mid-apply-graph. |
-| `valhalla-build-tiles.service` | valhalla2 | always running | `/srv/valhalla/scripts/build-tiles-loop.sh`. `Restart=always` with `StartLimitBurst=3` to surface persistent failures. |
+| `valhalla-build-tiles.service` | valhalla2 | runs until an iteration fails | `/srv/valhalla/scripts/build-tiles-loop.sh`. `Restart=no` — any iteration failure leaves the unit `failed` until a human investigates (recovery: `systemctl reset-failed valhalla-build-tiles && systemctl start valhalla-build-tiles`). Stale sentinel `/srv/valhalla/last_apply_complete` is the primary monitoring signal. |
 
 ### nginx (valhalla1)
 
@@ -816,7 +816,7 @@ sudo journalctl -u valhalla-8000 -n 80  # find the actual error
 sudo systemctl status valhalla-build-tiles
 sudo journalctl -u valhalla-build-tiles -n 80
 
-# StartLimitBurst hit (3 quick failures):
+# Unit is `failed` (Restart=no, so any iteration failure pins it):
 sudo systemctl reset-failed valhalla-build-tiles
 sudo systemctl start valhalla-build-tiles
 

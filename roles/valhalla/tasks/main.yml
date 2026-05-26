@@ -49,11 +49,10 @@
   include_tasks: "prometheus.yml"
   when: valhalla__ext_prometheus_in_use | default(False)
 
-- name: "Reset failed state on build-tiles loop (transition for hosts that hit the pre-fix ordering bug)"
-  # If a previous deploy ran the buggy ordering (started the unit
-  # before deploy.yml authorised the key), the unit ended up `failed`
-  # past StartLimitBurst. systemd refuses `start` on a failed unit
-  # without an explicit reset. Idempotent on healthy hosts —
+- name: "Reset failed state on build-tiles loop"
+  # The unit runs with Restart=no, so any prior iteration failure
+  # leaves it `failed` until cleared. Reset here so the `state: started`
+  # task below can re-start it on the next ansible run. Idempotent —
   # reset-failed against a non-failed unit is a no-op.
   command: systemctl reset-failed valhalla-build-tiles
   when: "inventory_hostname in groups['valhalla_builder']"

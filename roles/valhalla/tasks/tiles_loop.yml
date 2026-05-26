@@ -48,11 +48,14 @@
   # service host as valhalla-deploy on its first iteration, but
   # deploy.yml (which authorises this orchestrator pubkey on the
   # service host) hasn't run yet at this point in main.yml. Starting
-  # the unit now would burn through StartLimitBurst (3 fails in 600s)
-  # before the key is authorised, and systemd would refuse to start
-  # the unit again without a manual `systemctl reset-failed`. Instead,
-  # main.yml's final task explicitly starts the unit on the builder
-  # AFTER deploy.yml has run.
+  # the unit here would fail with "Permission denied (publickey)" and
+  # leave the unit `failed`. main.yml's final task starts the unit on
+  # the builder AFTER deploy.yml has run.
+  #
+  # Restart=no on purpose: when an iteration aborts, we want the unit
+  # to fail loudly. Operators recover with `systemctl reset-failed 
+  # valhalla-build-tiles && systemctl start valhalla-build-tiles` 
+  # after fixing the root cause.
   systemd_service:
     name: valhalla-build-tiles
     enabled: true
@@ -60,17 +63,13 @@
       Unit:
         Description: Valhalla tile build loop
         After: network-online.target
-        # if we have repeated failures, we set a systemd failure
-        StartLimitBurst: 3
-        StartLimitIntervalSec: 600
       Service:
         Type: simple
         User: "{{ valhalla__deploy_user }}"
         Group: "{{ valhalla__deploy_user }}"
         Environment: "PATH={{ valhalla__prefix }}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin LD_LIBRARY_PATH={{ valhalla__prefix }}/lib"
         ExecStart: "/bin/bash {{ valhalla__basedir }}/scripts/build-tiles-loop.sh"
-        Restart: always
-        RestartSec: 60
+        Restart: "no"
       # start service on every boot
       Install:
         WantedBy: multi-user.target

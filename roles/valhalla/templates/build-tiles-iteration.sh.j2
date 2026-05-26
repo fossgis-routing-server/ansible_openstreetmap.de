@@ -29,9 +29,12 @@
 # Failure handling (deliberate):
 #   - set -euo pipefail: any pathological failure aborts this iteration.
 #   - The iteration exits non-zero; the wrapper's `set -e` propagates that
-#     up, so systemd sees the failure and increments its restart counter.
-#   - Restart=always brings it back; StartLimitBurst pins the unit as
-#     'failed' if 3 restarts happen within 10 min (so monitoring sees it).
+#     up, so systemd sees the failure and the unit goes to `failed`.
+#   - Restart=no in the unit — a real failure stays failed until a human
+#     looks at it. Graph builds are multi-hour; restart-looping past a
+#     real bug wastes CPU and obscures the failure. Recover with
+#     `systemctl reset-failed valhalla-build-tiles && systemctl start
+#     valhalla-build-tiles` after fixing the root cause.
 #   - The sentinel file's mtime is the primary monitoring signal — works
 #     regardless of unit state. Munin/prometheus alert on staleness.
 #   - Only pyosmium-up-to-date is best-effort (|| LOG_WARN); everything else

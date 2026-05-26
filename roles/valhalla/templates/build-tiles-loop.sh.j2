@@ -12,9 +12,12 @@
 # and stable.
 #
 # Failure propagation: `set -e` aborts the wrapper if the iteration
-# script exits non-zero, so systemd sees the failure and increments
-# its restart counter (Restart=always, StartLimitBurst=3 within 10 min
-# pins the unit as `failed` for monitoring).
+# script exits non-zero, so systemd sees the failure and the unit
+# goes to `failed` state. Restart=no in the unit — a real iteration
+# failure should stay failed until a human looks at it (graph builds
+# are multi-hour; silent restart-looping wastes CPU and obscures the
+# bug). Recover with `systemctl reset-failed valhalla-build-tiles &&
+# systemctl start valhalla-build-tiles` once the root cause is fixed.
 
 set -e
 while true; do

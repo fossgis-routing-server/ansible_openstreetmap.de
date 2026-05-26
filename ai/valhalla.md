@@ -309,7 +309,7 @@ full run.
 
 | unit | host | what |
 |---|---|---|
-| `valhalla-build-tiles.service` | valhalla2 | runs `scripts/build-tiles-loop.sh`. `Restart=always`, `RestartSec=60`, `StartLimitBurst=3 / StartLimitIntervalSec=600` so persistent fast failures pin it as `failed` for monitoring. **Started at end of main.yml, NOT in tiles_loop.yml's install** — see "First-deploy ordering" below. |
+| `valhalla-build-tiles.service` | valhalla2 | runs `scripts/build-tiles-loop.sh`. `Restart=no` — a real iteration failure stays `failed` until a human looks at it (graph builds are multi-hour; silent restart-looping past a real bug wastes CPU and obscures the failure). Recover with `systemctl reset-failed valhalla-build-tiles && systemctl start valhalla-build-tiles` after fixing the root cause. **Started at end of main.yml, NOT in tiles_loop.yml's install** — see "First-deploy ordering" below. |
 
 ### First-deploy ordering invariant
 
@@ -319,17 +319,18 @@ valhalla1 by [deploy.yml](../roles/valhalla/tasks/deploy.yml), which
 runs AFTER [tiles_loop.yml](../roles/valhalla/tasks/tiles_loop.yml) in
 [main.yml](../roles/valhalla/tasks/main.yml). So if the build-tiles
 unit were started inside tiles_loop.yml (`state: started` on install),
-the first 3 iterations would fire before the key is authorised → all
-fail with `Permission denied (publickey)` → systemd burns through
-`StartLimitBurst=3` → the unit pins itself `failed` and refuses
-further starts until a manual `systemctl reset-failed`.
+the first iteration would fire before the key is authorised, fail
+with `Permission denied (publickey)`, and (since Restart=no) leave
+the unit `failed`. systemd refuses `start` on a failed unit without
+an explicit reset.
 
 Fix lives at the bottom of main.yml: two tasks, gated to the builder
 group, that run after deploy.yml + everything else:
 
 1. `command: systemctl reset-failed valhalla-build-tiles` —
-   `changed_when: false`, idempotent (no-op on healthy units), covers
-   the transition case for hosts that already hit the pre-fix wedge.
+   `changed_when: false`, idempotent (no-op on healthy units). Also
+   clears any leftover failed state from the previous ansible run's
+   iteration so step 2 can actually start the unit.
 2. `systemd_service: name=valhalla-build-tiles state=started` —
    starts it now that the key is in place.
 
@@ -656,7 +657,7 @@ upgrades — orthogonal to the valhalla role's system accounts.
 
 - **Both blue and green run continuously, no CPU cap.** Each instance's `valhalla_service` is told its worker-thread count = full host vcpus, and the systemd unit sets no `CPUQuota`. When both are busy the kernel scheduler fair-shares CPU between them (~50% each); during an apply-graph rolling stop/start the surviving instance can burst to the whole host, absorbing the doubled load without queueing. This is in lieu of a "currently active port" state file. Memory cost of the extra worker threads vs. half-vcpus is small (~1-2 MB stack per thread, doubles the per-instance thread budget).
 - **`drain_seconds=28`** in valhalla.json means `systemctl stop` blocks ~29s. The script doesn't need extra wait logic.
-- **`set -euo pipefail`** in build-tiles-iteration.sh — any pathological failure aborts the iteration; the wrapper's `set -e` propagates it; systemd sees the failure and restarts. Sentinel mtime is the monitoring signal; brief restart cycling is the secondary signal (StartLimitBurst).
+- **`set -euo pipefail`** in build-tiles-iteration.sh — any pathological failure aborts the iteration; the wrapper's `set -e` propagates it; systemd sees the failure and the unit goes `failed`. **`Restart=no`** on purpose: graph builds are multi-hour, so a real bug that aborts an iteration would burn many hours of CPU before someone noticed if the unit silently restart-looped. Sentinel mtime is the primary monitoring signal (works regardless of unit state); unit `failed` is the secondary signal. Recover with `systemctl reset-failed valhalla-build-tiles && systemctl start valhalla-build-tiles` after fixing the root cause.
 - **Tarball is built in two steps**: `valhalla_build_extract` writes the uncompressed tar to `mjolnir.tile_extract` (`valhalla__extract_path`, pinned via `--mjolnir-tile-extract` in [builder.yml](../roles/valhalla/tasks/builder.yml) — without the explicit pin valhalla defaults to `/data/...` which `valhalla-deploy` can't write to, and `valhalla_build_extract` fails with `PermissionError`), then a separate `zstd -T0 -3 -f` produces `tiles.tar.zst` via the `.partial` + atomic-mv pattern. `-T0 -3` is fast compression, not max — tile data is binary and already compressible, so `-19` isn't worth the CPU.
 - **`git:` tasks are `update: no` deliberately.** Both [service.yml](../roles/valhalla/tasks/service.yml) and [builder.yml](../roles/valhalla/tasks/builder.yml)'s git checkouts of valhalla (and service.yml's prime_server) use `update: no` with NO `force`. Ansible's git module with `force: yes` doesn't clean `.git/modules/<submodule>/` directories, so a partial submodule-fetch failure on one run leaves the repo wedged for all subsequent runs (`fatal: upload-pack: not our ref …`). With `update: no` the git task only fires on a fresh host, and all subsequent in-repo updates flow through `deploy-valhalla.sh`'s `git fetch + pull + submodule update`. Wedge recovery is `sudo rm -rf {{ valhalla__srcdir }}` then re-run ansible — operator-facing docs in [doc/valhalla.md "Submodule fetch fails"](../doc/valhalla.md#submodule-fetch-fails-upload-pack-not-our-ref-).
 - **deploy-valhalla.sh is the sole source of truth for valhalla cmake/build/install.** No duplication: both ansible's initial-deploy tasks ([service.yml](../roles/valhalla/tasks/service.yml) + [builder.yml](../roles/valhalla/tasks/builder.yml)) and the build-tiles iteration on v2 invoke the script with the appropriate `builder`/`service` profile arg. The script SHA-gates internally via `{{ valhalla__prefix }}/.valhalla_installed_sha` (the SHA the installed binary was built from): on every invocation, compare `git rev-parse HEAD` against the marker, rebuild on mismatch, no-op exit otherwise. Handles fresh deploys, branch advances, tag/SHA-pin changes, and ansible-driven branch swaps uniformly.
