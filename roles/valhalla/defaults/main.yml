@@ -50,7 +50,7 @@ valhalla__srcdir: /src/valhalla
 # via PATH + LD_LIBRARY_PATH wired off this var.
 valhalla__prefix: "{{ valhalla__basedir }}/local"
 
-valhalla__ext_prometheus_in_use: false
+valhalla__ext_prometheus_in_use: true
 
 # Pinned statsd_exporter release. Debian Trixie doesn't package it, so
 # we install the Go binary from the upstream GitHub release tarball.
@@ -61,7 +61,7 @@ valhalla__statsd_exporter_version: "0.29.0"
 # via group_vars/valhalla/vault.yml (ansible-vault) to turn it on. The
 # .zst is published to a stable inode by apply-graph.sh; the uncompressed
 # .tar is the same file the running valhalla_service instances mmap.
-valhalla__download_in_use: false
+valhalla__download_in_use: true
 valhalla__download_user: fossgis
 # valhalla__download_password: must be defined in
 # group_vars/valhalla/vault.yml when valhalla__download_in_use is true.

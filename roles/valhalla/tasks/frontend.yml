@@ -35,6 +35,12 @@
     mode: "0750"
   when: valhalla__download_in_use | default(False)
 
+- name: passlib (required by community.general.htpasswd)
+  apt:
+    name: python3-passlib
+    state: present
+  when: valhalla__download_in_use | default(False)
+
 - name: htpasswd for /download/
   community.general.htpasswd:
     path: /etc/nginx/htpasswd/valhalla-download

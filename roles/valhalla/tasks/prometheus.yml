@@ -46,6 +46,17 @@
     group: root
     mode: "0755"
 
+- name: /etc/prometheus dir (service host only)
+  # Neither prometheus-node-exporter nor statsd_exporter ships this
+  # directory — we only need it for the mapping config below.
+  file:
+    path: /etc/prometheus
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: inventory_hostname in groups['valhalla_service']
+
 - name: Statsd-exporter mapping config (service host only)
   # Histogram + label-rewrite rules for valhalla's per-request timer
   # metrics. Required for histogram_quantile() to work in dashboards.

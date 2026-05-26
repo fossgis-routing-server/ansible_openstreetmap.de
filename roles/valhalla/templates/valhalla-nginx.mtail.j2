@@ -24,4 +24,5 @@ counter nginx_http_requests_total by client, endpoint, status
 # request total vs valhalla's own per-request statsd. The original
 # nginx-lua-prometheus setup made the same exclusion.
 /^\S+ \[\S+ \S+\] (?P<method>GET|POST|PUT|DELETE|HEAD|PATCH) \/(?P<endpoint>[A-Za-z0-9_]+)\S* (?P<status>\d+) \d+ rqt=\S+ urt=\S+ client=(?P<client>\S+)$/ {
+    nginx_http_requests_total[$client][$endpoint][$status]++
 }
