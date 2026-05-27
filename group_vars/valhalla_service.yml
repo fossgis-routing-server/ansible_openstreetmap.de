@@ -39,6 +39,9 @@ valhalla__apply_sentinel_path: "{{ valhalla__basedir }}/last_apply_complete"
 # prime_server source checkout (built from master on the service host).
 valhalla__prime_server_srcdir: /src/prime_server
 
+valhalla__elevation_dir: "{{ valhalla__basedir }}/elevation"
+valhalla__elevation_bbox: "-180,-90,180,90"
+
 # ACME cert declarations are read by the common role's
 # acme_cert_client task during the early `[servers]` play (before
 # role defaults are in scope), so they live here. "name" must match

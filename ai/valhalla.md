@@ -258,6 +258,8 @@ full run.
 ├── graph-8001.tar                      # (hardlink of graph-8000.tar)
 ├── mvt-cache-8000/                     # /tile cache for the 8000 instance
 ├── mvt-cache-8001/
+├── elevation/                          # Tilezen SRTM cache, --from-bbox at playbook time
+│   └── .complete                       # idempotency sentinel
 ├── web-app/                            # vite source
 └── last_apply_complete                 # apply-graph sentinel (mtime)
 
