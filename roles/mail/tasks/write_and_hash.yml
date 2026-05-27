@@ -1,21 +1,21 @@
 # SPDX-License-Identifier: MIT
-- name: 'Create {{ item.dest }}'
+- name: 'Create {{ dest }}'
   register: map_result
   copy:
-    dest: '{{ item.dest }}'
+    dest: '{{ dest }}'
     owner: root
     group: root
     mode: 0644
     content: |
-      {% for key, value in mail.aliases.items() %}
-      {{ key }} {% if value is string %}{{ value }}{% else %}{{ value|join(',') }}
+      {% for key, value in alias.items() %}
+      {{ key }}{{ key_char }} {% if value is string %}{{ value }}{% else %}{{ value|join(',') }}
       {% endif %}
 
       {% endfor %}
 
 - name: Run postmap if required on virtual_alias_map
   shell:
-    cmd: '{{ item.cmd }} hash:{{ item.dest }}'
+    cmd: 'postmap hash:{{ dest }}'
     chdir: /etc/postfix
   when: map_result.changed
   register: postmap_result

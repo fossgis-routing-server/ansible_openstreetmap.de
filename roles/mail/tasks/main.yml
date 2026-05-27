@@ -13,11 +13,20 @@
     content: |
       {{ mail.mailname }}
 
-- name: 'virtual_alias_map and bad_senders'
+- name: 'aliases'
   include_tasks: write_and_hash.yml
-  loop:
-    - {'dest': '/etc/postfix/virtual_alias_map', 'cmd': 'postmap'}
-    - {'dest': '/etc/aliases', 'cmd': 'postmap'}
+  vars:
+    dest: '/etc/aliases'
+    key_char: ':'
+    alias: "{{ mail.aliases | dict2items | rejectattr('key', 'search', '@') | items2dict }}"
+    map: mail.aliases
+
+- name: 'virtual_alias_map'
+  include_tasks: write_and_hash.yml
+  vars:
+    dest: '/etc/postfix/virtual_alias_map'
+    key_char: ''
+    alias: "{{ mail.aliases | dict2items | selectattr('key', 'search', '@') | items2dict }}"
 
 - name: Write /etc/postfix/main.cf
   template:

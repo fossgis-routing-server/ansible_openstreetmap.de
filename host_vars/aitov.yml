@@ -12,6 +12,7 @@ mail:
     root@weeklyosm.eu: osm-server-ag-admins@fossgis.de
     postmaster: osm-server-ag-admins@fossgis.de
     root: osm-server-ag-admins@fossgis.de
+    admin: matthias@matthiasheinisch.de
   relay: true
 
 wordpress_plugins:
