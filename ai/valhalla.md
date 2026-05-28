@@ -30,13 +30,15 @@ Two physical hosts, one role applied conditionally per group.
                    Internet (port 443)
                           │
                           ▼
-┌──────────────── valhalla1.openstreetmap.de (162.55.2.221) ──────────────┐
+┌──────────────── valhalla1.openstreetmap.de (162.55.103.19) ─────────────┐
 │                                                                          │
 │  nginx                                                                   │
 │   ├─ valhalla1.openstreetmap.de  →  HTTP API                             │
 │   │   upstream: 127.0.0.1:8000 + 127.0.0.1:8001                          │
 │   │             (passive health checks + proxy_next_upstream)            │
 │   ├─ valhalla.openstreetmap.de   →  static SPA (web-app vite build)      │
+│   ├─ valhalla-routing.earth      →  static homepage (placeholder repo;   │
+│   │                                  www.* 301s to apex on :80 + :443)   │
 │   └─ rate-limit zones:                                                   │
 │         - per-IP routing  1 r/s  (zone valhalla_per_ip)                  │
 │         - per-IP /tile   10 r/s  (zone valhalla_tile_per_ip)             │
@@ -55,7 +57,7 @@ Two physical hosts, one role applied conditionally per group.
 │   - valhalla        (runtime-only; runs valhalla_service. owns           │
 │                      /srv/valhalla itself (sgid bucket) + mvt-cache-*;   │
 │                      ZERO sudoers, can't write the install prefix)       │
-│   - valhalla-deploy (build + orchestrator target; shell; owns /src/*,    │
+│   - valhalla-deploy (build + orchestrator target; shell; owns /data/*,    │
 │                      /srv/valhalla/{local,scripts,web-app},              │
 │                      /var/www/valhalla; in 'valhalla' group;             │
 │                      receives graph drops + runs the rebuild scripts)   │
@@ -64,7 +66,7 @@ Two physical hosts, one role applied conditionally per group.
              │   - rsync tiles.tar.zst → ~/tiles.tar.zst
              │   - run apply-graph.sh / deploy-valhalla.sh / deploy-web.sh
              │
-┌──────────────── valhalla2.openstreetmap.de (162.55.103.19) ─────────────┐
+┌──────────────── valhalla2.openstreetmap.de (162.55.2.221) ──────────────┐
 │                                                                          │
 │  valhalla-build-tiles.service  (User=valhalla-deploy)                    │
 │   - build-tiles-loop.sh (wrapper: while true; do iteration.sh; done)     │
@@ -82,7 +84,7 @@ Two physical hosts, one role applied conditionally per group.
 │                                                                          │
 │  System accounts:                                                        │
 │   - valhalla        (idle; owner of /srv/valhalla itself for sgid)       │
-│   - valhalla-deploy (build + orchestrator; owns /src/*, install prefix,  │
+│   - valhalla-deploy (build + orchestrator; owns /data/*, install prefix,  │
 │                      /srv/valhalla/data; holds id_valhalla_deploy SSH key) │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
@@ -151,7 +153,7 @@ itself runs:
 
 ```yaml
 valhalla__user: valhalla
-valhalla__srcdir: /src/valhalla
+valhalla__srcdir: /data/src/valhalla
 
 valhalla__git_repo: https://github.com/valhalla/valhalla.git
 valhalla__git_version: master            # override per-host or via -e
@@ -175,10 +177,19 @@ valhalla__webapp_repo: https://github.com/valhalla/web-app.git
 valhalla__webroot: /var/www/valhalla
 valhalla__client_ids: [public-web-app]   # X-Client-Id values for log map
 
+# Second web app (valhalla-routing.earth homepage). Placeholder repo
+# URL — clone/build gated on valhalla__routing_earth_webapp_in_use
+# (defaults/main.yml, false until repo is real).
+valhalla__routing_earth_hostnames: [valhalla-routing.earth, www.valhalla-routing.earth]
+valhalla__routing_earth_canonical_hostname: valhalla-routing.earth
+valhalla__routing_earth_webapp_repo: https://github.com/PLACEHOLDER-ORG/PLACEHOLDER-REPO.git
+valhalla__routing_earth_webroot: /var/www/valhalla-routing.earth
+
 valhalla__apply_sentinel_path: "{{ valhalla__basedir }}/last_apply_complete"
-valhalla__prime_server_srcdir: /src/prime_server
+valhalla__prime_server_srcdir: /data/src/prime_server
 
 valhalla__acme_certificates: [...]       # nginx cert declarations
+                                         # (incl. valhalla-routing-earth SAN: apex + www)
 ```
 
 `group_vars/valhalla_builder.yml` — builder-host-only (planet source,
@@ -217,11 +228,11 @@ peer and a small Geofabrik extract.
 | account | host | shell | created in | purpose |
 |---|---|---|---|---|
 | `valhalla` | both | `/bin/false` | common.yml | **runtime-only**: runs `valhalla_service` (v1 only). On v2 has no running service — exists as the owner of `/srv/valhalla` itself (the sgid bucket) and `/srv/valhalla/mvt-cache-*` on v1. zero sudoers anywhere. |
-| `valhalla-deploy` | both | `/bin/bash` | common.yml | **deploy / build / data identity**. Owns `/src/valhalla`, `/src/prime_server`, `/srv/valhalla/{local,data,scripts}`, `/srv/valhalla/web-app`, `/var/www/valhalla`. On v2 runs the build-tiles loop (User= in systemd) and holds the orchestrator SSH key in `~/.ssh`. On v1 receives the orchestrator SSH login and runs apply-graph.sh / deploy-valhalla.sh / deploy-web.sh. member of `valhalla` group so v1's runtime can read what it writes. sudoers (v1 only): `systemctl` (per-port) + `nginx reload`. |
+| `valhalla-deploy` | both | `/bin/bash` | common.yml | **deploy / build / data identity**. Owns `/data/src/valhalla`, `/data/src/prime_server`, `/srv/valhalla/{local,data,scripts}`, `/srv/valhalla/web-app`, `/var/www/valhalla`. On v2 runs the build-tiles loop (User= in systemd) and holds the orchestrator SSH key in `~/.ssh`. On v1 receives the orchestrator SSH login and runs apply-graph.sh / deploy-valhalla.sh / deploy-web.sh. member of `valhalla` group so v1's runtime can read what it writes. sudoers (v1 only): `systemctl` (per-port) + `nginx reload`. |
 
 `valhalla-deploy` is a member of the `valhalla` supplementary group so files
 it writes in `/srv/valhalla` (mode `2775` sgid) are readable by the v1
-runtime user. The build dirs it owns (`/src/valhalla`, `/srv/valhalla/local`)
+runtime user. The build dirs it owns (`/data/src/valhalla`, `/srv/valhalla/local`)
 use mode `02755` — sgid with group=valhalla — so install artifacts inherit
 group=valhalla and are read-only to that group, blocking self-rewrite from
 a service-side RCE.
@@ -261,6 +272,7 @@ full run.
 ├── elevation/                          # Tilezen SRTM cache, --from-bbox at playbook time
 │   └── .complete                       # idempotency sentinel
 ├── web-app/                            # vite source
+├── routing-earth-web/                  # placeholder homepage src (gated, see below)
 └── last_apply_complete                 # apply-graph sentinel (mtime)
 
 /srv/valhalla-deploy/                   valhalla-deploy:valhalla 0755
@@ -270,11 +282,15 @@ full run.
 /var/www/valhalla/                      valhalla:www-data
 └── (vite build output)
 
+/var/www/valhalla-routing.earth/        valhalla:www-data
+└── (empty until valhalla__routing_earth_webapp_in_use flips on; apex 403s until then)
+
 /etc/sudoers.d/valhalla-deploy          # (valhalla) NOPASSWD: ALL  + systemctl stop/start/restart valhalla-{ports} + nginx reload
 
 /etc/nginx/conf.d/valhalla.conf         # upstream + maps + log fmt + zones
 /etc/nginx/sites-available/valhalla1.openstreetmap.de
 /etc/nginx/sites-available/valhalla.openstreetmap.de
+/etc/nginx/sites-available/valhalla-routing.earth
 ```
 
 ## Filesystem layout (builder host)
@@ -351,9 +367,10 @@ fires earlier in dependency order.
   - `map $http_x_client_id $client_class { default unknown; "public-web-app" "public-web-app"; }`
   - `log_format valhalla_log '$ip_anonymized [$time_local] $request_method $uri $status $body_bytes_sent rqt=$request_time urt=$upstream_response_time client=$client_class'`
   - Three `limit_req_zone`s.
-- Two sites:
+- Three sites:
   - `valhalla1.openstreetmap.de` — proxies to upstream, with `proxy_next_upstream error timeout http_502 http_503` so a stopped-for-restart instance fails over transparently. `/tile` uses the higher per-IP zone; `/status` is unrestricted and log-suppressed.
   - `valhalla.openstreetmap.de` — static files from `/var/www/valhalla` with vite-style SPA fallback.
+  - `valhalla-routing.earth` — second static site, separate webroot (`/var/www/valhalla-routing.earth`) + SAN cert covering apex + `www.*`. **Behind basic auth** (server-level `auth_basic`, shared `/etc/nginx/htpasswd/valhalla` file — same credential as `/download/`; see "htpasswd" below). The `:80` acme-challenge block is a separate server and stays unauthenticated so certbot renewals work. Apex is canonical; `www.valhalla-routing.earth` 301s to the apex on both `:80` and `:443` (one hand-rolled HTTPS redirect server block because the shared `server()` macro has no "redirect-only HTTPS" mode). Deploy flow (`deploy-routing-earth.sh`) is static-only for now: clone → if HEAD moved, rsync the checkout (minus `.git/`) into the webroot — no build step, because the repo is currently just a single `index.html` (reintroduce `npm ci`/`npm run build` + output-dir handling once it grows a build system). Whole clone+deploy chain is gated on `valhalla__routing_earth_webapp_in_use`; nginx + TLS still provision unconditionally, so when the flag is off the webroot stays empty and the apex returns **403** (nginx serves the empty dir, finds no `index.html`, autoindex off — NOT 404, because `try_files $uri` matches the `/` directory and the `index` directive takes over).
 - Letsencrypt is **self-hosted** on valhalla1, NOT via the org's
   robinson-centralised distribution. See [TLS](#tls-self-hosted) below.
 - `notify: reload nginx` everywhere — zero-downtime config rolls.
@@ -482,7 +499,7 @@ iteration does, in order:
    during the brief unavailability of one. Touch sentinel; loop.
 
 There is no GHA channel and no forced-command jail. **`valhalla-deploy` owns
-everything that gets built or written**: `/src/valhalla`, `/src/prime_server`,
+everything that gets built or written**: `/data/src/valhalla`, `/data/src/prime_server`,
 `/srv/valhalla/{local,data,scripts}`, `/srv/valhalla/web-app`, `/var/www/valhalla`.
 This is true on both hosts — same identity, same dirs, same script. The
 build-tiles unit on v2 runs as `User=valhalla-deploy`; the orchestrator
@@ -618,7 +635,7 @@ Both hosts (build tree now belongs to `valhalla-deploy` everywhere):
 
 ```sh
 sudo chown -R valhalla-deploy:valhalla \
-    /src/valhalla /src/prime_server \
+    /data/src/valhalla /data/src/prime_server \
     /srv/valhalla/{local,data,scripts}
 sudo rm -f /usr/local/bin/valhalla_* /usr/local/lib/libvalhalla*
 sudo ldconfig
@@ -815,11 +832,16 @@ the graph size for the duration of the longest in-flight download — fine
 in practice but worth knowing.
 
 **htpasswd.** `community.general.htpasswd` renders
-`/etc/nginx/htpasswd/valhalla-download` (mode 0640, owned by
-`root:www-data`). Credential comes from `group_vars/valhalla/vault.yml`
-(ansible-vault) — `valhalla__download_password` must be set when
-`valhalla__download_in_use` is true (frontend.yml asserts this). Single
-shared cred; if multi-user is ever needed, swap to a dict + loop.
+`/etc/nginx/htpasswd/valhalla` (mode 0640, owned by `root:www-data`).
+Credential comes from `group_vars/valhalla/vault.yml` (ansible-vault) —
+`valhalla__download_password` (+ `valhalla__download_user`). This is a
+**single shared basic-auth credential / file** used by BOTH the
+`/download/` endpoint AND the valhalla-routing.earth homepage (server-level
+`auth_basic` in nginx-routing-earth.conf.j2). The prerequisite tasks
+(assert, htpasswd dir, passlib, the htpasswd file itself) fire when
+`valhalla__download_in_use OR valhalla__routing_earth_webapp_in_use` is
+true; frontend.yml asserts the password is set whenever either is on. If
+multi-user is ever needed, swap to a dict + loop.
 
 **Standalone access log.** `/var/log/nginx/valhalla-download.log`. Keeps
 multi-GB transfer rows out of `valhalla-api.log`, which uses a custom

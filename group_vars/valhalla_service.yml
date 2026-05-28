@@ -24,6 +24,15 @@ valhalla__webroot: /var/www/valhalla
 # Baked into the build as VITE_CLIENT_ID for monitoring.
 valhalla__webapp_client_id: public-web-app
 
+# valhalla-routing.earth homepage on valhalla1
+valhalla__routing_earth_hostnames:
+  - valhalla-routing.earth
+  - www.valhalla-routing.earth
+valhalla__routing_earth_canonical_hostname: valhalla-routing.earth
+valhalla__routing_earth_webapp_repo: https://github.com/nilsnolde/valhalla-routing.earth
+valhalla__routing_earth_webapp_srcdir: "{{ valhalla__basedir }}/routing-earth-web"
+valhalla__routing_earth_webroot: /var/www/valhalla-routing.earth
+
 # Known X-Client-Id header values, classified for prometheus. Any
 # other value (or missing header) maps to "unknown". Observability
 # only — no gating.
@@ -37,7 +46,7 @@ valhalla__client_ids:
 valhalla__apply_sentinel_path: "{{ valhalla__basedir }}/last_apply_complete"
 
 # prime_server source checkout (built from master on the service host).
-valhalla__prime_server_srcdir: /src/prime_server
+valhalla__prime_server_srcdir: /data/src/prime_server
 
 valhalla__elevation_dir: "{{ valhalla__basedir }}/elevation"
 valhalla__elevation_bbox: "-180,-90,180,90"
@@ -59,6 +68,12 @@ valhalla__acme_certificates:
   - name: valhalla-web
     domains:
       - valhalla.openstreetmap.de
+    on_update:
+      - systemctl reload nginx
+  - name: valhalla-routing-earth
+    domains:
+      - valhalla-routing.earth
+      - www.valhalla-routing.earth
     on_update:
       - systemctl reload nginx
   # Munin is currently disabled (meta dep + tasks include commented out).

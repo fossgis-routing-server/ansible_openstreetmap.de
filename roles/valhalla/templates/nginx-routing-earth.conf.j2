@@ -1,0 +1,67 @@
+{# Second web app site: valhalla-routing.earth.
+   Apex (valhalla-routing.earth) is canonical; www → 301 to apex on both
+   :80 and :443. Same self-hosted-certbot pattern as nginx-{api,web}.conf.j2:
+   the HTTP server block is hand-rolled so /.well-known/acme-challenge/* is
+   served from /var/www/letsencrypt (instead of the org's macro 301'ing to
+   robinson). The www→apex HTTPS redirect block is hand-rolled too because
+   the shared server() macro doesn't have a "redirect-only HTTPS" mode. #}
+
+# HTTP — both names. Serve acme-challenge locally; everything else 301s
+# to https://<apex>.
+server {
+    listen 80;
+    listen [::]:80;
+
+    server_name {{ valhalla__routing_earth_hostnames | join(' ') }};
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/letsencrypt;
+    }
+
+    location / {
+        return 301 https://{{ valhalla__routing_earth_canonical_hostname }}$request_uri;
+    }
+}
+
+# HTTPS — www only, redirect to apex. Loads the SAN cert (same one the apex
+# server block uses) so the redirect itself terminates TLS cleanly instead of
+# the browser warning that the cert doesn't cover www.
+{% set non_canonical = valhalla__routing_earth_hostnames | reject('equalto', valhalla__routing_earth_canonical_hostname) | list %}
+{% if non_canonical %}
+server {
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
+
+    server_name {{ non_canonical | join(' ') }};
+
+    {{ enable_ssl('valhalla-routing-earth') }}
+
+    return 301 https://{{ valhalla__routing_earth_canonical_hostname }}$request_uri;
+}
+{% endif %}
+
+# HTTPS — apex, serves the SPA from {{ valhalla__routing_earth_webroot }}.
+{% call server([valhalla__routing_earth_canonical_hostname], http='no', https='valhalla-routing-earth') %}
+
+    access_log /var/log/nginx/valhalla-routing-earth.log anonymized;
+    error_log  /var/log/nginx/valhalla-routing-earth.error.log;
+
+    # Basic auth across the whole site — shared credential (same htpasswd
+    # as the /download/ endpoint). Server-level so it covers index + assets
+    # + SPA fallback. The :80 acme-challenge block is a separate server and
+    # stays unauthenticated so certbot renewals work.
+    auth_basic           "valhalla-routing.earth";
+    auth_basic_user_file /etc/nginx/htpasswd/valhalla;
+
+    root  {{ valhalla__routing_earth_webroot }};
+    index index.html;
+
+    # SPA fallback — same shape as nginx-web.conf.j2. If the real homepage
+    # turns out to be a plain static site (no client-side routing), this
+    # still works: a missing path just serves index.html which is harmless
+    # for a non-SPA, and we can drop the try_files later.
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+{% endcall %}

@@ -118,26 +118,27 @@
 
 # Tilezen elevation tile cache. Bbox driven bcs of vagrant
 
-- name: Create elevation dir
-  file:
-    path: "{{ valhalla__elevation_dir }}"
-    state: directory
-    owner: "{{ valhalla__build_user }}"
-    group: "{{ valhalla__user }}"
-    mode: "0755"
+# TODO(nils): needs to happen asynchronous in the background, not blocking ansible
+# - name: Create elevation dir
+#   file:
+#     path: "{{ valhalla__elevation_dir }}"
+#     state: directory
+#     owner: "{{ valhalla__build_user }}"
+#     group: "{{ valhalla__user }}"
+#     mode: "0755"
 
-- name: Download Tilezen elevation tiles (bbox, decompressed)
-  shell:
-    cmd: >
-      {{ valhalla__prefix }}/bin/valhalla_build_elevation
-      --from-bbox {{ valhalla__elevation_bbox }}
-      --decompress
-      --outdir {{ valhalla__elevation_dir }}
-      --parallelism {{ ansible_facts.processor_vcpus }}
-      && touch {{ valhalla__elevation_dir }}/.complete
-    creates: "{{ valhalla__elevation_dir }}/.complete"
-  become: yes
-  become_user: "{{ valhalla__build_user }}"
+# - name: Download Tilezen elevation tiles (bbox, decompressed)
+#   shell:
+#     cmd: >
+#       {{ valhalla__prefix }}/bin/valhalla_build_elevation
+#       --from-bbox {{ valhalla__elevation_bbox }}
+#       --decompress
+#       --outdir {{ valhalla__elevation_dir }}
+#       --parallelism {{ ansible_facts.processor_vcpus }}
+#       && touch {{ valhalla__elevation_dir }}/.complete
+#     creates: "{{ valhalla__elevation_dir }}/.complete"
+#   become: yes
+#   become_user: "{{ valhalla__build_user }}"
 
 # Per-port layout: tile dir, valhalla.json, systemd unit. The
 # valhalla-deploy account that drops graph-{port}.tar files in here is

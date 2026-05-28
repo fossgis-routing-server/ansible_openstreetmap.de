@@ -14,17 +14,23 @@
     mode: "0644"
   notify: reload nginx
 
-- name: Sanity-check download endpoint vars
+# Shared basic-auth credential, used by both the /download/ endpoint and
+# the valhalla-routing.earth homepage. One htpasswd file
+# (/etc/nginx/htpasswd/valhalla), one credential (valhalla__download_user /
+# valhalla__download_password). The prerequisite tasks below fire if either
+# consumer is enabled.
+- name: Sanity-check basic-auth credential
   assert:
     that:
       - valhalla__download_password is defined
       - valhalla__download_password | length > 0
     fail_msg: |
-      valhalla__download_in_use is true but valhalla__download_password
-      is not set in group_vars/valhalla/vault.yml. Define it (and
-      valhalla__download_user if you want to override the default)
-      before re-running.
-  when: valhalla__download_in_use | default(False)
+      A basic-auth-protected endpoint is enabled (the /download/ endpoint
+      and/or the valhalla-routing.earth homepage) but
+      valhalla__download_password is not set in group_vars/valhalla/vault.yml.
+      It is the shared basic-auth credential (with valhalla__download_user).
+      Define it before re-running.
+  when: (valhalla__download_in_use or valhalla__routing_earth_webapp_in_use) | default(False)
 
 - name: htpasswd directory
   file:
@@ -33,23 +39,23 @@
     owner: root
     group: www-data
     mode: "0750"
-  when: valhalla__download_in_use | default(False)
+  when: (valhalla__download_in_use or valhalla__routing_earth_webapp_in_use) | default(False)
 
 - name: passlib (required by community.general.htpasswd)
   apt:
     name: python3-passlib
     state: present
-  when: valhalla__download_in_use | default(False)
+  when: (valhalla__download_in_use or valhalla__routing_earth_webapp_in_use) | default(False)
 
-- name: htpasswd for /download/
+- name: Shared basic-auth htpasswd
   community.general.htpasswd:
-    path: /etc/nginx/htpasswd/valhalla-download
+    path: /etc/nginx/htpasswd/valhalla
     name: "{{ valhalla__download_user }}"
     password: "{{ valhalla__download_password }}"
     owner: root
     group: www-data
     mode: "0640"
-  when: valhalla__download_in_use | default(False)
+  when: (valhalla__download_in_use or valhalla__routing_earth_webapp_in_use) | default(False)
   no_log: true
 
 - name: API site — {{ valhalla__api_hostname }}
@@ -62,6 +68,12 @@
   nginx_site:
     site: "{{ valhalla__web_hostname }}"
     src: nginx-web.conf.j2
+  notify: reload nginx
+
+- name: Web-app site — {{ valhalla__routing_earth_canonical_hostname }}
+  nginx_site:
+    site: "{{ valhalla__routing_earth_canonical_hostname }}"
+    src: nginx-routing-earth.conf.j2
   notify: reload nginx
 
 - name: Install fail2ban jail for nginx rate-limit abuse

@@ -1,0 +1,39 @@
+#!/bin/bash
+# Managed by ansible — see roles/valhalla/templates/deploy-routing-earth.sh.j2
+#
+# Sibling to deploy-web.sh, for the second site (valhalla-routing.earth).
+# For now the repo is just a static index.html (no build step): pull it
+# and, if HEAD moved, rsync the checkout straight to the nginx webroot.
+# Once the homepage grows a build system (npm/vite), reintroduce the
+# build + output-dir handling from deploy-web.sh.
+#
+# Runs entirely as the build user, which owns SRCDIR and the webroot.
+
+set -euo pipefail
+
+LOG_INFO="logger -i -t valhalla-deploy-routing-earth -p daemon.info --"
+
+SRCDIR="{{ valhalla__routing_earth_webapp_srcdir }}"
+WEBROOT="{{ valhalla__routing_earth_webroot }}"
+
+$LOG_INFO "deploy-routing-earth: starting"
+
+cd "$SRCDIR"
+
+before=$(git rev-parse HEAD)
+git fetch origin
+git checkout -f main
+git pull --ff-only
+after=$(git rev-parse HEAD)
+
+if [ "$before" = "$after" ] && [ -f "$WEBROOT/index.html" ]; then
+    $LOG_INFO "deploy-routing-earth: HEAD unchanged ($after); skipping deploy"
+    exit 0
+fi
+$LOG_INFO "deploy-routing-earth: HEAD moved $before -> $after; deploying"
+
+# Static repo — rsync the checkout itself, minus the .git dir.
+$LOG_INFO "deploy-routing-earth: rsync $SRCDIR/ -> $WEBROOT"
+rsync -r --delete --exclude='.git/' "$SRCDIR/" "$WEBROOT/"
+
+$LOG_INFO "deploy-routing-earth: complete"

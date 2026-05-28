@@ -12,7 +12,7 @@
   # orchestrator + the owner of the build tree. Created here (not in
   # deploy.yml) because the source + install-prefix dirs below need it
   # to exist before they can land owned by it.
-  # Member of the valhalla group so files it writes inside /srv/valhalla
+  # Member of the valhalla group so files it writes inside /data/valhalla
   # inherit group=valhalla via sgid — keeping the v1 runtime user able
   # to read tile-extracts and config it didn't write itself.
   system_account:

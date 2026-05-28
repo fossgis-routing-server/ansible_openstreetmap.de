@@ -44,3 +44,42 @@
     creates: "{{ valhalla__webroot }}/index.html"
   become: yes
   become_user: "{{ valhalla__build_user }}"
+
+# Second web app: valhalla-routing.earth
+
+- name: valhalla-routing.earth webroot (nginx serves from here)
+  file:
+    path: "{{ valhalla__routing_earth_webroot }}"
+    state: directory
+    owner: "{{ valhalla__build_user }}"
+    group: www-data
+    mode: "0755"
+
+- name: valhalla-routing.earth source dir
+  file:
+    path: "{{ valhalla__routing_earth_webapp_srcdir }}"
+    state: directory
+    owner: "{{ valhalla__build_user }}"
+    group: "{{ valhalla__user }}"
+    mode: "0755"
+  when: valhalla__routing_earth_webapp_in_use | default(False)
+
+- name: Checkout valhalla-routing.earth source
+  git:
+    repo: "{{ valhalla__routing_earth_webapp_repo }}"
+    dest: "{{ valhalla__routing_earth_webapp_srcdir }}"
+    version: main
+    force: yes
+  become: yes
+  become_user: "{{ valhalla__build_user }}"
+  when: valhalla__routing_earth_webapp_in_use | default(False)
+
+- name: Initial valhalla-routing.earth deploy to webroot
+  command:
+    cmd: "{{ valhalla__basedir }}/scripts/deploy-routing-earth.sh"
+    # Re-runs deploy-routing-earth.sh on every play once enabled —
+    # the script HEAD-gates internally so no-op iterations are cheap.
+  become: yes
+  become_user: "{{ valhalla__build_user }}"
+  when: valhalla__routing_earth_webapp_in_use | default(False)
+  changed_when: false

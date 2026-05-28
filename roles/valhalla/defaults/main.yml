@@ -12,22 +12,22 @@
 
 # Service-runtime identity. ONLY runs the network-facing services:
 # valhalla-{port} (valhalla_service) on v1. On v2 it has no running
-# service — present only as the owner of /srv/valhalla itself (the
+# service — present only as the owner of /data/valhalla itself (the
 # sgid bucket) for symmetric account topology across hosts.
 valhalla__user: valhalla
 
 # Deploy/build/data identity. Owns and writes:
-#   - /src/valhalla, /src/prime_server, /srv/valhalla/local
-#   - /srv/valhalla/data (on v2), /srv/valhalla/scripts
-#   - /srv/valhalla/web-app, /var/www/valhalla (on v1)
-#   - /srv/valhalla-deploy ($HOME — orchestrator SSH key on v2, tarball drop on v1)
+#   - /data/src/valhalla, /data/src/prime_server, /data/valhalla/local
+#   - /data/valhalla/data (on v2), /data/valhalla/scripts
+#   - /data/valhalla/web-app, /var/www/valhalla (on v1)
+#   - /data/valhalla-deploy ($HOME — orchestrator SSH key on v2, tarball drop on v1)
 # Runs the build-tiles loop on v2 (User=valhalla-deploy in systemd) and
 # receives the orchestrator SSH login on v1. Separates the long-lived
 # internet-facing valhalla_service identity from anything that touches
 # disk during a build/deploy, so a service-side RCE can't self-overwrite
 # its own binary.
 valhalla__deploy_user: valhalla-deploy
-valhalla__deploy_user_home: /srv/valhalla-deploy
+valhalla__deploy_user_home: /data/valhalla-deploy
 
 # Semantic alias for tasks that do build work — they use `become_user:
 # valhalla__build_user`. Defaults to the deploy user on both hosts;
@@ -42,7 +42,7 @@ valhalla__git_version: master
 # Shared filesystem layout. valhalla__basedir lives in
 # group_vars/valhalla/vars.yml so monitoring.yml (which doesn't include
 # this role) can also see it via its parent valhalla:children group.
-valhalla__srcdir: /src/valhalla
+valhalla__srcdir: /data/src/valhalla
 
 # Install prefix for the rebuilt valhalla binaries + libs (also for
 # prime_server on v1). Owned by valhalla-deploy so `make install`
@@ -66,6 +66,12 @@ valhalla__download_user: fossgis
 # valhalla__download_password: must be defined in
 # group_vars/valhalla/vault.yml when valhalla__download_in_use is true.
 # The role asserts up front rather than rendering an empty htpasswd.
+
+# valhalla-routing.earth project homepage. When false, nginx + TLS still
+# provision but the webroot is never populated, so the apex returns 403
+# (empty dir, no index). The clone uses the HTTPS repo URL with no
+# credentials, so the repo must be reachable by valhalla-deploy on v1.
+valhalla__routing_earth_webapp_in_use: true
 
 # Self-hosted Let's Encrypt (certbot) on valhalla1, diverging from the
 # org's robinson-centralised distribution model — see ai/valhalla.md

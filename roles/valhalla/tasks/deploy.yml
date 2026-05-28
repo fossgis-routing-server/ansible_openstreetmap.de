@@ -21,6 +21,17 @@
     group: "{{ valhalla__user }}"
     mode: "0755"
 
+- name: deploy-routing-earth.sh
+  # Templated unconditionally so the script is in place once the
+  # valhalla__routing_earth_webapp_in_use flag flips on — no second
+  # ansible run needed for the script itself.
+  template:
+    src: deploy-routing-earth.sh.j2
+    dest: "{{ valhalla__basedir }}/scripts/deploy-routing-earth.sh"
+    owner: "{{ valhalla__user }}"
+    group: "{{ valhalla__user }}"
+    mode: "0755"
+
 - name: Sudoers — valhalla-deploy
   template:
     src: valhalla-deploy.sudoers.j2

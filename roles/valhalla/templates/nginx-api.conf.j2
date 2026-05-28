@@ -62,9 +62,9 @@ server {
     # POSIX semantics) — see ai/valhalla.md.
     location = /download/tiles.tar {
         auth_basic           "valhalla tile download";
-        auth_basic_user_file /etc/nginx/htpasswd/valhalla-download;
+        auth_basic_user_file /etc/nginx/htpasswd/valhalla;
 
-        alias                /srv/valhalla/graph-8000.tar;
+        alias                /data/valhalla/graph-8000.tar;
         default_type         application/x-tar;
         add_header           Content-Disposition 'attachment; filename="valhalla-tiles.tar"';
 
@@ -73,9 +73,9 @@ server {
 
     location = /download/tiles.tar.zst {
         auth_basic           "valhalla tile download";
-        auth_basic_user_file /etc/nginx/htpasswd/valhalla-download;
+        auth_basic_user_file /etc/nginx/htpasswd/valhalla;
 
-        alias                /srv/valhalla/graph.tar.zst;
+        alias                /data/valhalla/graph.tar.zst;
         default_type         application/zstd;
         add_header           Content-Disposition 'attachment; filename="valhalla-tiles.tar.zst"';
 
