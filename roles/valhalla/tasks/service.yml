@@ -58,30 +58,31 @@
     state: absent
   when: valhalla_prime_server_src.changed
 
-- name: Configure prime_server (cmake)
-  command:
+- name: Check whether prime_server is installed at the current prefix
+  # Drives the (re)build below. valhalla finds prime_server with
+  # pkg_check_modules(libprime_server) fed by deploy-valhalla.sh's
+  # -DCMAKE_PREFIX_PATH={{ valhalla__prefix }}, so the .pc must live at
+  # {{ valhalla__prefix }}/lib/pkgconfig. After a basedir/prefix change the
+  # new prefix has none (prime_server was installed under the old prefix),
+  # so without this gate ansible would never reinstall it there.
+  stat:
+    path: "{{ valhalla__prefix }}/lib/pkgconfig/libprime_server.pc"
+  register: valhalla_prime_server_pc
+
+- name: (Re)build + install prime_server into {{ valhalla__prefix }}
+  # Fires on a fresh source clone OR when the current prefix has no
+  # prime_server. Re-passing CMAKE_INSTALL_PREFIX re-points the install on
+  # the existing build tree (no `creates:` — must reconfigure to pick up a
+  # changed prefix). `make` is a near no-op when nothing recompiled; the
+  # prefix change only affects where `install` copies files.
+  shell:
     cmd: >
       cmake -S {{ valhalla__prime_server_srcdir }} -B {{ valhalla__prime_server_srcdir }}/build
       -DCMAKE_BUILD_TYPE=Release
-      -DCMAKE_INSTALL_PREFIX={{ valhalla__prefix }}
-    creates: "{{ valhalla__prime_server_srcdir }}/build/CMakeCache.txt"
-  become: yes
-  become_user: "{{ valhalla__build_user }}"
-
-- name: Build prime_server
-  command:
-    cmd: "make -j {{ ansible_facts.processor_vcpus }}"
-    chdir: "{{ valhalla__prime_server_srcdir }}/build"
-  register: valhalla_prime_server_build
-  when: valhalla_prime_server_src.changed
-  become: yes
-  become_user: "{{ valhalla__build_user }}"
-
-- name: Install prime_server (to valhalla__prefix, no root needed)
-  command:
-    cmd: "make install"
-    chdir: "{{ valhalla__prime_server_srcdir }}/build"
-  when: valhalla_prime_server_build is changed
+      -DCMAKE_INSTALL_PREFIX={{ valhalla__prefix }} &&
+      make -C {{ valhalla__prime_server_srcdir }}/build -j {{ ansible_facts.processor_vcpus }} &&
+      make -C {{ valhalla__prime_server_srcdir }}/build install
+  when: valhalla_prime_server_src.changed or not valhalla_prime_server_pc.stat.exists
   become: yes
   become_user: "{{ valhalla__build_user }}"
 

@@ -85,7 +85,7 @@
       --mjolnir-timezone {{ valhalla__timezones_path }}
       --mjolnir-admin {{ valhalla__admins_path }}
       --mjolnir-default-speeds-config {{ valhalla__default_speeds_path }}
-      --mjolnir-keep-all-osm-node-ids false
+      --mjolnir-keep-all-osm-node-ids true
       --mjolnir-keep-osm-node-ids true
       --mjolnir-include-platforms true
       --mjolnir-concurrency {{ ansible_facts.processor_vcpus }}
