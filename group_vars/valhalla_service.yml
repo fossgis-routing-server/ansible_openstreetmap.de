@@ -38,6 +38,7 @@ valhalla__routing_earth_webroot: /var/www/valhalla-routing.earth
 # only — no gating.
 valhalla__client_ids:
   - public-web-app
+  - valhalla-qgis-plugin
 
 # Sentinel file touched at the end of each successful apply-graph
 # rolling swap; mtime is the monitoring signal. The file_age threshold
