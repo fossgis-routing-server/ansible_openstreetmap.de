@@ -1,5 +1,8 @@
 # SPDX-License-Identifier: MIT
 ---
+- name: Install anubis
+  include_tasks: anubis.yml
+  tags: wordpress
 
 - name: Install Wordpress
   include_tasks: install.yml
