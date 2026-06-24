@@ -48,6 +48,21 @@
   tags:
     - anubis
 
+- name: Create anubis listen config for apache2
+  ansible.builtin.copy:
+    dest: /etc/apache2/conf-enabled/listen-{{ __port }}.conf
+    content: "Listen 127.0.0.1:{{ __port }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ anubis__apache_ports }}"
+  loop_control:
+    loop_var: __port
+  notify:
+    - apache2 restart
+  tags:
+    - anubis
+
 - name: Flush handlers
   ansible.builtin.meta: flush_handlers
   tags:

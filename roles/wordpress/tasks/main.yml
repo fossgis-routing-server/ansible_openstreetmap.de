@@ -2,7 +2,9 @@
 ---
 - name: Install anubis
   include_tasks: anubis.yml
-  tags: wordpress
+  tags:
+    - wordpress
+    - anubis
 
 - name: Install Wordpress
   include_tasks: install.yml
