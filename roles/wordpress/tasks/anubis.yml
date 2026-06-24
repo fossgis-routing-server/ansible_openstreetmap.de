@@ -70,6 +70,7 @@
     - proxy
     - proxy_http
     - headers
+    - remoteip
   notify: apache2 restart
   tags:
     - anubis
