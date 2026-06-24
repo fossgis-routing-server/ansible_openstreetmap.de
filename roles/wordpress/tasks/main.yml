@@ -8,7 +8,9 @@
 
 - name: Install Wordpress
   include_tasks: install.yml
-  tags: wordpress
+  tags:
+    - wordpress
+    - wordpressapache
 
 - name: Install plugins
   include_tasks: plugins.yml

@@ -268,12 +268,22 @@
 #    - name: 'Load database dump'
 #      shell:
 #        cmd: 'gzip -dc /root/packages/wpblog_dump.sql.gz | mysql --user root --database wpblog'
+#
+- name: 'Write Apache VirtualHost configuration for port 3000'
+  apache_site:
+    site: weeklyosm.eu-3000
+    src: 'weeklyosm.eu-3000.conf'
+  notify: reload apache2
+  tags:
+    - wordpressapache
 
 - name: 'Write Apache VirtualHost configuration'
   apache_site:
     site: weeklyosm.eu
     src: 'weeklyosm.eu.conf'
   notify: reload apache2
+  tags:
+    - wordpressapache
 
 - name: "Create directories in /etc/systemd/system/ for overrides"
   file:
