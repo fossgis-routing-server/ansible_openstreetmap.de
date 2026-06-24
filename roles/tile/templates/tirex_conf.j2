@@ -39,11 +39,11 @@ master_pidfile=/run/tirex/tirex-master.pid
 #  rendering process that is long gone doesn't take up resources forever.
 master_rendering_timeout=100
 
-#  Buckets for different priorities.
-bucket name=live       minprio=1  maxproc=16 maxload=32
-bucket name=important  minprio=10 maxproc=12 maxload=24
-bucket name=background minprio=20 maxproc=12 maxload=24
-bucket name=slow       minprio=90 maxproc=8 maxload=16
+#  Buckets for different priorities (wiki.openstreetmap.org/wiki/Tirex/Config#Renderer_Config_Files).
+bucket name=live       minprio=1  maxproc={{ mapnik_procs }} maxload=32
+bucket name=important  minprio=10 maxproc={{ mapnik_procs | int - 1 }} maxload=24
+bucket name=background minprio=20 maxproc={{ mapnik_procs | int - 3 }} maxload=24
+bucket name=slow       minprio=90 maxproc={{ mapnik_procs | int - 5 }} maxload=16
 
 #-----------------------------------------------------------------------------
 #  BACKEND-MANAGER
