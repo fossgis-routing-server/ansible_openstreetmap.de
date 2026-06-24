@@ -63,6 +63,17 @@
   tags:
     - anubis
 
+- name: Enable apache2 modules for anubis
+  apache_module:
+    name: "{{ item }}"
+  with_items:
+    - proxy
+    - proxy_http
+    - headers
+  notify: apache2 restart
+  tags:
+    - anubis
+
 - name: Flush handlers
   ansible.builtin.meta: flush_handlers
   tags:
