@@ -13,7 +13,11 @@
 bots:
   # You can import the entire default config with this macro:
   # - import: (data)/meta/default-config.yaml
-
+  - name: whitelist-osmbc
+    action: ALLOW
+    remote_addresses:
+      - "88.99.173.103/32"
+      - "2a01:4f8:c0c:58d::2/128"
   # Pathological bots to deny
   - # This correlates to data/bots/_deny-pathological.yaml in the source tree
     # https://github.com/TecharoHQ/anubis/blob/main/data/bots/_deny-pathological.yaml
