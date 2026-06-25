@@ -51,7 +51,7 @@
 - name: Create anubis listen config for apache2
   ansible.builtin.copy:
     dest: /etc/apache2/conf-enabled/listen-{{ __port }}.conf
-    content: "Listen [::1]:{{ __port }}"
+    content: "Listen 127.0.0.1:{{ __port }}"
     owner: root
     group: root
     mode: "0644"
