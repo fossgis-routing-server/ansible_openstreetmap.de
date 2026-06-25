@@ -32,7 +32,7 @@ anubis__packageuri:
 anubis__instances:
   - name: default
     bind: 2000
-    target: http://localhost:3000
+    target: http://127.0.0.1:3000
 
 anubis__apache_ports:
-    - 3000
+  - 3000
