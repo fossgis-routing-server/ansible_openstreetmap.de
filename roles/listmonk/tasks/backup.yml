@@ -1,0 +1,30 @@
+---
+- name: Check if Listmonk database exists
+  become_user: postgres
+  community.postgresql.postgresql_query:
+    login_db: postgres
+    query: "SELECT 1 FROM pg_database WHERE datname = '{{ listmonk_db_name }}';"
+  register: db_exists_check
+
+- name: Ensure backup directory exists
+  ansible.builtin.file:
+    path: "{{ listmonk_backup_dir }}"
+    state: directory
+    owner: postgres
+    group: postgres
+    mode: "0750"
+
+- name: Check if backup file already exists for this version
+  ansible.builtin.stat:
+    path: "/var/backups/listmonk_before_upgrade_{{ listmonk_version }}.sql"
+  register: backup_file_check
+
+- name: Create database backup before upgrade
+  become_user: postgres
+  community.postgresql.postgresql_db:
+    name: "{{ listmonk_db_name }}"
+    state: dump
+    target: "/var/backups/listmonk_before_upgrade_{{ listmonk_version }}.sql"
+  when:
+    - db_exists_check.query_result | length > 0
+    - not backup_file_check.stat.exists

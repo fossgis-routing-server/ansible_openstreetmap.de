@@ -69,6 +69,11 @@
   tags: wordpress
   roles:
     - role: "wordpress"
+- hosts: listmonk
+  become: yes
+  tags: listmonk
+  roles:
+    - role: "listmonk"
 - hosts: weeklyosm
   become: yes
   tags: weeklyosm

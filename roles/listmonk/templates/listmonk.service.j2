@@ -1,0 +1,15 @@
+[Unit]
+Description=Listmonk Newsletter and Mailing List Manager
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User={{ listmonk_user }}
+Group={{ listmonk_user }}
+WorkingDirectory={{ listmonk_install_dir }}
+ExecStart={{ listmonk_install_dir }}/listmonk --config {{ listmonk_install_dir }}/config.toml
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

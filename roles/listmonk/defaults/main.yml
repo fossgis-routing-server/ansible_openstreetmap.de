@@ -1,0 +1,13 @@
+# roles/listmonk/defaults/main.yml
+---
+listmonk_version: "3.0.0"
+listmonk_user: "listmonk"
+listmonk_install_dir: "/srv/listmonk"
+listmonk_backup_dir: "/var/backups"
+
+listmonk_admin_user: "admin"
+listmonk_admin_password: "overwrittenBy:PrivateVars"
+
+listmonk_db_name: "listmonk"
+listmonk_db_user: "listmonk"
+listmonk_db_password: "overwrittenBy:PrivateVars"
