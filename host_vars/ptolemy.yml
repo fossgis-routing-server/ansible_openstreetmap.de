@@ -1,5 +1,0 @@
-
-tile__small: false
-
-tile__flatnode: '/database/flatnode/flatnode'
-tile__planet:   '/database/tile/planet.osm.pbf'
