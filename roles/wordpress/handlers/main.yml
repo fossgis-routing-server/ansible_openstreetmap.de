@@ -11,7 +11,7 @@
 - name: phpfpm reload
   systemd:
     name: "{{ wordpress__fpmservice }}"
-    state: reloadedY
+    state: reloaded
 
 - name: Anubis restart
   ansible.builtin.systemd_service:
