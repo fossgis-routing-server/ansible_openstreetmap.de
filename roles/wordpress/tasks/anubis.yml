@@ -1,0 +1,81 @@
+---
+- name: Install anubis
+  ansible.builtin.apt:
+    deb: "{{ anubis__packageuri }}"
+  tags:
+    - anubis
+
+- name: Create instance env files
+  ansible.builtin.template:
+    src: "anubis.env.j2"
+    dest: "/etc/anubis/{{ __instance.name }}.env"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ anubis__instances }}"
+  loop_control:
+    loop_var: __instance
+  notify:
+    - Anubis restart
+  tags:
+    - anubis
+
+- name: Create instance botPolicy files
+  ansible.builtin.template:
+    src: "botPolicies.yaml.j2"
+    dest: "/etc/anubis/{{ __instance.name }}.botPolicies.yaml"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ anubis__instances }}"
+  loop_control:
+    loop_var: __instance
+  notify:
+    - Anubis restart
+  tags:
+    - anubis
+
+- name: Create systemd units for anubis instances
+  ansible.builtin.systemd_service:
+    name: "anubis@{{ __instance.name }}"
+    enabled: true
+    state: started
+  loop: "{{ anubis__instances }}"
+  loop_control:
+    loop_var: __instance
+  notify:
+    - Anubis restart
+  tags:
+    - anubis
+
+- name: Create anubis listen config for apache2
+  ansible.builtin.copy:
+    dest: /etc/apache2/conf-enabled/listen-{{ __port }}.conf
+    content: "Listen 127.0.0.1:{{ __port }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ anubis__apache_ports }}"
+  loop_control:
+    loop_var: __port
+  notify:
+    - apache2 restart
+  tags:
+    - anubis
+
+- name: Enable apache2 modules for anubis
+  apache_module:
+    name: "{{ item }}"
+  with_items:
+    - proxy
+    - proxy_http
+    - headers
+    - remoteip
+  notify: apache2 restart
+  tags:
+    - anubis
+
+- name: Flush handlers
+  ansible.builtin.meta: flush_handlers
+  tags:
+    - anubis

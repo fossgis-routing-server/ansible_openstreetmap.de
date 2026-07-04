@@ -12,3 +12,11 @@
   systemd:
     name: "{{ wordpress__fpmservice }}"
     state: reloaded
+
+- name: Anubis restart
+  ansible.builtin.systemd_service:
+    name: "anubis@{{ __instance.name }}"
+    state: restarted
+  loop: "{{ anubis__instances }}"
+  loop_control:
+    loop_var: __instance
