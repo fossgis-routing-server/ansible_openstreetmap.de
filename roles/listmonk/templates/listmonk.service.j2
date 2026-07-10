@@ -4,10 +4,10 @@ After=network.target postgresql.service
 
 [Service]
 Type=simple
-User={{ listmonk_user }}
-Group={{ listmonk_user }}
-WorkingDirectory={{ listmonk_install_dir }}
-ExecStart={{ listmonk_install_dir }}/listmonk --config {{ listmonk_install_dir }}/config.toml
+User={{ listmonk__user }}
+Group={{ listmonk__user }}
+WorkingDirectory={{ listmonk__install_dir }}
+ExecStart={{ listmonk__install_dir }}/listmonk --config {{ listmonk__install_dir }}/config.toml
 Restart=always
 RestartSec=10
 

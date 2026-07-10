@@ -1,9 +1,5 @@
 # SPDX-License-Identifier: MIT
 ---
-- name: Read private vars for Listmonk
-  include_tasks: private_vars.yml
-  tags: listmonk
-
 - name: Backup Listmonk database before upgrade
   include_tasks: backup.yml
   tags: listmonk
