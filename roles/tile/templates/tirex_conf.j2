@@ -43,7 +43,7 @@ master_rendering_timeout=100
 bucket name=live       minprio=1  maxproc={{ mapnik_procs }} maxload=32
 bucket name=important  minprio=10 maxproc={{ mapnik_procs | int - 1 }} maxload=24
 bucket name=background minprio=20 maxproc={{ mapnik_procs | int - 2 }} maxload=24
-bucket name=slow       minprio=90 maxproc={{ mapnik_procs | int - 2 }} maxload=16
+bucket name=slow       minprio=90 maxproc={{ mapnik_procs | int - 2 }} maxload=24
 
 #-----------------------------------------------------------------------------
 #  BACKEND-MANAGER
