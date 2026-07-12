@@ -28,6 +28,13 @@
     key_char: ''
     alias: "{{ mail.aliases | dict2items | selectattr('key', 'search', '@') | items2dict }}"
 
+- name: 'sender canonical map'
+  include_tasks: write_and_hash.yml
+  vars:
+    dest: '/etc/postfix/canonical'
+    key_char: ''
+    alias: "{{ { '@' ~ ansible_facts['fqdn']: '@' ~ mail.mailname } }}"
+
 - name: Write /etc/postfix/main.cf
   template:
     dest: /etc/postfix/main.cf
@@ -86,8 +93,8 @@
     - name: Create OpenDKIM key
       shell:
         chdir: /etc/opendkim
-        cmd: 'opendkim-genkey --selector=2020 --bits=2048 --directory=keys'
-        creates: /etc/opendkim/keys/2020.private
+        cmd: 'opendkim-genkey --selector={{ mail.opendkim_selector }} --bits=2048 --directory=keys'
+        creates: /etc/opendkim/keys/{{ mail.opendkim_selector }}.private
       register: opendkim_key_creation
 
     - name: Make OpenDKIM key readable for user opendkim
@@ -98,14 +105,14 @@
         group: root
         mode: 0600
       loop:
-        - '2020.private'
-        - '2020.txt'
+        - '{{ mail.opendkim_selector }}.private'
+        - '{{ mail.opendkim_selector }}.txt'
 
     - name: Print public OpenDKIM key
       when: opendkim_key_creation.changed
       block:
         - slurp:
-            src: /etc/opendkim/keys/2020.txt
+            src: /etc/opendkim/keys/{{ mail.opendkim_selector }}.txt
           register: opendkim_public_key
         - debug:
             msg: 'Please publish the following DNS entry with your public DKIM key:\n{{ opendkim_public_key }}'
@@ -117,7 +124,7 @@
         group: root
         mode: 0644
         content: |
-          default    %:2020:/etc/opendkim/keys/2020.private
+          default    %:{{ mail.opendkim_selector }}:/etc/opendkim/keys/{{ mail.opendkim_selector }}.private
       notify:
         - systemctl restart opendkim
 

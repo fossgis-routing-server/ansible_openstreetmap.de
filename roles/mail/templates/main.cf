@@ -17,9 +17,8 @@ append_dot_mydomain = no
 
 readme_directory = no
 
-# See http://www.postfix.org/COMPATIBILITY_README.html -- default to 2 on
-# fresh installs.
-compatibility_level = 2
+# See http://www.postfix.org/COMPATIBILITY_README.html
+compatibility_level = 3.6
 
 ## TLS incoming connections
 # We accept emails from localhost only. Therefore, transport encrypt is not necessary.
@@ -35,8 +34,6 @@ smtp_tls_ciphers = high
 # tls for outgoing mail
 smtpd_tls_cert_file={{ acme__daemon_basedir }}/certs/{{ mail.ssl_name }}.pem
 smtpd_tls_key_file={{ acme__daemon_basedir }}/certs/{{ mail.ssl_name }}.key
-smtpd_use_tls=yes
-
 
 # See /usr/share/doc/postfix/TLS_README.gz in the postfix-doc package for
 # information on enabling SSL in the smtp client.
@@ -46,6 +43,7 @@ alias_maps = hash:/etc/aliases
 alias_database = hash:/etc/aliases
 myorigin = /etc/mailname
 mydestination = $myhostname, {% for domain in mail.domains %}{{ domain }}, {% endfor %}localhost
+sender_canonical_maps = hash:/etc/postfix/canonical
 relayhost = 
 mynetworks = 127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128
 mailbox_size_limit = 0

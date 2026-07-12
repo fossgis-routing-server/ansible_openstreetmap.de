@@ -1,6 +1,7 @@
 ---
 mail:
   opendkim: true
+  opendkim_selector: 2026
   mailname: weeklyosm.eu
   ssl_name: weeklyosm
   domains:
