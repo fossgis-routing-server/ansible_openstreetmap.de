@@ -14,7 +14,15 @@ Für Debian gibts ein separates repo, unter Windows kann es über choco oder sco
 
 Einrichten von gopass
 ---------------------
-Das fossgis osm-server gopass repository kann so eingerichtet werden:
+gopass muss zuerst initialisiert werden. Falls noch kein gopass vorhanden ist und auch noch kein
+ gpg (Kryptographische Schlüssel) vorhanden ist, geht das am einfachsten mit
+```
+gopass setup --crypto gpg
+```
+Das führt einem durchs erstellen eines Schlüssels und initialisiert gleichzeitig gopass auf der Maschine.
+Der öffentliche Schlüssel muss dann von jemandem der schon zugriff hat zu unserem gopass hinzugefügt werden.
+
+Das fossgis osm-server gopass repository kann so auf einem Rechner hinzugefügt werden:
 ```
 gopass clone ssh://git@gitlab.fossgis.de:2224/osm-server/gopass_osmde.git gopass_osmde
 ```
