@@ -3,10 +3,16 @@
         procs_critical = ":1200"
     }
 
-{% for mntpt in ('/', '/database', '/tilestoredisk', '/var/lib/postgresql') %}
+{% for mntpt in ('/', '/database', '/var/lib/postgresql') %}
     vars.disks["disk {{ mntpt }}"] = {
         disk_partitions = "{{ mntpt }}"
         disk_exact_match = true
     }
-
 {% endfor %}
+
+    vars.disks["disk /tilestoredisk"] = {
+        disk_partitions = "/tilestoredisk"
+        disk_exact_match = true
+        disk_cfree = "3%"
+        disk_wfree = "8%"
+    }
