@@ -6,11 +6,13 @@ weeklyosm:
     - "weekly-hugo.openstreetmap.de"
   hostnames:
     - "hugo.weeklyosm.eu"
+    - "newsletter.weeklyosm.eu"
     - "weekly-hugo.openstreetmap.de"
 
 weeklyosm_hugo__acme_certificates:
   - name: hugo
     domains:
       - hugo.weeklyosm.eu
+      - newsletter.weeklyosm.eu
     on_update:
       - systemctl reload nginx

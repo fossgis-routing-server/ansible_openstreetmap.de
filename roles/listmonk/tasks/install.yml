@@ -1,0 +1,92 @@
+---
+- name: Set up postgresl user
+  postgresql_user:
+    name: "{{ listmonk_db_user }}"
+    password: "{{ listmonk_db_password }}"
+  become_user: postgres
+
+- name: Create PostgreSQL database
+  become_user: postgres
+  community.postgresql.postgresql_db:
+    name: "{{ listmonk_db_name }}"
+    owner: "{{ listmonk_db_user }}"
+
+- name: Create system user for Listmonk
+  ansible.builtin.user:
+    name: "{{ listmonk_user }}"
+    system: true
+    create_home: false
+
+- name: Ensure installation directory exists
+  ansible.builtin.file:
+    path: "{{ listmonk_install_dir }}"
+    state: directory
+    owner: "{{ listmonk_user }}"
+    group: "{{ listmonk_user }}"
+    mode: "0755"
+
+- name: Download and extract Listmonk binary
+  ansible.builtin.unarchive:
+    src: "https://github.com/knadh/listmonk/releases/download/v{{ listmonk_version }}/listmonk_{{ listmonk_version }}_linux_amd64.tar.gz"
+    dest: "{{ listmonk_install_dir }}"
+    remote_src: true
+    owner: "{{ listmonk_user }}"
+    group: "{{ listmonk_user }}"
+    creates: "{{ listmonk_install_dir }}/listmonk"
+
+- name: Ensure Listmonk binary is executable
+  ansible.builtin.file:
+    path: "{{ listmonk_install_dir }}/listmonk"
+    mode: "0755"
+
+- name: Deploy config.toml
+  ansible.builtin.template:
+    src: templates/config.toml.j2
+    dest: "{{ listmonk_install_dir }}/config.toml"
+    owner: "{{ listmonk_user }}"
+    group: "{{ listmonk_user }}"
+    mode: "0600"
+  register: config_file
+
+- name: Check if Listmonk DB is already initialized
+  become_user: postgres
+  community.postgresql.postgresql_query:
+    login_db: "{{ listmonk_db_name }}"
+    query: "SELECT to_regclass('public.managers');"
+  register: db_check
+
+- name: Initialize Listmonk Database (First install only)
+  become_user: "{{ listmonk_user }}"
+  ansible.builtin.command:
+    cmd: "./listmonk --install --yes --config config.toml"
+    chdir: "{{ listmonk_install_dir }}"
+  vars:
+    ansible_remote_tmp: /tmp
+  when: db_check.query_result[0].to_regclass is none
+
+- name: Deploy systemd service unit
+  ansible.builtin.template:
+    src: templates/listmonk.service.j2
+    dest: "/etc/systemd/system/listmonk.service"
+    mode: "0644"
+  register: systemd_service
+
+- name: Reload systemd, enable and start Listmonk
+  ansible.builtin.systemd:
+    name: listmonk
+    state: restarted
+    enabled: true
+    daemon_reload: true
+  when: systemd_service.changed or config_file.changed
+
+- name: Ensure Listmonk service is running
+  ansible.builtin.systemd:
+    name: listmonk
+    state: started
+    enabled: true
+
+- name: Set up nginx site
+  nginx_site:
+    site: newsletter.weeklyosm.eu
+    src: newsletter.weeklyosm.eu.conf.j2
+  notify: reload nginx

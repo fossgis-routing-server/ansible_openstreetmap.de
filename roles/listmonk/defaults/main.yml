@@ -1,0 +1,9 @@
+# roles/listmonk/defaults/main.yml
+---
+listmonk__version: "6.2.0"
+listmonk__user: "listmonk"
+listmonk__install_dir: "/srv/listmonk"
+listmonk__backup_dir: "/var/backups"
+
+listmonk__db_name: "listmonk"
+listmonk__db_user: "listmonk"

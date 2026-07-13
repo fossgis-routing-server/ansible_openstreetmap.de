@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Backup Listmonk database before upgrade
+  include_tasks: backup.yml
+  tags: listmonk
+
+- name: Install Listmonk
+  include_tasks: install.yml
+  tags: listmonk

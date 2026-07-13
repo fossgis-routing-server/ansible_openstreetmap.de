@@ -1,0 +1,13 @@
+[app]
+address = "127.0.0.1:9000"
+
+[db]
+host = "127.0.0.1"
+port = 5432
+user = "{{ listmonk__db_user }}"
+password = "{{ listmonk__db_password }}"
+database = "{{ listmonk__db_name }}"
+ssl_mode = "disable"
+max_open = 25
+max_idle = 25
+max_lifetime = "15m"
