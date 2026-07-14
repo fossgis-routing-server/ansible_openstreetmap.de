@@ -52,7 +52,7 @@
   become_user: postgres
   community.postgresql.postgresql_query:
       login_db: "{{ listmonk__db_name }}"
-      query: "SELECT to_regclass('public.managers');"
+      query: "SELECT to_regclass('public.subscribers');"
   register: db_check
 
 - name: Initialize Listmonk Database (First install only)
@@ -62,7 +62,7 @@
       chdir: "{{ listmonk__install_dir }}"
   vars:
       ansible_remote_tmp: /tmp
-  when: db_check.query_result[0].to_regclass is none
+  when: db_check.query_result[0][0].to_regclass is none
 
 - name: Deploy systemd service unit
   ansible.builtin.template:
