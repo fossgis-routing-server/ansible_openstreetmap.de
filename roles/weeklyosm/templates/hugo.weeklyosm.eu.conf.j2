@@ -20,6 +20,10 @@ map $arg_lang $is_supported_lang_param {
     # HANDLE REDIRECT FROM /en/something TO /something
     # =========================================================================
     location ~ ^/en/(.*)$ {
+        # exclude js files
+        if ($uri ~* \.js$) {
+            break;
+        }
         return 301 /$1$is_args$args;
     }
 
