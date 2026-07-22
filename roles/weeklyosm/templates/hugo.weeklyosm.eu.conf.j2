@@ -1,7 +1,61 @@
+# ----------------------------------------------------------------------
+# Language Feed Maps
+# ----------------------------------------------------------------------
+map $uri $is_supported_locale {
+    default 0;
+    ~^/(de|es|fr|it|pt|br|cz|ru|uk|zh|ja|ko|cn|id|nl|pl|sw|tr)/ 1;
+}
+
+map $arg_lang $is_supported_lang_param {
+    default 0;
+    ~^(de|es|fr|it|pt|br|cz|ru|uk|zh|ja|ko|cn|id|nl|pl|sw|tr)$ 1;
+}
+
 {% call server(weeklyosm.hostnames, http='forward', https='hugo') %}
 
     root {{ weeklyosm_directory }};
     index index.html index.htm;
+
+    # =========================================================================
+    # HANDLE REDIRECT FROM /en/something TO /something
+    # =========================================================================
+    location ~ ^/en/(.*)$ {
+        # exclude js files
+        if ($uri ~* \.js$) {
+            break;
+        }
+        return 301 /$1$is_args$args;
+    }
+
+    # =========================================================================
+    # HANDLE THE QUERY PARAMETER /feed?lang=xx
+    # =========================================================================
+    location = /feed {
+        if ($is_supported_lang_param) {
+            return 301 /$arg_lang/feed.xml;
+        }
+        return 301 /feed.xml;
+    }
+
+    # =========================================================================
+    # HANDLE PRETTY URLS FOR ALL FEEDS
+    # =========================================================================
+    location ~ "^/([a-z]{2})/feed/?$" {
+        set $lang $1;
+        
+        default_type application/rss+xml;
+
+        if ($is_supported_locale) {
+            rewrite "^/[a-z]{2}/feed/?$" /$lang/feed.xml break;
+        }
+
+        try_files $uri $uri/ =404;
+    }
+
+    location = /feed/ {
+        default_type application/rss+xml;
+        rewrite ^/feed/ /feed.xml break;
+    }
 
     # Main directory configuration
     location / {
