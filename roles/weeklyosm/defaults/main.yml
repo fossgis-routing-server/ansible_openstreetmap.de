@@ -3,5 +3,13 @@
 weeklyosm_directory: "/srv/weeklyosm/www"
 weeklyosm_deploy_user: "deploy-weekly"
 weeklyosm_deploy_key: "ssh-ed25519
-  AAAAC3NzaC1lZDI1NTE5AAAAIBijSeiqaFsWagRuCyFLogXJq3PXPzCucrPzVm6VWiFn
-  deploy-weeklyosm@gitlab"
+    AAAAC3NzaC1lZDI1NTE5AAAAIBijSeiqaFsWagRuCyFLogXJq3PXPzCucrPzVm6VWiFn
+    deploy-weeklyosm@gitlab"
+
+# comment service
+weeklyosm__remark42__directory: "/srv/remark42"
+weeklyosm__remark42__version: "v1.16.4"
+weeklyosm__remark42__site_url: "https://hugo.weeklyosm.eu/comments"
+weeklyosm__remark42__site_id: "weeklyosm"
+weeklyosm__remark42__smtp_from: "WeeklyOSM Comments <noreply@weeklyosm.eu>"
+weeklyosm__remark42__admin_email: "info@weeklyosm.eu"

@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: MIT
+---
+- name: restart remark42
+  ansible.builtin.systemd:
+      name: remark42
+      state: restarted
+
+- name: systemctl daemon-reload
+  ansible.builtin.systemd:
+      daemon_reload: yes
