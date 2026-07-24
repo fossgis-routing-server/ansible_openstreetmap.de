@@ -1,0 +1,22 @@
+[Unit]
+Description=Remark42 comment engine
+After=network.target
+
+[Service]
+Type=simple
+User=remark42
+Group=remark42
+WorkingDirectory={{ weeklyosm__remark42__directory }}
+EnvironmentFile={{ weeklyosm__remark42__directory }}/remark42.env
+ExecStart=/usr/local/bin/remark42 server
+
+Restart=always
+RestartSec=10
+
+# Security Hardening
+ProtectSystem=full
+ProtectHome=yes
+NoNewPrivileges=yes
+
+[Install]
+WantedBy=multi-user.target

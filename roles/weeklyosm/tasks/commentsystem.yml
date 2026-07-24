@@ -1,0 +1,71 @@
+# SPDX-License-Identifier: MIT
+---
+- name: "Create system group for remark42"
+  ansible.builtin.group:
+      name: remark42
+      state: present
+      system: yes
+
+- name: "Create system user for remark42"
+  ansible.builtin.user:
+      name: remark42
+      group: remark42
+      system: yes
+      shell: /usr/sbin/nologin
+      create_home: no
+
+- name: "Create remark42 directory"
+  ansible.builtin.file:
+      path: "{{ weeklyosm__remark42__directory }}"
+      state: directory
+      owner: remark42
+      group: remark42
+      mode: "0750"
+
+- name: "Download and extract Remark42 binary" #FIXME does not update new versions (creates)
+  ansible.builtin.unarchive:
+      src: "https://github.com/umputun/remark42/releases/download/{{ weeklyosm__remark42__version }}/remark42.linux-amd64.tar.gz"
+      dest: /usr/local/bin
+      remote_src: yes
+      owner: root
+      group: root
+      mode: "0755"
+      extra_opts:
+          - --strip-components=1
+      creates: /usr/local/bin/remark42
+  notify: restart remark42
+
+- name: "Deploy remark42 environment file"
+  ansible.builtin.template:
+      src: remark42.env.j2
+      dest: "{{ weeklyosm__remark42__directory }}/remark42.env"
+      owner: remark42
+      group: remark42
+      mode: "0600"
+  notify: restart remark42
+
+# - name: "Deploy remark42 debug file"
+#   ansible.builtin.template:
+#       src: remark42.conf.j2
+#       dest: "{{ weeklyosm__remark42__directory }}/debug.sh"
+#       owner: remark42
+#       group: remark42
+#       mode: "0600"
+#   notify: restart remark42
+
+- name: "Create systemd service for remark42"
+  ansible.builtin.template:
+      src: remark42.service.j2
+      dest: /etc/systemd/system/remark42.service
+      owner: root
+      group: root
+      mode: "0644"
+  notify:
+      - systemctl daemon-reload
+      - restart remark42
+
+- name: "Ensure remark42 service is enabled and running"
+  ansible.builtin.systemd:
+      name: remark42
+      enabled: yes
+      state: started
