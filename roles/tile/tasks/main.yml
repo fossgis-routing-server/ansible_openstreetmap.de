@@ -312,9 +312,11 @@
     - "/etc/tirex/renderer/mapnik"
 
 - name: Tirex main config
-  copy:
+  template:
     dest: "/etc/tirex/tirex.conf"
-    src: "tirex.conf"
+    src: "tirex_conf.j2"
+  vars:
+    mapnik_procs: "{{ tile__mapnik_procs }}"
 
 - name: Tirex mapnik backend config
   template:
@@ -409,7 +411,7 @@
     mode: 0755
   vars:
     difffile: /tmp/latest_changes.osc
-    expiretilessingle: "{{ tile__basedir }}/bin/expire-tiles-single.py"
+    expiretilessingle: "{{ tile__basedir }}/bin/expire-tiles-single.py --max {{ tile__prerendering_zoom }}"
     styles: "{{ tile__styles }}"
 
 # script to identify rhb tile rendered area, gray out outside area
@@ -661,7 +663,7 @@
         Description: Queue up rerendering of low zoom tiles with tirex-batch
       Service:
         Type: oneshot
-        ExecStart: tirex-batch --prio=99 map=osmde z=1-12 lon=-180,180 lat=-90,90
+        ExecStart: tirex-batch --prio=99 map=osmde z=1-{{ tile__prerendering_zoom -1 }} lon=-180,180 lat=-90,90
         User: "{{ tile__user }}"
         Group: "{{ tile__user }}"
     timer:
