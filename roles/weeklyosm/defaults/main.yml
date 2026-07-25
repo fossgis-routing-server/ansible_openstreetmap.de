@@ -11,7 +11,7 @@ weeklyosm__remark42__directory: "/srv/remark42"
 weeklyosm__remark42__version: "v1.16.4"
 weeklyosm__remark42__site_url: "https://hugo.weeklyosm.eu/comments"
 weeklyosm__remark42__site_id: "weeklyosm"
-weeklyosm__remark42__smtp_from: "weeklyOSM No Reply <info@weeklyosm.eu>"
+weeklyosm__remark42__smtp_from: "weeklyOSM comments <noreply@weeklyosm.eu>"
 weeklyosm__remark42__admin_email: "theweeklyosm@gmail.com"
 weeklyosm__remark42__email_template_brand: "weeklyOSM"
 # openstreetmap_bf8d12b6a17909268af90cc2022d8ab6ebc64f37 = MatthiasMatthias
