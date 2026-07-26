@@ -11,7 +11,7 @@ map $arg_lang $is_supported_lang_param {
     ~^(de|es|fr|it|pt|br|cz|ru|uk|zh|ja|ko|cn|id|nl|pl|sw|tr)$ 1;
 }
 
-{% call server(weeklyosm.hostnames, http='forward', https='hugo') %}
+{% call server(hugo_hostnames, http='forward', https='hugo') %}
 
     root {{ weeklyosm_directory }};
     index index.html index.htm;
