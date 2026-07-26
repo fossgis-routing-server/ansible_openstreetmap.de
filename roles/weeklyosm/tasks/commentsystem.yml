@@ -53,6 +53,22 @@
 #       mode: "0600"
 #   notify: restart remark42
 
+- name: "Create weeklyOSM email templates"
+  ansible.builtin.template:
+      src: "{{ item }}"
+      dest: "{{ weeklyosm__remark42__directory }}/{{ item | regex_replace('^remark42_', '') }}"
+      owner: remark42
+      group: remark42
+      mode: "0644"
+  loop:
+      - remark42_email_confirmation_login.html.tmpl.j2
+      - remark42_email_confirmation_subscription.html.tmpl.j2
+      - remark42_email_reply.html.tmpl.j2
+      - remark42_email_unsubscribe.html.tmpl.j2
+      - remark42_error_response.html.tmpl.j2
+  notify:
+      - restart remark42
+
 - name: "Create systemd service for remark42"
   ansible.builtin.template:
       src: remark42.service.j2
