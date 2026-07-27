@@ -69,6 +69,25 @@
   notify:
       - restart remark42
 
+- name: Ensure target avatar subdirectories exist
+  ansible.builtin.file:
+      path: "{{ weeklyosm__remark42__thumbnail_dir }}/{{ item.value | dirname }}"
+      state: directory
+      owner: remark42
+      group: remark42
+      mode: "0755"
+  loop: "{{ weeklyosm__remark42__thumbnail_map | dict2items }}"
+
+- name: Overwrite thumbnails of commenters
+  ansible.builtin.copy:
+      src: "remark42_avatars/{{ item.key }}"
+      dest: "{{ weeklyosm__remark42__thumbnail_dir }}/{{ item.value }}"
+      owner: remark42
+      group: remark42
+      mode: "0644"
+      force: true
+  loop: "{{ weeklyosm__remark42__thumbnail_map | dict2items }}"
+
 - name: "Create systemd service for remark42"
   ansible.builtin.template:
       src: remark42.service.j2

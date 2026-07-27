@@ -17,3 +17,8 @@ weeklyosm__remark42__email_template_brand: "weeklyOSM"
 # openstreetmap_bf8d12b6a17909268af90cc2022d8ab6ebc64f37 = MatthiasMatthias
 # openstreetmap_da99428a7963156ecce49b319ec4a5b348e126ad = Strubbl
 weeklyosm__remark42__admin_id: "openstreetmap_bf8d12b6a17909268af90cc2022d8ab6ebc64f37,openstreetmap_da99428a7963156ecce49b319ec4a5b348e126ad"
+# workaround: manually writing commenters thumbnails because remark custom OAuth2 cannot handle nested user.json to retrieve them
+weeklyosm__remark42__thumbnail_dir: "{{ weeklyosm__remark42__directory }}/var/avatars/"
+weeklyosm__remark42__thumbnail_map:
+    "weeklyOSM.png": "05/b2b6894406d8f136d842dba8c8d37f890063c9f8.image"
+    "MatthiasMatthias.png": "38/235d313285d065e09219a22e86371c35d5291f14.image"
