@@ -6,7 +6,7 @@ weeklyosm_deploy_key: "ssh-ed25519
     AAAAC3NzaC1lZDI1NTE5AAAAIBijSeiqaFsWagRuCyFLogXJq3PXPzCucrPzVm6VWiFn
     deploy-weeklyosm@gitlab"
 
-# comment service
+# remark42 comment service
 weeklyosm__remark42__directory: "/srv/remark42"
 weeklyosm__remark42__version: "v1.16.4"
 weeklyosm__remark42__site_url: "https://hugo.weeklyosm.eu/comments"
@@ -14,9 +14,13 @@ weeklyosm__remark42__site_id: "weeklyosm"
 weeklyosm__remark42__smtp_from: "weeklyOSM comments <noreply@weeklyosm.eu>"
 weeklyosm__remark42__admin_email: "info@weeklyosm.eu"
 weeklyosm__remark42__email_template_brand: "weeklyOSM"
-# MatthiasMatthias = openstreetmap_d1d85c99139ab641f364ff686cc85bdc6457e5ce
-# Strubbl = openstreetmap_f9fed4b96f1ad399793a6c534d8e67384eae11a2
-weeklyosm__remark42__admin_id: "openstreetmap_d1d85c99139ab641f364ff686cc85bdc6457e5ce,openstreetmap_f9fed4b96f1ad399793a6c534d8e67384eae11a2"
+# remark42 admin accounts
+weeklyosm__remark42__admin_map:
+    MatthiasMatthias: "openstreetmap_d1d85c99139ab641f364ff686cc85bdc6457e5ce"
+    Strubbl: "openstreetmap_f9fed4b96f1ad399793a6c534d8e67384eae11a2"
+    weeklyOSM: "openstreetmap_50f8ffe1f3250720ff5ac288812a88d4c1690fb1"
+weeklyosm__remark42__admin_id: "{{ weeklyosm__remark42__admin_map.values() | join(',') }}"
+# manually store commenters thumbs, as remark42 oauth2 plugin does not support the nested user.json from osm
 weeklyosm__remark42__thumbnail_dir: "{{ weeklyosm__remark42__directory }}/var/avatars/"
 weeklyosm__remark42__thumbnail_map:
     "weeklyOSM.png": "05/b2b6894406d8f136d842dba8c8d37f890063c9f8.image"
