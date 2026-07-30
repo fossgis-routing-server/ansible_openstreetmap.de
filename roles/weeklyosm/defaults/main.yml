@@ -19,9 +19,11 @@ weeklyosm__remark42__admin_map:
     MatthiasMatthias: "openstreetmap_d1d85c99139ab641f364ff686cc85bdc6457e5ce"
     Strubbl: "openstreetmap_f9fed4b96f1ad399793a6c534d8e67384eae11a2"
     weeklyOSM: "openstreetmap_50f8ffe1f3250720ff5ac288812a88d4c1690fb1"
+    derFred: "openstreetmap_79fb8d5723f09fb9ae96ed626a421a84a51ba437"
 weeklyosm__remark42__admin_id: "{{ weeklyosm__remark42__admin_map.values() | join(',') }}"
 # manually store commenters thumbs, as remark42 oauth2 plugin does not support the nested user.json from osm
 weeklyosm__remark42__thumbnail_dir: "{{ weeklyosm__remark42__directory }}/var/avatars/"
 weeklyosm__remark42__thumbnail_map:
     "weeklyOSM.png": "05/b2b6894406d8f136d842dba8c8d37f890063c9f8.image"
     "MatthiasMatthias.png": "38/235d313285d065e09219a22e86371c35d5291f14.image"
+    "derFred.png": "42/bc82163f0e523389aca3afe7dad8bc0a42f90d21.image"
