@@ -20,6 +20,7 @@ map $arg_lang $is_supported_lang_param {
     # REMARK42 REVERSE PROXY CONFIGURATION
     # =========================================================================
     location /comments/ {
+        rewrite /comments/(.*) /$1 break;
         proxy_pass http://127.0.0.1:8000/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
