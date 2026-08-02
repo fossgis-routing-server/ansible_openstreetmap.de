@@ -44,15 +44,6 @@
       mode: "0600"
   notify: restart remark42
 
-# - name: "Deploy remark42 debug file"
-#   ansible.builtin.template:
-#       src: remark42.conf.j2
-#       dest: "{{ weeklyosm__remark42__directory }}/debug.sh"
-#       owner: remark42
-#       group: remark42
-#       mode: "0600"
-#   notify: restart remark42
-
 - name: "Create weeklyOSM email templates"
   ansible.builtin.template:
       src: "{{ item }}"
