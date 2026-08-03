@@ -60,6 +60,14 @@
   notify:
       - restart remark42
 
+- name: "Place OSM logo for remark42 oauth icon"
+  ansible.builtin.copy:
+      src: "OpenStreetMap-Logo.svg"
+      dest: "/var/www/OpenStreetMap-Logo.svg"
+      owner: www-data
+      group: www-data
+      mode: "0644"
+
 - name: Ensure target avatar subdirectories exist
   ansible.builtin.file:
       path: "{{ weeklyosm__remark42__thumbnail_dir }}/{{ item.value | dirname }}"

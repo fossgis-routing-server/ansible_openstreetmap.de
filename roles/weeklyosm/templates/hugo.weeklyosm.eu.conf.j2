@@ -19,6 +19,14 @@ map $arg_lang $is_supported_lang_param {
     # =========================================================================
     # REMARK42 REVERSE PROXY CONFIGURATION
     # =========================================================================
+
+    # overwrite generic oauth logo with OSM logo
+    location = /comments/web/custom.svg {
+        alias /var/www/OpenStreetMap-Logo.svg;
+        expires 7d;
+        add_header Cache-Control "public, no-transform";
+    }
+
     location /comments/ {
         rewrite /comments/(.*) /$1 break;
         proxy_pass http://127.0.0.1:8000/;
