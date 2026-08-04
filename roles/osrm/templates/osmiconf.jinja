@@ -5,7 +5,7 @@
             "output": "{{ area }}.pbf",
             "output_format": "pbf",
             "polygon": [ {{ osrm__profilearea[area].poly }} ]
-        },
+        }{{ "," if not loop.last }}
         {% endfor %}
     ],
     "directory": "{{ osmdatadir }}"
