@@ -22,17 +22,31 @@
       group: remark42
       mode: "0750"
 
-- name: "Download and extract Remark42 binary" #FIXME does not update new versions (creates)
-  ansible.builtin.unarchive:
-      src: "https://github.com/umputun/remark42/releases/download/{{ weeklyosm__remark42__version }}/remark42.linux-amd64.tar.gz"
-      dest: /usr/local/bin
-      remote_src: yes
+- name: Ensure directory for current Remark42 version exists
+  ansible.builtin.file:
+      path: "{{ weeklyosm__remark42__directory }}/remark42-{{ weeklyosm__remark42__version }}"
+      state: directory
       owner: root
       group: root
       mode: "0755"
-      extra_opts:
-          - --strip-components=1
-      creates: /usr/local/bin/remark42
+
+- name: Download and extract Remark42 binary
+  ansible.builtin.unarchive:
+      src: "https://github.com/umputun/remark42/releases/download/{{ weeklyosm__remark42__version }}/remark42.linux-amd64.tar.gz"
+      dest: "{{ weeklyosm__remark42__directory }}/remark42-{{ weeklyosm__remark42__version }}"
+      remote_src: true
+      owner: root
+      group: root
+      mode: "0755"
+      creates: "{{ weeklyosm__remark42__directory }}/remark42-{{ weeklyosm__remark42__version }}/remark42.linux-amd64"
+
+- name: Link active Remark42 binary to /usr/local/bin
+  ansible.builtin.file:
+      src: "{{ weeklyosm__remark42__directory }}/remark42-{{ weeklyosm__remark42__version }}/remark42.linux-amd64"
+      dest: "/usr/local/bin/remark42"
+      state: link
+      force: true
+      follow: false
   notify: restart remark42
 
 - name: "Deploy remark42 environment file"
