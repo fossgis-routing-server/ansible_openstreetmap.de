@@ -27,7 +27,11 @@ vars.http["HTTPS router.project-osrm.org"] = {
                 service.retry_interval = 20s
     }
 
-
+    vars.fileage["Fileage {{ osrm__basedir }}osmdata/osmdata.pbf"] = {
+        vars.file_age_file = "{{ osrm__basedir }}osmdata/osmdata.pbf"
+        vars.file_age_critical_time = 604800s; 
+        vars.file_age_warning_time = 864000s;
+    }
 
 {% for profile in osrm__profiles %}
 {% for region, url in [('euasi', '8.292757099999998,46.8372961;8.291786649999999,46.837192200000004'),
@@ -43,5 +47,10 @@ vars.http["HTTPS router.project-osrm.org"] = {
                 service.retry_interval = 20s
     }
 
+    vars.fileage["Fileage {{ osrm__basedir }}data/{{ profile }}{{ region }}.osrm.geometry"] = {
+        vars.file_age_file = "{{ osrm__basedir }}data/{{ profile }}{{ region }}.osrm.geometry"
+        vars.file_age_critical_time = 604800s; 
+        vars.file_age_warning_time = 864000s;
+    }
 {% endfor %}
 {% endfor %}
