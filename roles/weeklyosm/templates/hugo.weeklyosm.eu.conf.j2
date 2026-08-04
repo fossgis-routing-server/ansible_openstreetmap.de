@@ -22,10 +22,19 @@ map $arg_lang $is_supported_lang_param {
 
     # overwrite generic oauth logo with OSM logo
     location = /comments/web/custom.svg {
-        alias /var/www/OpenStreetMap-Logo.svg;
+        alias /srv/weeklyosm/www/images/OpenStreetMap-Logo.svg;
         expires 7d;
         add_header Cache-Control "public, no-transform";
     }
+
+    {# Reroute commenting avatars as remark42 does not correctly load them from OSM #}
+    {% for local_image, remote_path in weeklyosm__remark42__thumbnail_map.items() %}
+    location = /comments/api/v1/avatar/{{ remote_path }} {
+        alias /srv/weeklyosm/www/images/remark42_avatars/{{ local_image }};
+        expires 7d;
+        add_header Cache-Control "public, no-transform";
+    }
+    {% endfor %}
 
     location /comments/ {
         rewrite /comments/(.*) /$1 break;
