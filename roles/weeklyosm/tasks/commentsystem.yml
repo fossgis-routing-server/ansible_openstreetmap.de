@@ -6,21 +6,10 @@
       state: present
       system: yes
 
-- name: "Create system user for remark42"
-  ansible.builtin.user:
-      name: remark42
-      group: remark42
-      system: yes
-      shell: /usr/sbin/nologin
-      create_home: no
-
-- name: "Create remark42 directory"
-  ansible.builtin.file:
-      path: "{{ weeklyosm__remark42__directory }}"
-      state: directory
-      owner: remark42
-      group: remark42
-      mode: "0750"
+- name: Create user for remark42
+  system_account:
+    name: "remark42"
+    home: "{{ weeklyosm__remark42__directory }}"
 
 - name: Ensure directory for current Remark42 version exists
   ansible.builtin.file:
@@ -75,18 +64,22 @@
       - restart remark42
 
 - name: "Create systemd service for remark42"
-  ansible.builtin.template:
-      src: remark42.service.j2
-      dest: /etc/systemd/system/remark42.service
-      owner: root
-      group: root
-      mode: "0644"
-  notify:
-      - systemctl daemon-reload
-      - restart remark42
-
-- name: "Ensure remark42 service is enabled and running"
-  ansible.builtin.systemd:
-      name: remark42
-      enabled: yes
-      state: started
+  systemd_service:
+    name: "remark42"
+    enabled: true
+    service:
+      Unit:
+        Description: "Remark42 comment engine"
+        After: network.target
+      Service:
+        Type: simple
+        User: remark42
+        Group: remark42
+        WorkingDirectory: "{{ weeklyosm__remark42__directory }}"
+        EnvironmentFile: "{{ weeklyosm__remark42__directory }}/remark42.env"
+        ExecStart: /usr/local/bin/remark42 server
+        Restart: always
+        RestartSec: 10
+        ProtectSystem: full
+        ProtectHome: yes
+        NoNewPrivileges: yes
