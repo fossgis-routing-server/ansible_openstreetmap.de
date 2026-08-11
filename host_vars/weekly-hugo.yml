@@ -2,7 +2,7 @@
 mail:
     opendkim: true
     opendkim_selector: 2026
-    mailname: weeklyosm.eu
+    mailname: hugo.weeklyosm.eu
     ssl_name: weeklyosm
     domains:
         - weekly-hugo.openstreetmap.de
@@ -14,4 +14,6 @@ mail:
         root@weeklyosm.eu: osm-server-ag-admins@fossgis.de
         postmaster: osm-server-ag-admins@fossgis.de
         root: osm-server-ag-admins@fossgis.de
+        admin: matthias@matthiasheinisch.de
+        noreply: /dev/null
     relay: true
