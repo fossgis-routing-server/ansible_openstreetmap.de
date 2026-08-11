@@ -5,6 +5,7 @@ weeklyosm_deploy_user: "deploy-weekly"
 weeklyosm_deploy_key: "ssh-ed25519
     AAAAC3NzaC1lZDI1NTE5AAAAIBijSeiqaFsWagRuCyFLogXJq3PXPzCucrPzVm6VWiFn
     deploy-weeklyosm@gitlab"
+weeklyosm__languages: ["de", "es", "fr", "it", "pt", "br", "cz", "ru", "uk", "zh", "ja", "ko", "cn", "id", "nl", "pl", "sw", "tr"]
 
 # remark42 comment service
 weeklyosm__remark42__directory: "/srv/remark42"
