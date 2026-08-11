@@ -1,0 +1,85 @@
+# SPDX-License-Identifier: MIT
+---
+- name: "Create system group for remark42"
+  ansible.builtin.group:
+      name: remark42
+      state: present
+      system: yes
+
+- name: Create user for remark42
+  system_account:
+    name: "remark42"
+    home: "{{ weeklyosm__remark42__directory }}"
+
+- name: Ensure directory for current Remark42 version exists
+  ansible.builtin.file:
+      path: "{{ weeklyosm__remark42__directory }}/remark42-{{ weeklyosm__remark42__version }}"
+      state: directory
+      owner: root
+      group: root
+      mode: "0755"
+
+- name: Download and extract Remark42 binary
+  ansible.builtin.unarchive:
+      src: "https://github.com/umputun/remark42/releases/download/{{ weeklyosm__remark42__version }}/remark42.linux-amd64.tar.gz"
+      dest: "{{ weeklyosm__remark42__directory }}/remark42-{{ weeklyosm__remark42__version }}"
+      remote_src: true
+      owner: root
+      group: root
+      mode: "0755"
+      creates: "{{ weeklyosm__remark42__directory }}/remark42-{{ weeklyosm__remark42__version }}/remark42.linux-amd64"
+
+- name: Link active Remark42 binary to /usr/local/bin
+  ansible.builtin.file:
+      src: "{{ weeklyosm__remark42__directory }}/remark42-{{ weeklyosm__remark42__version }}/remark42.linux-amd64"
+      dest: "/usr/local/bin/remark42"
+      state: link
+      force: true
+      follow: false
+  notify: restart remark42
+
+- name: "Deploy remark42 environment file"
+  ansible.builtin.template:
+      src: remark42.env.j2
+      dest: "{{ weeklyosm__remark42__directory }}/remark42.env"
+      owner: remark42
+      group: remark42
+      mode: "0600"
+  notify: restart remark42
+
+- name: "Create weeklyOSM email templates"
+  ansible.builtin.template:
+      src: "{{ item }}"
+      dest: "{{ weeklyosm__remark42__directory }}/{{ item | regex_replace('^remark42_', '') }}"
+      owner: remark42
+      group: remark42
+      mode: "0644"
+  loop:
+      - remark42_email_confirmation_login.html.tmpl.j2
+      - remark42_email_confirmation_subscription.html.tmpl.j2
+      - remark42_email_reply.html.tmpl.j2
+      - remark42_email_unsubscribe.html.tmpl.j2
+      - remark42_error_response.html.tmpl.j2
+  notify:
+      - restart remark42
+
+- name: "Create systemd service for remark42"
+  systemd_service:
+    name: "remark42"
+    enabled: true
+    service:
+      Unit:
+        Description: "Remark42 comment engine"
+        After: network.target
+      Service:
+        Type: simple
+        User: remark42
+        Group: remark42
+        WorkingDirectory: "{{ weeklyosm__remark42__directory }}"
+        EnvironmentFile: "{{ weeklyosm__remark42__directory }}/remark42.env"
+        ExecStart: /usr/local/bin/remark42 server
+        Restart: always
+        RestartSec: 10
+        ProtectSystem: full
+        ProtectHome: yes
+        NoNewPrivileges: yes

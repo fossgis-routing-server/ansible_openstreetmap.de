@@ -1,20 +1,66 @@
+{% set supported_langs = weeklyosm__languages | join('|') %}
+
 # ----------------------------------------------------------------------
 # Language Feed Maps
 # ----------------------------------------------------------------------
-map $uri $is_supported_locale {
-    default 0;
-    ~^/(de|es|fr|it|pt|br|cz|ru|uk|zh|ja|ko|cn|id|nl|pl|sw|tr)/ 1;
+map $uri $lang_prefix {
+    default "";
+    ~^/({{ supported_langs }})/ "/$1";
 }
 
 map $arg_lang $is_supported_lang_param {
     default 0;
-    ~^(de|es|fr|it|pt|br|cz|ru|uk|zh|ja|ko|cn|id|nl|pl|sw|tr)$ 1;
+    ~^({{ supported_langs }})$ 1;
 }
 
 {% call server(hugo_hostnames, http='forward', https='hugo') %}
 
     root {{ weeklyosm_directory }};
     index index.html index.htm;
+
+    # =========================================================================
+    # CUSTOM 404 ERROR PAGE CONFIGURATION
+    # =========================================================================
+    error_page 404 $lang_prefix/404.html;
+
+    # =========================================================================
+    # REMARK42 REVERSE PROXY CONFIGURATION
+    # =========================================================================
+
+    # overwrite generic oauth logo with OSM logo
+    location = /comments/web/custom.svg {
+        alias /srv/weeklyosm/www/images/OpenStreetMap-Logo.svg;
+        expires 7d;
+        add_header Cache-Control "public, no-transform";
+    }
+
+    # Reroute commenting avatars as remark42 does not correctly load them from OSM
+    {% for local_image, remote_path in weeklyosm__remark42__thumbnail_map.items() %}
+    location = /comments/api/v1/avatar/{{ remote_path }} {
+        alias /srv/weeklyosm/www/images/remark42_avatars/{{ local_image }};
+        expires 7d;
+        add_header Cache-Control "public, no-transform";
+    }
+    {% endfor %}
+
+    location /comments/ {
+        rewrite /comments/(.*) /$1 break;
+        proxy_pass http://127.0.0.1:8000/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # WebSocket Support (for realtime updates and notifications)
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        # Timeouts
+        proxy_connect_timeout 60s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
 
     # =========================================================================
     # HANDLE REDIRECT FROM /en/something TO /something
@@ -45,7 +91,7 @@ map $arg_lang $is_supported_lang_param {
         
         default_type application/rss+xml;
 
-        if ($is_supported_locale) {
+        if ($lang_prefix) {
             rewrite "^/[a-z]{2}/feed/?$" /$lang/feed.xml break;
         }
 
