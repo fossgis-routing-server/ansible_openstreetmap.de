@@ -736,9 +736,9 @@
 #
 # Fail2ban
 #
-- name: Install tirex with apt
+- name: Install sqlite3 with apt
   apt:
-    name: tirex
+    name: sqlite3
 # bad requests
 - name: Fail2ban filter for bad requests in loop
   fail2ban_filter:
