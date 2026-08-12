@@ -34,8 +34,8 @@ class ActionModule(ActionBase):
         if ports is not None:
             output.write(f"ports = {ports!s}\n")
 
-        for param in ('bantime', 'findtime', 'maxretry'):
-            value = self._get_typed(param, (str, int))
+        for param in ('bantime', 'findtime', 'maxretry', 'bantime.increment', 'bantime.factor', 'bantime.maxtime'):
+            value = self._get_typed(param, (str, int, bool))
             if value is not None:
                 output.write(f"{param} = {value}\n")
 

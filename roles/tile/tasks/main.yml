@@ -732,3 +732,122 @@
     enabled: true
     name: tirex-backend-manager
   when: tile_mapnik_git.changed
+
+#
+# Fail2ban
+#
+- name: Install tirex with apt
+  apt:
+    name: tirex
+# bad requests
+- name: Fail2ban filter for bad requests in loop
+  fail2ban_filter:
+    name: tileserver-{{ item }}
+    definition: |
+      failregex = ^<HOST> \S+ \S+ \[.*\] ".*" {{ item }} \d+
+
+      datepattern = ^[^\[]*\[({DATE})
+  loop:
+    - "400"
+  notify: reload fail2ban
+
+- name: Fail2ban jails for bad requests in loop
+  fail2ban_jail:
+    name: tileserver-{{ item.code }}
+    ports: [80, 443]
+    filter: tileserver-{{ item.code }}
+    logpath: /var/cache/tirex/logs/apache_logs.log
+    findtime: "{{ item.findtime }}"
+    maxretry: "{{ item.maxretry }}"
+    bantime: "{{ item.bantime }}"
+    bantime.increment: true
+    bantime.factor: 2
+    bantime.maxtime: 1w
+  loop:
+    - { code: "400", findtime: "30s", maxretry: 5, bantime: "1h" }
+  notify: reload fail2ban
+
+# bad request 404
+- name: Fail2ban filter for bad requests in loop
+  fail2ban_filter:
+    name: tileserver-{{ item }}
+    definition: |
+      failregex = ^<HOST> \S+ \S+ \[.*\] "(?:GET|POST) /(?!\d+/\d+/\d+\.png).*" {{ item }} \d+
+
+      datepattern = ^[^\[]*\[({DATE})
+  loop:
+    - "404"
+  notify: reload fail2ban
+
+- name: Fail2ban jails for bad requests in loop
+  fail2ban_jail:
+    name: tileserver-{{ item.code }}
+    ports: [80, 443]
+    filter: tileserver-{{ item.code }}
+    logpath: /var/cache/tirex/logs/apache_logs.log
+    findtime: "{{ item.findtime }}"
+    maxretry: "{{ item.maxretry }}"
+    bantime: "{{ item.bantime }}"
+    bantime.increment: true
+    bantime.factor: 2
+    bantime.maxtime: 1w
+  loop:
+    - { code: "404", findtime: "1m", maxretry: 20, bantime: "1h" }
+  notify: reload fail2ban
+
+# no user agent
+- name: Fail2ban Filter for no User-Agents
+  fail2ban_filter:
+    name: tileserver-no-useragent
+    definition: |
+      failregex = ^<HOST> \S+ \S+ \[.*\] "GET /.*\.png HTTP/.*" \d+ \d+ ".*" "-"
+
+      datepattern = ^[^\[]*\[({DATE})
+  notify: reload fail2ban
+
+- name: Fail2ban Jail for no User-Agents
+  fail2ban_jail:
+    name: tileserver-no-useragent
+    ports: [80, 443]
+    filter: tileserver-no-useragent
+    logpath: /var/cache/tirex/logs/apache_logs.log
+    findtime: 1m
+    maxretry: 3
+    bantime: 1h
+    bantime.increment: true
+    bantime.factor: 2
+    bantime.maxtime: 1w
+  notify: reload fail2ban
+
+# more than x requests per minute
+- name: Fail2ban filter for more than x requests per minute
+  fail2ban_filter:
+    name: tileserver-rate
+    definition: |
+      failregex = ^<HOST> \S+ \S+ \[.*\] "(?:GET|POST) .*\/\d+\/\d+\/\d+\.png.*" \d+ \d+
+
+      datepattern = ^[^\[]*\[({DATE})
+  notify: reload fail2ban
+
+- name: Fail2ban jail for more than x requests per minute
+  fail2ban_jail:
+    name: tileserver-rate
+    ports: [80, 443]
+    filter: tileserver-rate
+    logpath: /var/cache/tirex/logs/apache_logs.log
+    findtime: 1m
+    maxretry: 2500
+    bantime: 1h
+    bantime.increment: true
+    bantime.factor: 2
+    bantime.maxtime: 1w
+  notify: reload fail2ban
+
+- name: Install fail2ban.local
+  copy:
+    src: fail2ban.local
+    dest: /etc/fail2ban/fail2ban.local
+    owner: root
+    group: root
+    mode: "0644"
+  notify: restart fail2ban
