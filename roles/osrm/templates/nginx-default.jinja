@@ -83,6 +83,7 @@ map $http_accept_language $lang {
 {% endif %}
         access_log /var/log/nginx/router.log anonymized;
         access_log /var/log/nginx/routing-times-{{ osrm__profilearea[profilearea].profile }}.log access_times;
+        {{ error_out_blocked() }}
     }
 {% endfor %}
     location /null-island {
