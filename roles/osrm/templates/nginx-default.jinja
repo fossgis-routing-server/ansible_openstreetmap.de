@@ -13,6 +13,8 @@ map $http_accept_language $lang {
 
 {% call server([server_name], http='yes', https=cert, listen_params=default_server ) %}
 
+    {{ error_out_blocked() }}
+
     root {{ root }};
 
     index index.html;
@@ -31,7 +33,6 @@ map $http_accept_language $lang {
     location / {
         # First attempt to serve request as file, then
         # as directory, then fall back to displaying a 404.
-        {{ error_out_blocked() }}
         try_files $uri $uri/ =404;
     }
 
@@ -83,7 +84,6 @@ map $http_accept_language $lang {
 {% endif %}
         access_log /var/log/nginx/router.log anonymized;
         access_log /var/log/nginx/routing-times-{{ osrm__profilearea[profilearea].profile }}.log access_times;
-        {{ error_out_blocked() }}
     }
 {% endfor %}
     location /null-island {
