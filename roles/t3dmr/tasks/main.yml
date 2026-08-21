@@ -109,7 +109,7 @@
     name: 3dmr nightly exports
     minute: "0"
     hour: "4"
-    job: "/home/tdmr/nightly.sh"
+    job: "{{ t3dmr__basedir }}/bin/nightly.sh"
     user: "{{ t3dmr__user }}"
 
 - name: Setup gunicorn systemd job
