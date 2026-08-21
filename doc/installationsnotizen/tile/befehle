@@ -1,0 +1,24 @@
+# Tirex
+
+tirex-status
+
+# Log Fail2Ban
+
+sudo fail2ban-client status
+
+sudo fail2ban-client stop tileserver-rate
+
+sudo fail2ban-client status tileserver-rate
+
+sudo tail -f /var/log/fail2ban.log | grep Ban
+
+Requests pro Minute (cut -d: -f1-3 schneidet Sekunden ab)
+grep '^83.135.4.224 ' /var/cache/tirex/logs/apache_logs.log | awk -F'[][]' '{print $2}' | cut -d: -f1-3 | sort | uniq -c
+   1074 30/Jul/2026:11:41
+   1906 30/Jul/2026:11:42
+    191 30/Jul/2026:11:43
+
+sudo fail2ban-client set tileserver-rate unbanip 77.73.246.97
+
+sudo sqlite3 /var/lib/fail2ban/fail2ban.sqlite3 "SELECT ip, COUNT(*) AS bans FROM bans WHERE jail='tileserver-rate' GROUP BY ip ORDER BY bans DESC;"
+

@@ -48,21 +48,33 @@
       mode: "0600"
   register: config_file
 
-- name: Check if Listmonk DB is already initialized
+- name: Check if Listmonk database is already initialized
+  become: true
   become_user: postgres
   community.postgresql.postgresql_query:
-      login_db: "{{ listmonk__db_name }}"
-      query: "SELECT to_regclass('public.subscribers');"
-  register: db_check
+      db: "{{ listmonk__db_name }}"
+      query: "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'subscribers');"
+  register: listmonk_db_check
 
 - name: Initialize Listmonk Database (First install only)
+  become: true
   become_user: "{{ listmonk__user }}"
   ansible.builtin.command:
       cmd: "./listmonk --install --yes --config config.toml"
       chdir: "{{ listmonk__install_dir }}"
   vars:
       ansible_remote_tmp: /tmp
-  when: db_check.query_result[0][0].to_regclass is none
+  when: not listmonk_db_check.query_result[0].exists
+
+- name: Upgrade Listmonk Database (On updates)
+  become: true
+  become_user: "{{ listmonk__user }}"
+  ansible.builtin.command:
+      cmd: "./listmonk --upgrade --yes --config config.toml"
+      chdir: "{{ listmonk__install_dir }}"
+  vars:
+      ansible_remote_tmp: /tmp
+  when: listmonk_db_check.query_result[0].exists
 
 - name: Deploy systemd service unit
   ansible.builtin.template:

@@ -1,6 +1,8 @@
 
 {% call server([server_name], http='yes', https='osrmorg') %}
 
+    {{ error_out_blocked() }}
+
     root /var/www/routing;
 
     # deny access to .htaccess files, if Apache's document root
@@ -28,7 +30,6 @@
 
         access_log /var/log/nginx/router.log anonymized;
         access_log /var/log/nginx/routing-times-car.log access_times;
-        {{ error_out_blocked() }}
     }
 
 {% for profilearea in osrm__profilearea.keys() %}
