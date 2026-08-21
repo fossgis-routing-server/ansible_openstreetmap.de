@@ -1,2 +1,3 @@
 [Definition]
 dbpurgeage = 14d
+loglevel = NOTICE
