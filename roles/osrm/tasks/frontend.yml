@@ -115,7 +115,7 @@
   git:
     repo: https://github.com/fossgis-routing-server/osrm-frontend.git
     dest: '{{ osrm__basedir }}/osrm-frontend'
-    version: 'af16769961dee0958393c427aeda37e481662e98'
+    version: '8d9f41eb7c45f9d2ad836d8a03c1b86b7dd79dc3'
     force: yes
   register: osrm_frontend_build
   become: yes
@@ -123,7 +123,7 @@
 
 - name: build osrm-frontend
   shell:
-    cmd: 'npm install && npm install corslite && npm run build &&
+    cmd: 'npm install && npm run build &&
           cp -r css fonts images bundle.js bundle.js.map
           bundle.raw.js index.html debug {{ osrm__websitedir }} &&
           git checkout bundle* package*'
