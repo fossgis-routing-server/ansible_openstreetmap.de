@@ -2,7 +2,7 @@
 # umap_image_source: git (Default) | pypi | dockerhub
 # umap_version: konkrete Version (z.B. "3.6.3") oder "latest"
 umap_image_source: pypi
-umap_version: "3.6.3"
+umap_version: "latest"
 
 umap__user: umap
 
