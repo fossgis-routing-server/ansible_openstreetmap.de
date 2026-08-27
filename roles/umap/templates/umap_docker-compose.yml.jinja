@@ -43,12 +43,20 @@ services:
       - reverseproxy_web
 
   app:
-    # Custom WSGI Image mit WebSocket-Unterstützung
+    # Quelle: git (Default) | pypi | dockerhub
+{% if umap_image_source is defined and umap_image_source == 'dockerhub' %}
+    image: umap/umap:{{ umap_version | default('latest') }}
+    user: "{{ umap_uid | default('999') }}:{{ umap_gid | default('988') }}"
+{% else %}
     build:
       context: .
       dockerfile: Dockerfile
       args:
-        UMAP_VERSION: {{ umap_version | default('release') }}
+        UMAP_SOURCE: {{ umap_image_source | default('git') }}
+        UMAP_VERSION: {{ umap_version | default('latest') }}
+        UMAP_UID: {{ umap_uid | default('999') }}
+        UMAP_GID: {{ umap_gid | default('988') }}
+{% endif %}
     container_name: umap_app
     depends_on:
       db:

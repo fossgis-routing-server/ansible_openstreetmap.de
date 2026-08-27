@@ -345,9 +345,22 @@ https://umap.openstreetmap.de/admin/
 ```
 
 
+## Schritt 8: uMap aktualisieren
+
+Wenn eine neue Version von uMap released wird:
+
+```bash
+cd /srv/umap
+sudo -u umap docker compose build --no-cache app
+sudo -u umap docker compose up -d --no-deps app
+# ggf. alte docker images entfernen
+# docker image prune
+```
+
+Der Build erfolgt parallel zum laufenden Container. Die kurze Ausfallzeit (~5-30 Sekunden) entsteht nur beim Container-Wechsel.
+
 ## Weitere Dokumentation
 
 - Backup-Verwaltung: `roles/umap/docs/README_BACKUP.md`
 - Admin-Skripte: `roles/umap/docs/README_ADMINSCRIPTS.md`
-- Verzeichnisstruktur: `roles/umap/docs/DIRECTORY_TREE.md`
 

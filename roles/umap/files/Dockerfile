@@ -37,43 +37,53 @@ RUN python -m venv /venv
 
 WORKDIR /srv/umap
 
-# Build argument for uMap version (Default: release = latest stable version)
-ARG UMAP_VERSION=release
+# Build arguments:
+#   UMAP_SOURCE: git | pypi  (dockerhub = use pre-built image in compose, not this Dockerfile)
+#   UMAP_VERSION: version tag (e.g. 3.6.3), or "latest" for newest stable from that source
+ARG UMAP_SOURCE=git
+ARG UMAP_VERSION=latest
 
-# Download uMap from GitHub
-RUN if [ "$UMAP_VERSION" = "release" ]; then \
-        echo "Fetching latest stable release..."; \
-        RELEASE_TAG=$(python3 -c "import urllib.request, json; response = urllib.request.urlopen('https://api.github.com/repos/umap-project/umap/releases/latest'); data = json.loads(response.read()); print(data['tag_name'])"); \
-    elif [ "$UMAP_VERSION" = "main" ] || [ "$UMAP_VERSION" = "dev" ]; then \
-        echo "Using development version from main branch"; \
-        RELEASE_TAG=""; \
-    else \
-        echo "Using specified version: $UMAP_VERSION"; \
-        RELEASE_TAG="$UMAP_VERSION"; \
-    fi && \
-    if [ -z "$RELEASE_TAG" ]; then \
-        echo "Installing from main branch (development version)"; \
-        git clone --depth 1 https://github.com/umap-project/umap.git /tmp/umap; \
-    else \
-        echo "Installing uMap release: $RELEASE_TAG"; \
-        git clone --depth 1 https://github.com/umap-project/umap.git /tmp/umap; \
-        cd /tmp/umap && git fetch --depth 1 origin tag $RELEASE_TAG && git checkout $RELEASE_TAG; \
-    fi && \
-    cp -r /tmp/umap/* /srv/umap/ && \
-    rm -rf /tmp/umap
+# ---- Source: PyPI (pip install umap-project) ----
+RUN if [ "$UMAP_SOURCE" = "pypi" ]; then \
+        echo "Installing uMap from PyPI..."; \
+        if [ "$UMAP_VERSION" = "latest" ]; then \
+            /venv/bin/pip install --no-cache-dir "umap-project[sync]"; \
+        else \
+            /venv/bin/pip install --no-cache-dir "umap-project[sync]==${UMAP_VERSION}"; \
+        fi && \
+        /venv/bin/pip install --no-cache-dir uvicorn[standard] channels && \
+        mkdir -p /srv/umap/docker && \
+        rm -rf /tmp/* /root/.cache; \
+    fi
 
-# Install original uMap dependencies
-# sync extra is required for WebSocket/realtime features (REALTIME_ENABLED=True)
-#   - sync: redis, websockets, pydantic for WebSocket/realtime features
-# Optional extras (not currently used):
-#   - docker: uvicorn (already installed separately, redundant)
-#   - s3: django-storages[s3] for AWS S3 storage backend
-# To enable s3: change .[sync] to .[sync,s3]
-RUN /venv/bin/pip install --no-cache-dir .[sync] && \
-    /venv/bin/pip install --no-cache-dir uvicorn[standard] channels && \
-    rm -rf /tmp/* /root/.cache
+# ---- Source: Git (clone from GitHub) ----
+RUN if [ "$UMAP_SOURCE" = "git" ]; then \
+        if [ "$UMAP_VERSION" = "latest" ]; then \
+            echo "Fetching latest stable release..."; \
+            RELEASE_TAG=$(python3 -c "import urllib.request, json; response = urllib.request.urlopen('https://api.github.com/repos/umap-project/umap/releases/latest'); data = json.loads(response.read()); print(data['tag_name'])"); \
+        elif [ "$UMAP_VERSION" = "main" ] || [ "$UMAP_VERSION" = "dev" ]; then \
+            echo "Using development version from main branch"; \
+            RELEASE_TAG=""; \
+        else \
+            echo "Using specified version: $UMAP_VERSION"; \
+            RELEASE_TAG="$UMAP_VERSION"; \
+        fi && \
+        if [ -z "$RELEASE_TAG" ]; then \
+            echo "Installing from main branch (development version)"; \
+            git clone --depth 1 https://github.com/umap-project/umap.git /tmp/umap; \
+        else \
+            echo "Installing uMap release: $RELEASE_TAG"; \
+            git clone --depth 1 https://github.com/umap-project/umap.git /tmp/umap; \
+            cd /tmp/umap && git fetch --depth 1 origin tag $RELEASE_TAG && git checkout $RELEASE_TAG; \
+        fi && \
+        cp -r /tmp/umap/* /srv/umap/ && \
+        rm -rf /tmp/umap && \
+        /venv/bin/pip install --no-cache-dir .[sync] && \
+        /venv/bin/pip install --no-cache-dir uvicorn[standard] channels && \
+        rm -rf /tmp/* /root/.cache; \
+    fi
 
-# Copy entrypoint script
+# Entrypoint (from role; for pypi /srv/umap/docker was already created above)
 COPY entrypoint.sh /srv/umap/docker/entrypoint.sh
 RUN chmod +x /srv/umap/docker/entrypoint.sh
 

@@ -170,6 +170,7 @@
     - { src: "Dockerfile", dest: "Dockerfile", mode: "0664" }
     - { src: ".dockerignore", dest: ".dockerignore", mode: "0664" }
     - { src: "entrypoint.sh", dest: "entrypoint.sh", mode: "0755" }
+  when: umap_image_source | default('git') != 'dockerhub'
 
 - name: Setup umap nginx site
   nginx_site:
