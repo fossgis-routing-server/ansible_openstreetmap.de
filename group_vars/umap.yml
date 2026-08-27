@@ -36,6 +36,7 @@ umap__server_url: "umap.openstreetmap.de"
 
 # OpenRouteService API Key for routing
 umap__openrouteservice_apikey: "{{ umap__openrouteservice_apikey }}"
+umap__openrouteservice_host: "https://api.heigit.org/openrouteservice"
 
 umap__host_info_name: "FOSSGIS e.V."
 umap__host_info_url: "https://www.fossgis.de"

@@ -114,7 +114,10 @@ Für Routing-Funktionalität in uMap.
 ```yaml
 umap__openrouteservice_apikey: "DEIN_ORS_API_KEY_HIER"
 ```
-Wenn dieser API-Key nicht definiert ist, wird das zugehörige Feature in uMap nicht aktiviert. 
+Wenn dieser API-Key nicht definiert ist, wird das zugehörige Feature in uMap nicht aktiviert.
+
+Der Host ist in `group_vars/umap.yml` als `umap__openrouteservice_host` gesetzt
+(`https://api.heigit.org/openrouteservice`).
 
 
 ## Schritt 3: Optionale Backup-Konfiguration
