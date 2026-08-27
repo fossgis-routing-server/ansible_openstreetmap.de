@@ -78,6 +78,8 @@ Die Backups werden auf dem Backup-Server in folgender Struktur gespeichert:
 ./backups/<hostname>/umapdb/      # Datenbank-Backups
 ```
 
+Der Ajax-Proxy-Cache (`/srv/umap/umapdata/proxy_cache`) wird bewusst nicht mitgesichert. Er enthält nur regenerierbare Kopien externer HTTP-Antworten und wird bei Bedarf neu aufgebaut.
+
 Wenn mehrere Server Backups auf denselben Backup-Server schreiben, muss sichergestellt werden, dass die Verzeichnisstruktur kompatibel ist. Jeder Server verwendet seinen Hostnamen (`inventory_hostname`) als Verzeichnisname, daher sollten Hostnamen eindeutig sein.
 
 ## Backup erstellen

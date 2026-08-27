@@ -148,6 +148,9 @@ REDIS_URL = "redis://redis:6379"
 # X-Accel-Redirect for secure GeoJSON delivery
 UMAP_XSENDFILE_HEADER = "X-Accel-Redirect"
 
+# Ajax proxy cache (required since uMap 3.8.0)
+AJAX_PROXY_CACHE_DIR = '{{ umap__paths.container.proxy_cache }}'
+
 #For static deployment
 STATIC_ROOT = '{{ umap__paths.container.static_root }}'
 STATIC_URL = '/static/'

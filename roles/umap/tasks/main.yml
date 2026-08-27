@@ -131,8 +131,8 @@
     - umapdata/symbols/osmic/pictograms
     - umapdata/symbols/brewery
     - umapdata/symbols/brewery/pictograms
+    - umapdata/proxy_cache
     - nginx
-    - nginx/cache
     - nginx/run
 
 - name: Create and set setgid on nginx log directory

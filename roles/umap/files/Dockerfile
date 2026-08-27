@@ -103,7 +103,7 @@ COPY --from=build --chown=umap:umap /venv/ /venv/
 
 WORKDIR /srv/umap
 
-RUN mkdir -p /srv/umap/media_root /srv/umap/cache && \
+RUN mkdir -p /srv/umap/media_root /srv/umap/cache /srv/umap/proxy_cache && \
     chown -R umap:umap /srv/umap
 
 ENV PYTHONUNBUFFERED=1 \

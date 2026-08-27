@@ -234,6 +234,7 @@ Das Playbook führt folgende Schritte aus:
 
 5. **Wartung:**
    - Richtet systemd-Timer für monatliche Papierkorb-Leerung ein (`umap empty_trash`)
+   - Richtet systemd-Timer für tägliche Ajax-Proxy-Cache-Bereinigung ein (`umap clear_proxy_cache`)
 
 6. **Monitoring:**
    - Munin-Plugins für Statistiken
@@ -314,6 +315,15 @@ sudo systemctl status umap-empty-trash.timer
 sudo journalctl -u umap-empty-trash.service
 ```
 
+#### Systemd Service Logs (Ajax-Proxy-Cache)
+
+**Ajax-Proxy-Cache-Bereinigung:**
+```bash
+# Status und letzte Logs
+sudo systemctl status umap-clear-proxy-cache.timer
+sudo journalctl -u umap-clear-proxy-cache.service
+```
+
 #### Host-Nginx Logs
 
 ```bash
@@ -378,6 +388,27 @@ sudo systemctl start umap-empty-trash.service
 **Logs anzeigen:**
 ```bash
 sudo journalctl -u umap-empty-trash.service
+```
+
+### 7.2 Automatische Ajax-Proxy-Cache-Bereinigung
+
+Der systemd-Timer `umap-clear-proxy-cache.timer` führt täglich um 04:00 Uhr automatisch `umap clear_proxy_cache --max-age 86400` aus. Einträge im Ajax-Proxy-Cache (Remote-Daten für Karten) älter als 24 Stunden werden entfernt.
+
+**Timer-Status prüfen:**
+```bash
+sudo systemctl status umap-clear-proxy-cache.timer
+```
+
+**Manuell ausführen:**
+```bash
+sudo systemctl start umap-clear-proxy-cache.service
+# oder
+/srv/umap/scripts/admin/umap-admin clear proxy-cache --dry-run
+```
+
+**Logs anzeigen:**
+```bash
+sudo journalctl -u umap-clear-proxy-cache.service
 ```
 
 ## Schritt 8: uMap aktualisieren

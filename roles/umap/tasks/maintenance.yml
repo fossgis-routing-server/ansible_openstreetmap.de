@@ -12,6 +12,8 @@
   loop:
     - umap-empty-trash.service
     - umap-empty-trash.timer
+    - umap-clear-proxy-cache.service
+    - umap-clear-proxy-cache.timer
   tags:
     - umap
     - maintenance
@@ -24,6 +26,7 @@
     state: started
   loop:
     - umap-empty-trash.timer
+    - umap-clear-proxy-cache.timer
   tags:
     - umap
     - maintenance

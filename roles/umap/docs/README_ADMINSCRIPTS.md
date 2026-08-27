@@ -28,6 +28,7 @@ cd /srv/umap/scripts/admin
 # Offizielle uMap-CLI (ab 3.6.2) über umap-admin:
 ./umap-admin search maps [TEXT] [--user USER] [--id ID] [--deleted] [--block|--restore|--delete] [--dry-run]
 ./umap-admin empty trash [--days N] [--dry-run]
+./umap-admin clear proxy-cache [--max-age N] [--dry-run]
 ./umap-admin anonymous-edit-url <map_id>
 ./umap-admin switch user <alter_user> <neuer_user> [--delete-user] [--dry-run]
 ```
@@ -130,6 +131,7 @@ Zeigt detaillierte Informationen zu einem User.
 ./umap-admin search maps --user <USERNAME> --dry-run
 ./umap-admin search maps --deleted --restore
 ./umap-admin empty trash --days 30 --dry-run
+./umap-admin clear proxy-cache --max-age 86400 --dry-run
 ./umap-admin anonymous-edit-url <MAP_ID>
 ./umap-admin switch user alter_user neuer_user --dry-run
 ```

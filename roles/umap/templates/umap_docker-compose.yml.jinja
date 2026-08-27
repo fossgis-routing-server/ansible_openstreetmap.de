@@ -71,6 +71,7 @@ services:
       - ./umapdata/symbols:/srv/umap/symbols:ro
       - ./umapdata/media_root:/srv/umap/media_root
       - ./umapdata/static_root:/srv/umap/static_root
+      - ./umapdata/proxy_cache:/srv/umap/proxy_cache
       - ./sockets:/srv/umap/sockets
       - ./umapdata/custom:/srv/umap/custom:ro
       - ./scripts/admin:/srv/umap/scripts/admin:ro
