@@ -341,3 +341,9 @@
   tags:
     - umap
     - monitoring
+
+- name: Include maintenance tasks
+  include_tasks: maintenance.yml
+  tags:
+    - umap
+    - maintenance

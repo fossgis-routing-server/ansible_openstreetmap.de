@@ -1,0 +1,13 @@
+[Unit]
+Description=Run uMap Empty Trash Monthly
+Requires=umap-empty-trash.service
+
+[Timer]
+# Run on the 1st of each month at 03:00
+OnCalendar=*-*-01 03:00:00
+RandomizedDelaySec=3600
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+

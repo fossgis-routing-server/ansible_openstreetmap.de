@@ -232,7 +232,10 @@ Das Playbook führt folgende Schritte aus:
    - Initialisiert Borg-Repositories
    - Richtet systemd-Timer für automatische Backups ein
 
-5. **Monitoring:**
+5. **Wartung:**
+   - Richtet systemd-Timer für monatliche Papierkorb-Leerung ein (`umap empty_trash`)
+
+6. **Monitoring:**
    - Munin-Plugins für Statistiken
 
 
@@ -302,6 +305,15 @@ sudo journalctl -u borgbackup-data.service
 sudo journalctl -u borgbackup-db.service -u borgbackup-data.service
 ```
 
+#### Systemd Service Logs (Papierkorb-Leerung)
+
+**Papierkorb-Leerung:**
+```bash
+# Status und letzte Logs
+sudo systemctl status umap-empty-trash.timer
+sudo journalctl -u umap-empty-trash.service
+```
+
 #### Host-Nginx Logs
 
 ```bash
@@ -344,6 +356,29 @@ Zugriff auf das Django-Admin-Interface:
 https://umap.openstreetmap.de/admin/
 ```
 
+
+## Schritt 7: Wartungsaufgaben
+
+### 7.1 Automatische Papierkorb-Leerung
+
+Der systemd-Timer `umap-empty-trash.timer` führt monatlich am 1. des Monats um 03:00 Uhr automatisch `umap empty_trash --days 30` aus. Bei jeder Ausführung werden alle Karten und Layer endgültig gelöscht, die länger als 30 Tage im Papierkorb sind (gemessen am Löschdatum).
+
+Die offizielle uMap-CLI nutzt ohne `--days` standardmäßig 7 Tage. Der Timer setzt deshalb explizit 30 Tage.
+
+**Timer-Status prüfen:**
+```bash
+sudo systemctl status umap-empty-trash.timer
+```
+
+**Manuell ausführen:**
+```bash
+sudo systemctl start umap-empty-trash.service
+```
+
+**Logs anzeigen:**
+```bash
+sudo journalctl -u umap-empty-trash.service
+```
 
 ## Schritt 8: uMap aktualisieren
 

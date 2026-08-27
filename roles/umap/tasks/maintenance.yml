@@ -1,0 +1,29 @@
+---
+# Maintenance Tasks for uMap
+# This task file handles periodic maintenance tasks like emptying trash
+
+- name: Deploy systemd service and timer files for maintenance tasks
+  template:
+    src: "{{ item }}.jinja"
+    dest: "/etc/systemd/system/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - umap-empty-trash.service
+    - umap-empty-trash.timer
+  tags:
+    - umap
+    - maintenance
+
+- name: Enable and start maintenance timers
+  systemd:
+    name: "{{ item }}"
+    daemon_reload: yes
+    enabled: yes
+    state: started
+  loop:
+    - umap-empty-trash.timer
+  tags:
+    - umap
+    - maintenance
