@@ -17,21 +17,6 @@
     endscript
 }
 
-{{ umap__paths.host.basedir }}/logs/nginx/geojson.log {
-    daily
-    missingok
-    rotate 14
-    compress
-    delaycompress
-    notifempty
-    create 644 {{ umap__user }} {{ umap__user }}
-    su {{ umap__user }} {{ umap__user }}
-    sharedscripts
-    postrotate
-        docker exec umap_proxy nginx -s reopen 2>/dev/null || true
-    endscript
-}
-
 {{ umap__paths.host.basedir }}/logs/nginx/error.log {
     daily
     missingok
