@@ -4,7 +4,7 @@ Python-Skripte für Datenbank-Analyse und Verwaltung.
 
 ## Skripte
 
-- `umap-admin` - Wrapper-Script für alle Python-Admin-Skripte
+- `umap-admin` - Wrapper-Script für alle Python-Admin-Skripte und für die offizielle uMap-CLI (ab 3.6.2)
 - `analyze_users.py` - User-Analyse nach Karten, Layern, Teams, Datenvolumen
 - `analyze_maps.py` - Karten-Analyse nach Größe, Aktivität, Layer-Anzahl
 - `get_map_details.py` - Karten-Details mit Layer-Informationen und GeoJSON-Pfaden
@@ -24,6 +24,12 @@ cd /srv/umap/scripts/admin
 ./umap-admin analyze maps [OPTIONS]
 ./umap-admin get map <id>|<url>
 ./umap-admin get user <id>|<username>
+
+# Offizielle uMap-CLI (ab 3.6.2) über umap-admin:
+./umap-admin search maps [TEXT] [--user USER] [--id ID] [--deleted] [--block|--restore|--delete] [--dry-run]
+./umap-admin empty trash [--days N] [--dry-run]
+./umap-admin anonymous-edit-url <map_id>
+./umap-admin switch user <alter_user> <neuer_user> [--delete-user] [--dry-run]
 ```
 
 ### Ausführung direkt auf dem Host
@@ -45,7 +51,7 @@ Analysiert User nach Karten, Layern, Teams und Datenvolumen.
 ./umap-admin analyze users [--top N] [--sort SORT]
 ```
 
-**Sortieroptionen:** `maps`, `layers`, `size`, `teams`, `username`
+**Sortieroptionen:** `maps`, `layers`, `size`, `teams`, `collaboration`, `username`
 
 **Ausgabe:** Tabellarische Übersicht der Top-User mit Statistiken
 
@@ -67,7 +73,7 @@ Analysiert Karten nach Größe, Aktivität und anderen Metriken.
 - `inactive` - Inaktive Karten
 - `largest-layers` - Größte einzelne Layer
 
-**Ausgabe:** Tabellarische Übersicht der analysierten Karten/Layer
+**Ausgabe:** Zuerst eine Gesamtstatistik (Karten gesamt, **Karten mit Real-time collaboration** = Karten mit aktiviertem syncEnabled in den Map-Settings). Danach die tabellarische Übersicht der analysierten Karten/Layer.
 
 ---
 
@@ -95,14 +101,16 @@ Zeigt detaillierte Informationen zu einem User.
 
 **Aufruf:**
 ```bash
-./umap-admin get user <user_id>|<username>
+./umap-admin get user <user_id>|<username> [--include-trash]
 ```
 
 **Funktionen:**
 - Sucht User nach ID oder Username
-- Zeigt Statistiken: eigene Karten, Editor-Karten, Teams, Gesamtgröße
+- Zeigt Statistiken: eigene Karten, Editor-Karten, Teams, Gesamtgröße, **Karten mit Real-time collaboration** (eigene Karten mit aktiviertem syncEnabled)
 - Zeigt alle eigenen Karten mit Details (Größe, Layer-Anzahl, Share-Status)
 - Top 5 größte Karten
+
+**Optionen:** `--include-trash` – Zeigt auch Karten im Papierkorb (share_status=99).
 
 **Ausgabe:** Detaillierte User-Übersicht mit allen Statistiken
 
@@ -116,6 +124,14 @@ Zeigt detaillierte Informationen zu einem User.
 ./umap-admin get map <MAP_ID>
 ./umap-admin get map https://umap.example.com/de/map/karte_<MAP_ID>/
 ./umap-admin get user <USER_ID>
+./umap-admin get user <USER_ID> --include-trash
+
+# Offizielle uMap-CLI (ab 3.6.2):
+./umap-admin search maps --user <USERNAME> --dry-run
+./umap-admin search maps --deleted --restore
+./umap-admin empty trash --days 30 --dry-run
+./umap-admin anonymous-edit-url <MAP_ID>
+./umap-admin switch user alter_user neuer_user --dry-run
 ```
 
 ## Technische Details
@@ -165,4 +181,3 @@ Alle Skripte nutzen `umap_utils.py` für:
 
 - Skripte können auch einzeln ausgeführt werden, müssen dann aber im uMap-Container ausgeführt werden
 - Die Scripte nutzen Django's Datenbankverbindung
-

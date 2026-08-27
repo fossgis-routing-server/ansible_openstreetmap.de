@@ -2,6 +2,9 @@
 """
 Kartenauswertung für uMap: Analysiert Karten nach Größe und Aktivität.
 
+Die Gesamtstatistik enthält u.a. „Karten mit Real-time collaboration“:
+Karten, bei denen in den Map-Settings syncEnabled (Echtzeit-Mitbearbeitung) aktiviert ist.
+
 Verwendung:
     python3 analyze_maps.py [--top N] [--metric METRIC] [--days DAYS]
     
@@ -35,6 +38,30 @@ from umap_utils import setup_django, format_size, format_date, format_days_ago, 
 
 # Django Setup via Utility-Modul
 connection = setup_django()
+
+
+def get_global_map_stats(cursor):
+    """
+    Liefert Gesamtstatistik: Anzahl Karten (mit mind. einem Layer) und
+    Anzahl Karten mit Real-time collaboration (syncEnabled in Map-Settings).
+    """
+    cursor.execute("""
+        SELECT
+            COUNT(DISTINCT m.id) AS total_maps,
+            COUNT(DISTINCT CASE
+                WHEN (m.settings->'properties'->>'syncEnabled') = 'true' THEN m.id
+            END) AS maps_realtime_collaboration
+        FROM umap_map m
+        JOIN umap_datalayer d ON d.map_id = m.id AND d.share_status = 0
+        WHERE m.share_status != 99
+    """)
+    row = cursor.fetchone()
+    if not row:
+        return {'total_maps': 0, 'maps_realtime_collaboration': 0}
+    return {
+        'total_maps': row[0] or 0,
+        'maps_realtime_collaboration': row[1] or 0,
+    }
 
 
 def analyze_maps_by_size(cursor, limit=20):
@@ -397,6 +424,14 @@ Beispiele:
     
     try:
         with connection.cursor() as cursor:
+            # Gesamtstatistik (Karten mit mind. einem Layer, Real-time collaboration)
+            stats = get_global_map_stats(cursor)
+            print("\nGesamtstatistik")
+            print("=" * 80)
+            print(f"  Karten gesamt (mit mind. einem Layer):  {stats['total_maps']}")
+            print(f"  Karten mit Real-time collaboration:    {stats['maps_realtime_collaboration']}")
+            print("=" * 80)
+
             if args.metric == 'size':
                 maps = analyze_maps_by_size(cursor, args.top)
                 print_maps_table(maps, f"Top {len(maps)} Karten nach Gesamtgröße")

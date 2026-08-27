@@ -32,32 +32,13 @@ from pathlib import Path
 
 # Import gemeinsames Utility-Modul
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from umap_utils import setup_django, format_size, get_media_root
+from umap_utils import setup_django, format_size, get_media_root, get_anonymous_edit_url
 
 # Django Setup via Utility-Modul
 connection = setup_django()
 
-# Django-Imports nach setup_django()
-from umap.models import Map
-
 # MEDIA_ROOT aus Utility-Modul
 MEDIA_ROOT = get_media_root()
-
-
-def get_anonymous_edit_url(map_id):
-    """Generiert den anonymen Bearbeitungslink für eine anonyme Karte"""
-    try:
-        map_obj = Map.objects.get(pk=map_id)
-        # Nur wenn die Karte keinen Owner hat (anonym)
-        if not map_obj.owner:
-            # Nutze die vorhandene Methode aus dem Map-Model
-            return map_obj.get_anonymous_edit_url()
-    except Map.DoesNotExist:
-        pass
-    except Exception as e:
-        # Fehlerbehandlung für Debugging
-        print(f"WARNUNG: Konnte anonymen Bearbeitungslink nicht generieren: {e}", file=sys.stderr)
-    return None
 
 
 def extract_map_id(input_value):

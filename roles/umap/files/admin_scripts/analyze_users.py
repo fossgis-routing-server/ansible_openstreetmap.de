@@ -27,33 +27,10 @@ import argparse
 
 # Import gemeinsames Utility-Modul
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from umap_utils import setup_django, format_size, format_date, get_layer_file_size
+from umap_utils import setup_django, format_size, format_date, get_layer_file_size, get_anonymous_edit_url
 
 # Django Setup via Utility-Modul
 connection = setup_django()
-
-# Django-Imports nach setup_django()
-from django.conf import settings
-from django.urls import reverse
-from django.core.signing import Signer
-from umap.models import Map
-
-
-def get_anonymous_edit_url(map_id):
-    """Generiert den anonymen Bearbeitungslink für eine Karte"""
-    try:
-        map_obj = Map.objects.get(pk=map_id)
-        # Nur wenn die Karte keinen Owner hat (anonym)
-        if not map_obj.owner:
-            signer = Signer()
-            signature = signer.sign(str(map_id))
-            path = reverse("map_anonymous_edit_url", kwargs={"signature": signature})
-            return settings.SITE_URL + path
-    except Map.DoesNotExist:
-        pass
-    except Exception:
-        pass
-    return None
 
 
 def analyze_users(cursor, sort_by='maps', limit=20, show_edit_links=False):
@@ -67,6 +44,9 @@ def analyze_users(cursor, sort_by='maps', limit=20, show_edit_links=False):
             u.date_joined,
             u.last_login,
             COUNT(DISTINCT m.id) as owned_maps_count,
+            COUNT(DISTINCT CASE
+                WHEN (m.settings->'properties'->>'syncEnabled') = 'true' THEN m.id
+            END) as collaboration_maps_count,
             COUNT(DISTINCT me.map_id) as editor_maps_count,
             COUNT(DISTINCT t.id) as teams_count,
             COUNT(DISTINCT d.uuid) as total_layers_count
@@ -82,7 +62,7 @@ def analyze_users(cursor, sort_by='maps', limit=20, show_edit_links=False):
     
     users = []
     for row in cursor.fetchall():
-        user_id, username, date_joined, last_login, owned_maps_count, editor_maps_count, teams_count, total_layers_count = row
+        user_id, username, date_joined, last_login, owned_maps_count, collaboration_maps_count, editor_maps_count, teams_count, total_layers_count = row
         
         # Berechne Gesamtgröße aller GeoJSON-Dateien
         # Hole alle Maps des Users (als Owner)
@@ -131,6 +111,7 @@ def analyze_users(cursor, sort_by='maps', limit=20, show_edit_links=False):
             'date_joined': date_joined,
             'last_login': last_login,
             'owned_maps_count': owned_maps_count or 0,
+            'collaboration_maps_count': collaboration_maps_count or 0,
             'editor_maps_count': editor_maps_count or 0,
             'teams_count': teams_count or 0,
             'total_layers_count': total_layers_count or 0,
@@ -147,6 +128,8 @@ def analyze_users(cursor, sort_by='maps', limit=20, show_edit_links=False):
         users.sort(key=lambda x: x['total_size'], reverse=True)
     elif sort_by == 'teams':
         users.sort(key=lambda x: x['teams_count'], reverse=True)
+    elif sort_by == 'collaboration':
+        users.sort(key=lambda x: x['collaboration_maps_count'], reverse=True)
     elif sort_by == 'username':
         users.sort(key=lambda x: x['username'].lower())
     else:
@@ -161,15 +144,15 @@ def print_users_table(users, title, sort_by='maps', show_edit_links=False):
     print(f"\n{title}")
     print("=" * 130)
     
-    header = f"{'ID':<6} {'Username':<25} {'Karten':<7} {'Layer':<7} {'Teams':<7} {'Gesamtgröße':>12} {'Zuletzt eingeloggt':<20}"
+    header = f"{'ID':<6} {'Username':<25} {'Karten':<7} {'Collab':<7} {'Layer':<7} {'Teams':<7} {'Gesamtgröße':>12} {'Zuletzt eingeloggt':<20}"
     print(header)
     print("-" * 130)
     
     for u in users:
         username = (u['username'][:24] if u['username'] else '(kein Name)') if len(u['username']) <= 24 else u['username'][:21] + '...'
         last_login = format_date(u['last_login']) if u['last_login'] else 'N/A'
-        
-        print(f"{u['id']:<6} {username:<25} {u['owned_maps_count']:<7} {u['total_layers_count']:<7} {u['teams_count']:<7} {format_size(u['total_size']):>12} {last_login:<20}")
+        collab = u.get('collaboration_maps_count', 0)
+        print(f"{u['id']:<6} {username:<25} {u['owned_maps_count']:<7} {collab:<7} {u['total_layers_count']:<7} {u['teams_count']:<7} {format_size(u['total_size']):>12} {last_login:<20}")
         
         # Zeige anonyme Bearbeitungslinks wenn gewünscht
         if show_edit_links and u.get('edit_links'):
@@ -190,6 +173,7 @@ Beispiele:
   python3 analyze_users.py --sort size                  # Sortiert nach Gesamtgröße
   python3 analyze_users.py --sort layers --top 30       # Top 30 nach Layer-Anzahl
   python3 analyze_users.py --sort teams                  # Sortiert nach Team-Anzahl
+  python3 analyze_users.py --sort collaboration          # Nach Anzahl Karten mit Real-time collaboration
   python3 analyze_users.py --sort username               # Alphabetisch nach Username
         """
     )
@@ -203,9 +187,9 @@ Beispiele:
     
     parser.add_argument(
         '--sort',
-        choices=['maps', 'layers', 'size', 'teams', 'username'],
+        choices=['maps', 'layers', 'size', 'teams', 'collaboration', 'username'],
         default='maps',
-        help='Sortierung (Standard: maps)'
+        help='Sortierung (Standard: maps). collaboration = Anzahl Karten mit Real-time collaboration'
     )
     
     parser.add_argument(
@@ -222,6 +206,7 @@ Beispiele:
         'layers': 'Layer-Anzahl',
         'size': 'Gesamtgröße',
         'teams': 'Team-Anzahl',
+        'collaboration': 'Karten mit Real-time collaboration',
         'username': 'Username (alphabetisch)'
     }
     sort_name = sort_names.get(args.sort, 'Karten-Anzahl')

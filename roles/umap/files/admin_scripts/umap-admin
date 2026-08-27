@@ -29,6 +29,11 @@ run_script() {
     docker exec "$CONTAINER_NAME" /venv/bin/python3 "$script_path" "$@"
 }
 
+# Führt einen offiziellen uMap-CLI-Befehl im Container aus (ab uMap 3.6.2)
+run_umap_cli() {
+    docker exec "$CONTAINER_NAME" umap "$@"
+}
+
 # Prüft ob --help oder -h angegeben wurde
 is_help_requested() {
     [ "${1:-}" = "--help" ] || [ "${1:-}" = "-h" ]
@@ -52,7 +57,7 @@ Wrapper-Script für uMap Admin-Skripte zur Verwaltung und Analyse von uMap-Daten
 Commands:
     analyze users [OPTIONS]
         Zeigt User-Statistiken (Karten, Layer, Größe, Teams).
-        Optionen: --top N, --sort SORT (maps|layers|size|teams|username)
+        Optionen: --top N, --sort SORT (maps|layers|size|teams|collaboration|username)
 
     analyze maps [OPTIONS]
         Analysiert Karten nach Größe und Aktivität.
@@ -62,8 +67,25 @@ Commands:
         Zeigt Details einer Karte inklusive aller Layer und GeoJSON-Dateipfade.
         Optionen: --show-edit-link
 
-    get user <id>|<username>
+    get user <id>|<username> [OPTIONS]
         Zeigt detaillierte Informationen zu einem User.
+        Optionen: --include-trash (zeigt auch Karten im Papierkorb)
+
+    search maps [TEXT] [OPTIONS]
+        Offizielle uMap-CLI: Karten suchen und Aktionen (block/restore/delete).
+        Optionen: --user USER, --id ID, --deleted, --public, --block, --restore, --delete, --dry-run, --no-input, --limit N
+
+    empty trash [OPTIONS]
+        Offizielle uMap-CLI: Papierkorb leeren (Karten endgültig entfernen).
+        Optionen: --days N, --dry-run
+
+    anonymous-edit-url <map_id> [OPTIONS]
+        Offizielle uMap-CLI: Anonymer Bearbeitungslink zu einer Karte.
+        Optionen: --lang LANG
+
+    switch user <alter_user> <neuer_user> [OPTIONS]
+        Offizielle uMap-CLI: Karten/Berechtigungen von einem User auf einen anderen übertragen.
+        Optionen: --delete-user, --dry-run
 
 Options:
     -h, --help    Zeigt diese Hilfe an
@@ -74,6 +96,12 @@ Examples:
     $0 get map <MAP_ID>
     $0 get map <MAP_ID> --show-edit-link
     $0 get user <USER_ID>
+    $0 get user <USER_ID> --include-trash
+    $0 search maps --user <USERNAME> --dry-run
+    $0 search maps --deleted --restore --no-input
+    $0 empty trash --days 30 --dry-run
+    $0 anonymous-edit-url <MAP_ID>
+    $0 switch user alter_user neuer_user --dry-run
 EOF
 }
 
@@ -89,11 +117,12 @@ Options:
 
     --sort SORT
         Sortierung nach:
-            maps      - Karten-Anzahl (Standard)
-            layers    - Layer-Anzahl
-            size      - Gesamtgröße
-            teams     - Team-Anzahl
-            username  - Username (alphabetisch)
+            maps           - Karten-Anzahl (Standard)
+            layers         - Layer-Anzahl
+            size           - Gesamtgröße
+            teams          - Team-Anzahl
+            collaboration  - Karten mit Real-time collaboration
+            username       - Username (alphabetisch)
 
 Examples:
     $0 analyze users --top 50 --sort size
@@ -155,8 +184,82 @@ Arguments:
     <id>                 User-ID
     <username>           Username
 
+Options:
+    --include-trash   Zeigt auch Karten im Papierkorb (z. B. bei Meldung fehlender Karten).
+
 Examples:
     $0 get user <USER_ID>
+    $0 get user <USER_ID> --include-trash
+EOF
+}
+
+show_help_search_maps() {
+    cat << EOF
+Usage: $0 search maps [TEXT] [OPTIONS]
+
+Offizielle uMap-CLI (ab 3.6.2): Karten suchen und Aktionen ausführen.
+
+Arguments:
+    TEXT    Optional: Suchtext im Kartentitel (z. B. "spam")
+
+Options:
+    --user USER     Nur Karten dieses Users (Username)
+    --id ID         Nur diese Map-ID
+    --deleted       Nur gelöschte Karten (Papierkorb)
+    --public        Nur öffentliche Karten
+    --block         Gefundene Karten blockieren
+    --restore       Gelöschte/blockierte Karten wiederherstellen
+    --delete        Gefundene Karten in den Papierkorb verschieben
+    --dry-run       Nur anzeigen, keine Aktionen
+    --no-input      Keine Bestätigung abfragen (für Skripte)
+    --limit N       Max. Anzahl Treffer (Standard: 100)
+
+Examples:
+    $0 search maps --user problemuser --dry-run
+    $0 search maps --deleted --restore
+    $0 search maps spam --block --no-input
+EOF
+}
+
+show_help_empty_trash() {
+    cat << EOF
+Usage: $0 empty trash [OPTIONS]
+
+Offizielle uMap-CLI: Papierkorb leeren (Karten endgültig löschen).
+
+Options:
+    --days N    Karten, die seit N Tagen im Papierkorb sind (Standard: 7)
+    --dry-run   Nur anzeigen, nicht löschen
+
+Examples:
+    $0 empty trash --days 30 --dry-run
+    $0 empty trash --days 30
+EOF
+}
+
+show_help_anonymous_edit_url() {
+    cat << EOF
+Usage: $0 anonymous-edit-url <map_id> [OPTIONS]
+
+Offizielle uMap-CLI: Gibt den anonymen Bearbeitungslink einer Karte aus.
+
+Options:
+    --lang LANG   Sprachcode für die URL (Standard: en)
+EOF
+}
+
+show_help_switch_user() {
+    cat << EOF
+Usage: $0 switch user <alter_user> <neuer_user> [OPTIONS]
+
+Offizielle uMap-CLI: Überträgt alle Karten/Rechte vom alten auf den neuen User.
+
+Options:
+    --delete-user   Alten User danach löschen
+    --dry-run       Nur anzeigen, keine Änderungen
+
+Examples:
+    $0 switch user alter_account neuer_account --dry-run
 EOF
 }
 
@@ -216,12 +319,58 @@ handle_get_user() {
     if ! require_args "$@"; then
         echo "Fehler: User-ID oder Username erforderlich." >&2
         echo "" >&2
-        echo "Verwendung: $0 get user <user_id>|<username>" >&2
+        echo "Verwendung: $0 get user <user_id>|<username> [--include-trash]" >&2
         echo "Führe '$0 get user --help' aus für Details." >&2
         exit 1
     fi
     
     run_script "get_user_details" "$@"
+}
+
+handle_search_maps() {
+    shift 2  # Entferne "search maps"
+    if is_help_requested "${1:-}"; then
+        show_help_search_maps
+        exit 0
+    fi
+    run_umap_cli search_maps "$@"
+}
+
+handle_empty_trash() {
+    shift 2  # Entferne "empty trash"
+    if is_help_requested "${1:-}"; then
+        show_help_empty_trash
+        exit 0
+    fi
+    run_umap_cli empty_trash "$@"
+}
+
+handle_anonymous_edit_url() {
+    shift  # Entferne "anonymous-edit-url"
+    if is_help_requested "${1:-}"; then
+        show_help_anonymous_edit_url
+        exit 0
+    fi
+    if ! require_args "$@"; then
+        echo "Fehler: Map-ID erforderlich." >&2
+        echo "Verwendung: $0 anonymous-edit-url <map_id> [--lang LANG]" >&2
+        exit 1
+    fi
+    run_umap_cli anonymous_edit_url "$@"
+}
+
+handle_switch_user() {
+    shift 2  # Entferne "switch user"
+    if is_help_requested "${1:-}"; then
+        show_help_switch_user
+        exit 0
+    fi
+    if [ $# -lt 2 ]; then
+        echo "Fehler: alter_user und neuer_user erforderlich." >&2
+        echo "Verwendung: $0 switch user <alter_user> <neuer_user> [--delete-user] [--dry-run]" >&2
+        exit 1
+    fi
+    run_umap_cli switch_user "$@"
 }
 
 # ============================================================================
@@ -230,6 +379,36 @@ handle_get_user() {
 
 main() {
     case "${1:-}" in
+        search)
+            if [ "${2:-}" = "maps" ]; then
+                handle_search_maps "$@"
+            else
+                echo "Fehler: Unbekanntes Such-Kommando: ${2:-}" >&2
+                echo "Verwendung: $0 search maps [TEXT] [OPTIONS]" >&2
+                exit 1
+            fi
+            ;;
+        empty)
+            if [ "${2:-}" = "trash" ]; then
+                handle_empty_trash "$@"
+            else
+                echo "Fehler: Unbekanntes Kommando: ${2:-}" >&2
+                echo "Verwendung: $0 empty trash [--days N] [--dry-run]" >&2
+                exit 1
+            fi
+            ;;
+        anonymous-edit-url)
+            handle_anonymous_edit_url "$@"
+            ;;
+        switch)
+            if [ "${2:-}" = "user" ]; then
+                handle_switch_user "$@"
+            else
+                echo "Fehler: Unbekanntes Kommando: ${2:-}" >&2
+                echo "Verwendung: $0 switch user <alter_user> <neuer_user> [OPTIONS]" >&2
+                exit 1
+            fi
+            ;;
         analyze)
             case "${2:-}" in
                 users)
