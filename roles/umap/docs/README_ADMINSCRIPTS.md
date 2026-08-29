@@ -9,6 +9,7 @@ Python-Skripte für Datenbank-Analyse und Verwaltung.
 - `analyze_maps.py` - Karten-Analyse nach Größe, Aktivität, Layer-Anzahl
 - `get_map_details.py` - Karten-Details mit Layer-Informationen und GeoJSON-Pfaden
 - `get_user_details.py` - Detaillierte User-Informationen
+- `update_tilelayer_apikeys.py` - API-Keys fuer konfigurierte Tile-Provider in der Datenbank setzen/entfernen
 - `umap-backup.sh` - Backup-Management-Tool
   - Siehe `README_BACKUP.md` für detaillierte Dokumentation
 
@@ -29,6 +30,7 @@ cd /srv/umap/scripts/admin
 ./umap-admin search maps [TEXT] [--user USER] [--id ID] [--deleted] [--block|--restore|--delete] [--dry-run]
 ./umap-admin empty trash [--days N] [--dry-run]
 ./umap-admin clear proxy-cache [--max-age N] [--dry-run]
+./umap-admin update tilelayer-apikeys [--dry-run] [--remove KEY] [--provider NAME]
 ./umap-admin anonymous-edit-url <map_id>
 ./umap-admin switch user <alter_user> <neuer_user> [--delete-user] [--dry-run]
 ```
@@ -117,6 +119,25 @@ Zeigt detaillierte Informationen zu einem User.
 
 ---
 
+### update_tilelayer_apikeys.py
+
+Setzt oder entfernt API-Keys fuer konfigurierte Tile-Provider in der Datenbank.
+Betrifft die Tilelayer-Auswahl und bestehende Karten (`properties.tilelayer`,
+`properties.overlay`). Provider kommen aus `TILELAYER_APIKEYS` in `umap.conf`
+(Liste `umap__tilelayer_apikeys` in Ansible).
+
+**Aufruf:**
+```bash
+./umap-admin update tilelayer-apikeys [--dry-run]
+./umap-admin update tilelayer-apikeys --remove KEY [--provider NAME] [--dry-run]
+```
+
+Ohne gesetztes `value` fuer einen Provider wird dieser beim Setzen uebersprungen.
+Das Playbook fuehrt den Setz-Lauf aus, wenn mindestens ein Provider ein nicht-leeres
+`value` hat. Entfernen nur manuell per `--remove` (exakter Key-Wert).
+
+---
+
 ## Beispiele
 
 ```bash
@@ -132,6 +153,7 @@ Zeigt detaillierte Informationen zu einem User.
 ./umap-admin search maps --deleted --restore
 ./umap-admin empty trash --days 30 --dry-run
 ./umap-admin clear proxy-cache --max-age 86400 --dry-run
+./umap-admin update tilelayer-apikeys --dry-run
 ./umap-admin anonymous-edit-url <MAP_ID>
 ./umap-admin switch user alter_user neuer_user --dry-run
 ```

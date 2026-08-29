@@ -38,6 +38,16 @@ umap__server_url: "umap.openstreetmap.de"
 umap__openrouteservice_apikey: "{{ umap__openrouteservice_apikey }}"
 umap__openrouteservice_host: "https://api.heigit.org/openrouteservice"
 
+# Tilelayer API keys (injected into tile URLs by update_tilelayer_apikeys.py)
+# Secrets in private/vars; add providers here with match/param/value.
+umap__tilelayer_apikeys:
+  - name: carto
+    match:
+      - basemaps.cartocdn.com
+      - cartodb-basemaps
+    param: key
+    value: "{{ umap__carto_apikey | default('') }}"
+
 umap__host_info_name: "FOSSGIS e.V."
 umap__host_info_url: "https://www.fossgis.de"
 umap__host_info_contact: "umap@openstreetmap.de"

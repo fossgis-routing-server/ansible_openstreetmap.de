@@ -72,6 +72,10 @@ SOCIAL_AUTH_BACKEND_ERROR_URL = "/"
 OPENROUTESERVICE_APIKEY = '{{ umap__openrouteservice_apikey }}'
 OPENROUTESERVICE_HOST = '{{ umap__openrouteservice_host }}'
 
+# Tile provider API keys for raster tile URLs (see group_vars umap__tilelayer_apikeys).
+# Applied to tilelayer URLs in the database by update_tilelayer_apikeys.py
+TILELAYER_APIKEYS = {{ umap__tilelayer_apikeys | default([]) | to_json }}
+
 # Suppress DisallowedHost exceptions as per Django documentation
 # https://docs.djangoproject.com/en/5.2/ref/logging/#django-security-disallowedhost
 LOGGING = {

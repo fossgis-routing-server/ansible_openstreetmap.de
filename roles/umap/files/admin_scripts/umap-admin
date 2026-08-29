@@ -83,6 +83,10 @@ Commands:
         Offizielle uMap-CLI: Ajax-Proxy-Cache aufräumen (ab uMap 3.8.0).
         Optionen: --max-age N, --dry-run
 
+    update tilelayer-apikeys [OPTIONS]
+        Setzt API-Keys fuer konfigurierte Tile-Provider in der Datenbank.
+        Optionen: --dry-run, --remove KEY, --provider NAME
+
     anonymous-edit-url <map_id> [OPTIONS]
         Offizielle uMap-CLI: Anonymer Bearbeitungslink zu einer Karte.
         Optionen: --lang LANG
@@ -105,6 +109,7 @@ Examples:
     $0 search maps --deleted --restore --no-input
     $0 empty trash --days 30 --dry-run
     $0 clear proxy-cache --max-age 86400 --dry-run
+    $0 update tilelayer-apikeys --dry-run
     $0 anonymous-edit-url <MAP_ID>
     $0 switch user alter_user neuer_user --dry-run
 EOF
@@ -258,6 +263,25 @@ Examples:
 EOF
 }
 
+show_help_update_tilelayer_apikeys() {
+    cat << EOF
+Usage: $0 update tilelayer-apikeys [OPTIONS]
+
+Setzt API-Keys fuer konfigurierte Tile-Provider (TILELAYER_APIKEYS in umap.conf)
+in der Datenbank: Tilelayer-Auswahl und bestehende Karteneinstellungen.
+
+Options:
+    --dry-run           Nur anzeigen, nicht speichern
+    --remove KEY        Nur diesen exakten Key-Wert entfernen (param=KEY)
+    --provider NAME     Nur diesen Provider (name aus TILELAYER_APIKEYS)
+
+Examples:
+    $0 update tilelayer-apikeys --dry-run
+    $0 update tilelayer-apikeys
+    $0 update tilelayer-apikeys --remove OLD_KEY --provider carto --dry-run
+EOF
+}
+
 show_help_anonymous_edit_url() {
     cat << EOF
 Usage: $0 anonymous-edit-url <map_id> [OPTIONS]
@@ -375,6 +399,15 @@ handle_clear_proxy_cache() {
     run_umap_cli clear_proxy_cache "$@"
 }
 
+handle_update_tilelayer_apikeys() {
+    shift 2  # Entferne "update tilelayer-apikeys"
+    if is_help_requested "${1:-}"; then
+        show_help_update_tilelayer_apikeys
+        exit 0
+    fi
+    run_script "update_tilelayer_apikeys" "$@"
+}
+
 handle_anonymous_edit_url() {
     shift  # Entferne "anonymous-edit-url"
     if is_help_requested "${1:-}"; then
@@ -433,6 +466,15 @@ main() {
             else
                 echo "Fehler: Unbekanntes Kommando: ${2:-}" >&2
                 echo "Verwendung: $0 clear proxy-cache [--max-age N] [--dry-run]" >&2
+                exit 1
+            fi
+            ;;
+        update)
+            if [ "${2:-}" = "tilelayer-apikeys" ]; then
+                handle_update_tilelayer_apikeys "$@"
+            else
+                echo "Fehler: Unbekanntes Kommando: ${2:-}" >&2
+                echo "Verwendung: $0 update tilelayer-apikeys [--dry-run] [--remove KEY] [--provider NAME]" >&2
                 exit 1
             fi
             ;;

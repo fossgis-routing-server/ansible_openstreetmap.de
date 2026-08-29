@@ -119,6 +119,59 @@ Wenn dieser API-Key nicht definiert ist, wird das zugehörige Feature in uMap ni
 Der Host ist in `group_vars/umap.yml` als `umap__openrouteservice_host` gesetzt
 (`https://api.heigit.org/openrouteservice`).
 
+### 2.5 Tilelayer-API-Keys
+
+Manche Kachel-Anbieter verlangen einen API-Key in der Tile-URL (Query-Parameter
+oder Platzhalter). Ohne Key erscheinen die Kacheln ggf. mit Wasserzeichen oder
+liefern Fehler.
+
+Die Provider werden in `group_vars/umap.yml` unter `umap__tilelayer_apikeys`
+definiert. Secrets kommen in `private/vars/umap.yml`.
+
+**Beispiel CARTO** (Positron, Dark Matter, Voyager): https://carto.com/basemaps/apikey/
+
+1. Key beantragen (E-Mail, Domain `umap.openstreetmap.de`, Kurzbeschreibung)
+2. In `private/vars/umap.yml` eintragen:
+
+```yaml
+umap__carto_apikey: "DEIN_CARTO_API_KEY_HIER"
+```
+
+Der Eintrag in `group_vars/umap.yml` verknüpft CARTO bereits:
+
+```yaml
+umap__tilelayer_apikeys:
+  - name: carto
+    match:
+      - basemaps.cartocdn.com
+      - cartodb-basemaps
+    param: key
+    value: "{{ umap__carto_apikey | default('') }}"
+```
+
+Weitere Anbieter: Listeneintrag mit `name`, `match` (URL-Substring), `param`
+(z.B. `apikey`, `access_token`) und Secret in `private/vars`. Optional
+`placeholder` für URLs mit Token im Pfad (z.B. `{apikey}`).
+
+Beim Playbook-Lauf schreibt Ansible die Liste nach `umap.conf` (`TILELAYER_APIKEYS`)
+und hängt Keys an Tilelayer-Vorlagen und bestehende Karten an (`?param=...`).
+
+**Manuell** (Key-Wechsel, Dry-run):
+
+```bash
+/srv/umap/scripts/admin/umap-admin update tilelayer-apikeys --dry-run
+/srv/umap/scripts/admin/umap-admin update tilelayer-apikeys
+```
+
+**Key entfernen** (nur exakter Wert, nicht alle Keys auf dem Host):
+
+```bash
+/srv/umap/scripts/admin/umap-admin update tilelayer-apikeys --remove OLD_KEY --provider carto --dry-run
+/srv/umap/scripts/admin/umap-admin update tilelayer-apikeys --remove OLD_KEY --provider carto
+```
+
+Alternativ `UMAP_REMOVE_KEY` als ENV setzen.
+
 
 ## Schritt 3: Optionale Backup-Konfiguration
 
