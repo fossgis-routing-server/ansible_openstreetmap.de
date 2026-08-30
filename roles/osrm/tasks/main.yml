@@ -29,12 +29,65 @@
 # osrm backend
 - name: install prerequisites for osrm-backend
   apt:
-    name: [git, clang-19, build-essential, cmake,  pkg-config, libprotoc-dev, protobuf-compiler,
-           libprotobuf-dev, libosmpbf-dev, libpng-dev, libbz2-dev, libstxxl-dev,
+    name: [git, clang-19, build-essential, cmake,  pkg-config,
+           libpng-dev, libbz2-dev, libstxxl-dev, libosmium2-dev,
            libstxxl-doc, libstxxl1v5, libxml2-dev, libzip-dev, libboost-thread1.83-dev,
            libboost-system1.83-dev, libboost-regex1.83-dev, libboost-filesystem1.83-dev,
            libboost-program-options1.83-dev, libboost-iostreams1.83-dev,
-           libboost-test1.83-dev, liblua5.2-dev, libtbb-dev, libexpat-dev]
+           libboost-test1.83-dev, liblua5.4-dev, libtbb-dev, libexpat-dev,
+	   libprotozero-dev, libflatbuffers-dev, rapidjson-dev, libarchive-dev]
+
+# osrm non packaged dependencies
+- name: checkout sol2
+  git:
+    repo: https://github.com/ThePhD/sol2.git
+    dest: '{{ osrm__basedir }}/sol2'
+    version: 'v3.3.1'
+  become: yes
+  become_user: '{{ osrm__user }}'
+
+- name: create sol build dir
+  file:
+    path: '{{ osrm__basedir }}/sol2/build'
+    state: directory
+    owner: '{{ osrm__user }}'
+    group: '{{ osrm__user }}'
+
+- name: build sol
+  shell:
+    cmd: "cmake -DCMAKE_BUILD_TYPE=Release .. && make -j {{ ansible_facts['processor_cores'] }}"
+    chdir: '{{ osrm__basedir }}/sol2/build/'
+  environment:
+    CC: clang-19
+    CXX: clang++-19
+  become: yes
+  become_user: '{{ osrm__user }}'
+
+- name: checkout vtzero
+  git:
+    repo: https://github.com/mapbox/vtzero.git
+    dest: '{{ osrm__basedir }}/vtzero'
+    version: 'v1.2.0'
+  become: yes
+  become_user: '{{ osrm__user }}'
+
+- name: create vtzero build dir
+  file:
+    path: '{{ osrm__basedir }}/vtzero/build'
+    state: directory
+    owner: '{{ osrm__user }}'
+    group: '{{ osrm__user }}'
+
+- name: build vtzero
+  shell:
+    cmd: "cmake -DCMAKE_BUILD_TYPE=Release .. && make -j {{ ansible_facts['processor_cores'] }}"
+    chdir: '{{ osrm__basedir }}/vtzero/build/'
+  environment:
+    CC: clang-19
+    CXX: clang++-19
+  become: yes
+  become_user: '{{ osrm__user }}'
+
 
 - name: checkout osrm-backend
   git:
@@ -60,7 +113,11 @@
 
 - name: build osrm-backend
   shell:
-    cmd: "cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS=\"-Wno-deprecated-declarations\" .. && make -j {{ ansible_facts['processor_cores'] }}"
+    cmd: "cmake -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_PREFIX_PATH=~/sol2/build/cmake \
+            -DVTZERO_INCLUDE_DIR=~/vtzero/include \
+            .. \
+          && make -j {{ ansible_facts['processor_cores'] }}"
     chdir: '{{ osrm__basedir }}/osrm-backend/build/'
     creates: '{{ osrm__basedir }}/osrm-backend/build/osrm-extract'
   environment:
