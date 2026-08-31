@@ -114,7 +114,63 @@ Für Routing-Funktionalität in uMap.
 ```yaml
 umap__openrouteservice_apikey: "DEIN_ORS_API_KEY_HIER"
 ```
-Wenn dieser API-Key nicht definiert ist, wird das zugehörige Feature in uMap nicht aktiviert. 
+Wenn dieser API-Key nicht definiert ist, wird das zugehörige Feature in uMap nicht aktiviert.
+
+Der Host ist in `group_vars/umap.yml` als `umap__openrouteservice_host` gesetzt
+(`https://api.heigit.org/openrouteservice`).
+
+### 2.5 Tilelayer-API-Keys
+
+Manche Kachel-Anbieter verlangen einen API-Key in der Tile-URL (Query-Parameter
+oder Platzhalter). Ohne Key erscheinen die Kacheln ggf. mit Wasserzeichen oder
+liefern Fehler.
+
+Die Provider werden in `group_vars/umap.yml` unter `umap__tilelayer_apikeys`
+definiert. Secrets kommen in `private/vars/umap.yml`.
+
+**Beispiel CARTO** (Positron, Dark Matter, Voyager): https://carto.com/basemaps/apikey/
+
+1. Key beantragen (E-Mail, Domain `umap.openstreetmap.de`, Kurzbeschreibung)
+2. In `private/vars/umap.yml` eintragen:
+
+```yaml
+umap__carto_apikey: "DEIN_CARTO_API_KEY_HIER"
+```
+
+Der Eintrag in `group_vars/umap.yml` verknüpft CARTO bereits:
+
+```yaml
+umap__tilelayer_apikeys:
+  - name: carto
+    match:
+      - basemaps.cartocdn.com
+      - cartodb-basemaps
+    param: key
+    value: "{{ umap__carto_apikey | default('') }}"
+```
+
+Weitere Anbieter: Listeneintrag mit `name`, `match` (URL-Substring), `param`
+(z.B. `apikey`, `access_token`) und Secret in `private/vars`. Optional
+`placeholder` für URLs mit Token im Pfad (z.B. `{apikey}`).
+
+Beim Playbook-Lauf schreibt Ansible die Liste nach `umap.conf` (`TILELAYER_APIKEYS`)
+und hängt Keys an Tilelayer-Vorlagen und bestehende Karten an (`?param=...`).
+
+**Manuell** (Key-Wechsel, Dry-run):
+
+```bash
+/srv/umap/scripts/admin/umap-admin update tilelayer-apikeys --dry-run
+/srv/umap/scripts/admin/umap-admin update tilelayer-apikeys
+```
+
+**Key entfernen** (nur exakter Wert, nicht alle Keys auf dem Host):
+
+```bash
+/srv/umap/scripts/admin/umap-admin update tilelayer-apikeys --remove OLD_KEY --provider carto --dry-run
+/srv/umap/scripts/admin/umap-admin update tilelayer-apikeys --remove OLD_KEY --provider carto
+```
+
+Alternativ `UMAP_REMOVE_KEY` als ENV setzen.
 
 
 ## Schritt 3: Optionale Backup-Konfiguration
@@ -232,7 +288,11 @@ Das Playbook führt folgende Schritte aus:
    - Initialisiert Borg-Repositories
    - Richtet systemd-Timer für automatische Backups ein
 
-5. **Monitoring:**
+5. **Wartung:**
+   - Richtet systemd-Timer für monatliche Papierkorb-Leerung ein (`umap empty_trash`)
+   - Richtet systemd-Timer für tägliche Ajax-Proxy-Cache-Bereinigung ein (`umap clear_proxy_cache`)
+
+6. **Monitoring:**
    - Munin-Plugins für Statistiken
 
 
@@ -302,6 +362,24 @@ sudo journalctl -u borgbackup-data.service
 sudo journalctl -u borgbackup-db.service -u borgbackup-data.service
 ```
 
+#### Systemd Service Logs (Papierkorb-Leerung)
+
+**Papierkorb-Leerung:**
+```bash
+# Status und letzte Logs
+sudo systemctl status umap-empty-trash.timer
+sudo journalctl -u umap-empty-trash.service
+```
+
+#### Systemd Service Logs (Ajax-Proxy-Cache)
+
+**Ajax-Proxy-Cache-Bereinigung:**
+```bash
+# Status und letzte Logs
+sudo systemctl status umap-clear-proxy-cache.timer
+sudo journalctl -u umap-clear-proxy-cache.service
+```
+
 #### Host-Nginx Logs
 
 ```bash
@@ -345,9 +423,66 @@ https://umap.openstreetmap.de/admin/
 ```
 
 
+## Schritt 7: Wartungsaufgaben
+
+### 7.1 Automatische Papierkorb-Leerung
+
+Der systemd-Timer `umap-empty-trash.timer` führt monatlich am 1. des Monats um 03:00 Uhr automatisch `umap empty_trash --days 30` aus. Bei jeder Ausführung werden alle Karten und Layer endgültig gelöscht, die länger als 30 Tage im Papierkorb sind (gemessen am Löschdatum).
+
+Die offizielle uMap-CLI nutzt ohne `--days` standardmäßig 7 Tage. Der Timer setzt deshalb explizit 30 Tage.
+
+**Timer-Status prüfen:**
+```bash
+sudo systemctl status umap-empty-trash.timer
+```
+
+**Manuell ausführen:**
+```bash
+sudo systemctl start umap-empty-trash.service
+```
+
+**Logs anzeigen:**
+```bash
+sudo journalctl -u umap-empty-trash.service
+```
+
+### 7.2 Automatische Ajax-Proxy-Cache-Bereinigung
+
+Der systemd-Timer `umap-clear-proxy-cache.timer` führt täglich um 04:00 Uhr automatisch `umap clear_proxy_cache --max-age 86400` aus. Einträge im Ajax-Proxy-Cache (Remote-Daten für Karten) älter als 24 Stunden werden entfernt.
+
+**Timer-Status prüfen:**
+```bash
+sudo systemctl status umap-clear-proxy-cache.timer
+```
+
+**Manuell ausführen:**
+```bash
+sudo systemctl start umap-clear-proxy-cache.service
+# oder
+/srv/umap/scripts/admin/umap-admin clear proxy-cache --dry-run
+```
+
+**Logs anzeigen:**
+```bash
+sudo journalctl -u umap-clear-proxy-cache.service
+```
+
+## Schritt 8: uMap aktualisieren
+
+Wenn eine neue Version von uMap released wird:
+
+```bash
+cd /srv/umap
+sudo -u umap docker compose build --no-cache app
+sudo -u umap docker compose up -d --no-deps app
+# ggf. alte docker images entfernen
+# docker image prune
+```
+
+Der Build erfolgt parallel zum laufenden Container. Die kurze Ausfallzeit (~5-30 Sekunden) entsteht nur beim Container-Wechsel.
+
 ## Weitere Dokumentation
 
 - Backup-Verwaltung: `roles/umap/docs/README_BACKUP.md`
 - Admin-Skripte: `roles/umap/docs/README_ADMINSCRIPTS.md`
-- Verzeichnisstruktur: `roles/umap/docs/DIRECTORY_TREE.md`
 

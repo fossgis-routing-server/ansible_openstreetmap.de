@@ -28,6 +28,15 @@ database.env
 # Ansible-Temporärdateien
 .ansible/
 
+# Lokale Caches (z. B. Borg unter .cache/borg; restriktive Rechte blockieren sonst den Build-Kontext)
+.cache/
+
+# Nutzer-Konfiguration (z. B. Borg unter .config/borg/security; nicht lesbar fuer Build-Kontext)
+.config/
+
+# SSH-Keys 
+.ssh/
+
 # Log-Dateien
 *.log
 

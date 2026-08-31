@@ -70,6 +70,11 @@ SOCIAL_AUTH_BACKEND_ERROR_URL = "/"
 
 
 OPENROUTESERVICE_APIKEY = '{{ umap__openrouteservice_apikey }}'
+OPENROUTESERVICE_HOST = '{{ umap__openrouteservice_host }}'
+
+# Tile provider API keys for raster tile URLs (see group_vars umap__tilelayer_apikeys).
+# Applied to tilelayer URLs in the database by update_tilelayer_apikeys.py
+TILELAYER_APIKEYS = {{ umap__tilelayer_apikeys | default([]) | to_json }}
 
 # Suppress DisallowedHost exceptions as per Django documentation
 # https://docs.djangoproject.com/en/5.2/ref/logging/#django-security-disallowedhost
@@ -148,6 +153,9 @@ REDIS_URL = "redis://redis:6379"
 # X-Accel-Redirect for secure GeoJSON delivery
 UMAP_XSENDFILE_HEADER = "X-Accel-Redirect"
 
+# Ajax proxy cache (required since uMap 3.8.0)
+AJAX_PROXY_CACHE_DIR = '{{ umap__paths.container.proxy_cache }}'
+
 #For static deployment
 STATIC_ROOT = '{{ umap__paths.container.static_root }}'
 STATIC_URL = '/static/'
@@ -167,8 +175,6 @@ UMAP_CUSTOM_TEMPLATES = '{{ umap__paths.container.basedir }}/custom/templates'
 UMAP_CUSTOM_STATICS = '{{ umap__paths.container.basedir }}/custom/static'
 SITE_ID=2
 
-COMPRESS_ENABLED = True
-COMPRESS_OFFLINE = True
 UMAP_GZIP = True 
 
 UMAP_IMPORTERS = {

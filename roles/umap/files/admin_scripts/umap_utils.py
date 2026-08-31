@@ -4,10 +4,9 @@ Gemeinsames Utility-Modul für uMap Admin-Skripte.
 
 Dieses Modul enthält gemeinsame Funktionen für alle uMap Admin-Skripte:
 - Django-Setup und Datenbankverbindung
-- Dateigrößen-Formatierung
-- Datumsformatierung
-- Container-Erkennung
-- MEDIA_ROOT-Konfiguration
+- Dateigrößen-Formatierung, Datumsformatierung, Share-Status
+- get_anonymous_edit_url (anonymer Bearbeitungslink)
+- Container-Erkennung, MEDIA_ROOT-Konfiguration
 """
 
 import os
@@ -323,6 +322,22 @@ def format_share_status(share_status):
         return "ö"
     else:  # DRAFT (0), PRIVATE (3), etc.
         return "p"
+
+
+def get_anonymous_edit_url(map_id):
+    """Ermittelt den anonymen Bearbeitungslink für eine Karte (nur wenn owner_id IS NULL).
+    
+    Nutzt die Map-Model-Methode; gibt None zurück, wenn die Karte nicht existiert,
+    einen Owner hat oder die URL nicht erzeugt werden kann.
+    """
+    try:
+        from umap.models import Map
+        map_obj = Map.objects.get(pk=map_id)
+        if not map_obj.owner:
+            return map_obj.get_anonymous_edit_url()
+    except Exception:
+        pass
+    return None
 
 
 # MEDIA_ROOT als Modul-Variable für Rückwärtskompatibilität

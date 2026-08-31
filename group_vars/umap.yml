@@ -1,5 +1,8 @@
-# uMap Version Control
-umap_version: release  # Options: release or specific version like "3.3.6"
+# uMap Version und Quelle
+# umap_image_source: git (Default) | pypi | dockerhub
+# umap_version: konkrete Version (z.B. "3.6.3") oder "latest"
+umap_image_source: pypi
+umap_version: "latest"
 
 umap__user: umap
 
@@ -11,6 +14,7 @@ umap__paths:
     static_root: "/srv/umap/umapdata/static_root"
     symbols: "/srv/umap/umapdata/symbols"
     sockets: "/srv/umap/sockets"
+    proxy_cache: "/srv/umap/umapdata/proxy_cache"
   container:
     basedir: /srv/umap
     media_root: "/srv/umap/media_root"
@@ -18,6 +22,7 @@ umap__paths:
     sockets: "/srv/umap/sockets"
     cache: "/srv/umap/cache"
     symbols: "/srv/umap/symbols"
+    proxy_cache: "/srv/umap/proxy_cache"
 
 # Proxy configuration
 umap__proxy_port: 8000
@@ -31,6 +36,17 @@ umap__server_url: "umap.openstreetmap.de"
 
 # OpenRouteService API Key for routing
 umap__openrouteservice_apikey: "{{ umap__openrouteservice_apikey }}"
+umap__openrouteservice_host: "https://api.heigit.org/openrouteservice"
+
+# Tilelayer API keys (injected into tile URLs by update_tilelayer_apikeys.py)
+# Secrets in private/vars; add providers here with match/param/value.
+umap__tilelayer_apikeys:
+  - name: carto
+    match:
+      - basemaps.cartocdn.com
+      - cartodb-basemaps
+    param: key
+    value: "{{ umap__carto_apikey | default('') }}"
 
 umap__host_info_name: "FOSSGIS e.V."
 umap__host_info_url: "https://www.fossgis.de"

@@ -131,8 +131,8 @@
     - umapdata/symbols/osmic/pictograms
     - umapdata/symbols/brewery
     - umapdata/symbols/brewery/pictograms
+    - umapdata/proxy_cache
     - nginx
-    - nginx/cache
     - nginx/run
 
 - name: Create and set setgid on nginx log directory
@@ -170,6 +170,7 @@
     - { src: "Dockerfile", dest: "Dockerfile", mode: "0664" }
     - { src: ".dockerignore", dest: ".dockerignore", mode: "0664" }
     - { src: "entrypoint.sh", dest: "entrypoint.sh", mode: "0755" }
+  when: umap_image_source | default('git') != 'dockerhub'
 
 - name: Setup umap nginx site
   nginx_site:
@@ -259,6 +260,7 @@
     - analyze_users.py
     - get_map_details.py
     - get_user_details.py
+    - update_tilelayer_apikeys.py
     - umap_utils.py
   register: admin_scripts_deployed
 
@@ -318,6 +320,22 @@
     - container_running_check.stdout == "true"
   changed_when: false
 
+- name: Apply tilelayer API keys to tile URLs
+  command: docker exec umap_app /venv/bin/python3 /srv/umap/scripts/admin/update_tilelayer_apikeys.py
+  register: tilelayer_apikeys_result
+  changed_when: >-
+    tilelayer_apikeys_result.rc == 0
+    and (tilelayer_apikeys_result.stdout_lines | default([]) | length) > 0
+    and (tilelayer_apikeys_result.stdout_lines | last | from_json).changed | default(false) | bool
+  failed_when: >-
+    tilelayer_apikeys_result.rc != 0
+    or (tilelayer_apikeys_result.stdout_lines | default([]) | length) == 0
+    or not (tilelayer_apikeys_result.stdout_lines | last | default('') | regex_search('^\\{'))
+  when:
+    - umap__tilelayer_apikeys | default([]) | selectattr('value', 'defined') | rejectattr('value', 'equalto', '') | list | length > 0
+    - docker_compose_up_result is defined
+    - container_running_check.stdout | default('') == "true"
+
 - name: Setup logrotate configuration for uMap
   template:
     src: "logrotate-umap.conf.jinja"
@@ -340,3 +358,9 @@
   tags:
     - umap
     - monitoring
+
+- name: Include maintenance tasks
+  include_tasks: maintenance.yml
+  tags:
+    - umap
+    - maintenance

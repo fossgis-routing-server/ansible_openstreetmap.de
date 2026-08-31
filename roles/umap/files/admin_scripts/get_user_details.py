@@ -63,7 +63,7 @@ def get_user_by_id_or_username(cursor, identifier):
     }
 
 
-def get_user_details(cursor, user_id):
+def get_user_details(cursor, user_id, include_trash=False):
     """Holt alle Details zu einem User"""
     # User-Grundinformationen
     cursor.execute("""
@@ -87,11 +87,12 @@ def get_user_details(cursor, user_id):
             m.created_at,
             m.modified_at,
             m.share_status,
-            COUNT(d.uuid) as layer_count
+            COUNT(d.uuid) as layer_count,
+            m.settings
         FROM umap_map m
         LEFT JOIN umap_datalayer d ON d.map_id = m.id AND d.share_status = 0
         WHERE m.owner_id = %s AND m.share_status != 99
-        GROUP BY m.id, m.name, m.slug, m.created_at, m.modified_at, m.share_status
+        GROUP BY m.id, m.name, m.slug, m.created_at, m.modified_at, m.share_status, m.settings
         ORDER BY m.modified_at DESC
     """, [user_id])
     
@@ -103,8 +104,12 @@ def get_user_details(cursor, user_id):
     newest_map = None
     
     for row in cursor.fetchall():
-        map_id, map_name, map_slug, map_created_at, map_modified_at, share_status, layer_count = row
-        
+        map_id, map_name, map_slug, map_created_at, map_modified_at, share_status, layer_count, settings = row
+
+        # Real-time collaboration (syncEnabled in Map-Settings)
+        props = ((settings or {}).get('properties') or {}) if isinstance(settings, dict) else {}
+        sync_enabled = props.get('syncEnabled') in (True, 'true')
+
         # Berechne Größe dieser Karte
         cursor.execute("""
             SELECT d.geojson
@@ -135,10 +140,30 @@ def get_user_details(cursor, user_id):
             'share_status': share_status,
             'layer_count': layer_count or 0,
             'size': map_size,
+            'sync_enabled': sync_enabled,
         })
     
     # Sortiere Karten nach Größe
     owned_maps_sorted_by_size = sorted(owned_maps, key=lambda x: x['size'], reverse=True)
+    
+    # Optional: Karten im Papierkorb (share_status = 99) für Plausibilitätsprüfung
+    trash_maps = []
+    if include_trash:
+        cursor.execute("""
+            SELECT id, name, slug, created_at, modified_at
+            FROM umap_map
+            WHERE owner_id = %s AND share_status = 99
+            ORDER BY modified_at DESC
+        """, [user_id])
+        for row in cursor.fetchall():
+            map_id, map_name, map_slug, map_created_at, map_modified_at = row
+            trash_maps.append({
+                'id': map_id,
+                'name': map_name or '(kein Name)',
+                'slug': map_slug,
+                'created_at': map_created_at,
+                'modified_at': map_modified_at,
+            })
     
     # Hole Editor-Karten
     cursor.execute("""
@@ -187,7 +212,8 @@ def get_user_details(cursor, user_id):
     # PUBLIC = 1, OPEN = 2 (beide gelten als öffentlich)
     public_maps = sum(1 for m in owned_maps if m['share_status'] in [1, 2])
     private_maps = len(owned_maps) - public_maps
-    
+    maps_realtime_collaboration = sum(1 for m in owned_maps if m.get('sync_enabled'))
+
     return {
         'user': {
             'id': user_id_db,
@@ -197,6 +223,7 @@ def get_user_details(cursor, user_id):
         },
         'owned_maps': owned_maps,
         'owned_maps_sorted_by_size': owned_maps_sorted_by_size,
+        'trash_maps': trash_maps,
         'editor_maps': editor_maps,
         'teams': teams,
         'stats': {
@@ -209,6 +236,7 @@ def get_user_details(cursor, user_id):
             'avg_map_size': avg_map_size,
             'public_maps': public_maps,
             'private_maps': private_maps,
+            'maps_realtime_collaboration': maps_realtime_collaboration,
             'oldest_map': oldest_map,
             'newest_map': newest_map,
         }
@@ -241,6 +269,7 @@ def print_user_details(details):
     print(f"  Durchschnitt:         {format_size(stats['avg_map_size'])}")
     print(f"  Öffentliche Karten:   {stats['public_maps']}")
     print(f"  Private Karten:       {stats['private_maps']}")
+    print(f"  Karten mit Real-time collaboration:  {stats['maps_realtime_collaboration']}")
     if stats['oldest_map']:
         print(f"  Älteste Karte:        ID {stats['oldest_map']['id']} ({format_date(stats['oldest_map']['created_at'])})")
     if stats['newest_map']:
@@ -276,6 +305,26 @@ def print_user_details(details):
             print()
     else:
         print("Keine eigenen Karten")
+        print()
+    
+    # Karten im Papierkorb (nur wenn --include-trash und Liste vorhanden)
+    trash_maps = details.get('trash_maps') or []
+    if trash_maps:
+        print("Karten im Papierkorb (share_status=99, werden in der Oberfläche nicht angezeigt):")
+        print("-" * 120)
+        header = f"{'ID':<8} {'Name':<30} {'Erstellt':<20} {'Zuletzt geändert':<20}"
+        print(header)
+        print("-" * 120)
+        for m in trash_maps:
+            name = (m['name'][:29] if m['name'] else '(kein Name)') if len(m['name']) <= 29 else m['name'][:26] + '...'
+            created = format_date(m['created_at'], include_time=True) if m['created_at'] else 'N/A'
+            modified = format_date(m['modified_at'], include_time=True) if m['modified_at'] else 'N/A'
+            print(f"{m['id']:<8} {name:<30} {created:<20} {modified:<20}")
+            if m.get('slug'):
+                print(f"     Slug: {m['slug']}")
+        print()
+        print("Hinweis: Papierkorb-Karten können ggf. wiederhergestellt werden (share_status setzen).")
+        print("         empty_trash löscht Karten endgültig, wenn sie >30 Tage im Papierkorb sind.")
         print()
     
     # Editor-Karten
@@ -318,14 +367,24 @@ def print_user_details(details):
 
 
 def main():
-    if len(sys.argv) < 2:
-        print("Verwendung: python3 get_user_details.py <user_id> | <username>")
-        print("\nBeispiele:")
-        print("  python3 get_user_details.py <USER_ID>")
-        print("  python3 get_user_details.py <username>")
+    import argparse
+    parser = argparse.ArgumentParser(
+        description="Zeigt detaillierte User-Informationen inkl. Karten, Editor-Karten und Teams.",
+        epilog="Beispiele: get_user_details.py 9852  |  get_user_details.py VortriebMediaHouse  |  get_user_details.py 9852 --include-trash",
+    )
+    parser.add_argument("identifier", nargs="?", help="User-ID oder Username")
+    parser.add_argument(
+        "--include-trash",
+        action="store_true",
+        help="Zeigt auch Karten im Papierkorb (share_status=99) für Plausibilitätsprüfung bei Meldung fehlender Karten.",
+    )
+    args = parser.parse_args()
+    identifier = args.identifier
+
+    if not identifier:
+        parser.print_help()
+        print("\nVerwendung: python3 get_user_details.py <user_id> | <username> [--include-trash]")
         sys.exit(1)
-    
-    identifier = sys.argv[1]
     
     try:
         with connection.cursor() as cursor:
@@ -336,7 +395,7 @@ def main():
                 sys.exit(1)
             
             # Hole Details
-            details = get_user_details(cursor, user['id'])
+            details = get_user_details(cursor, user['id'], include_trash=args.include_trash)
             if not details:
                 print(f"FEHLER: Konnte Details für User '{identifier}' nicht laden.", file=sys.stderr)
                 sys.exit(1)

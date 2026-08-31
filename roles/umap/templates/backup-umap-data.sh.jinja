@@ -34,6 +34,7 @@ if nice -n 19 \
         /srv/umap/umapdata \
         -C lz4 \
         --stats \
+        --exclude /srv/umap/umapdata/proxy_cache \
         --exclude-caches; then
     
     # Lösche alte Backups

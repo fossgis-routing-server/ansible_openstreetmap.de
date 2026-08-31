@@ -354,75 +354,51 @@
     - umap
     - backup
 
-- name: Deploy systemd service and timer files
-  template:
-    src: "{{ item }}.jinja"
-    dest: "/etc/systemd/system/{{ item }}"
-    owner: root
-    group: root
-    mode: "0644"
-  loop:
-    - borgbackup-data.service
-    - borgbackup-data.timer
-    - borgbackup-db.service
-    - borgbackup-db.timer
+- name: Borg backup uMap data daily
+  systemd_service:
+    name: borgbackup-data
+    enabled: true
+    state: started
+    service:
+      Unit:
+        Description: Borg Backup uMap Data
+        After: docker.service
+        Requires: docker.service
+      Service:
+        Type: oneshot
+        User: "{{ umap__user }}"
+        Group: docker
+        WorkingDirectory: "{{ umap__paths.host.basedir }}"
+        ExecStart: "{{ umap__paths.host.basedir }}/scripts/backup/backup-umap-data.sh"
+    timer:
+      OnCalendar: "*-*-* 02:00:00"
+      RandomizedDelaySec: 300
+      Persistent: "true"
   when: ssh_backup_test.rc | default(1) == 0  # Only if SSH connection to backup server works
   tags:
     - umap
     - backup
 
-# Systemd Timer Management
-# Timer state is managed based on SSH key availability and connection status:
-# - If SSH key exists AND connection works: Enable and start timers (backups are ready to run)
-# - If SSH key is missing OR connection fails: Disable and stop timers (prevent failed backup attempts)
-# 
-# Why disable timers when connection fails?
-# - Backup scripts check for SSH key and exit with code 1 if missing (clean failure)
-# - This task prevents repeated failed jobs and makes the state explicit: backups disabled
-# - Without this, you'd see failed backup attempts every timer interval
-- name: Disable and stop backup timers when SSH key is missing
-  systemd:
-    name: "{{ item }}"
-    daemon_reload: yes
-    enabled: no
-    state: stopped
-  loop:
-    - borgbackup-data.timer
-    - borgbackup-db.timer
-  when: not ssh_key_stat.stat.exists
-  ignore_errors: true  # Timers might not exist yet (first run) or already disabled
-  failed_when: false
-  tags:
-    - umap
-    - backup
-
-- name: Disable and stop backup timers when SSH connection fails
-  systemd:
-    name: "{{ item }}"
-    daemon_reload: yes
-    enabled: no
-    state: stopped
-  loop:
-    - borgbackup-data.timer
-    - borgbackup-db.timer
-  when:
-    - ssh_key_stat.stat.exists
-    - ssh_backup_test.rc | default(1) != 0  # Disable if SSH connection to backup server fails
-  ignore_errors: true  # Timers might not exist yet (first run) or already disabled
-  failed_when: false
-  tags:
-    - umap
-    - backup
-
-- name: Enable and start backup timers
-  systemd:
-    name: "{{ item }}"
-    daemon_reload: yes
-    enabled: yes
+- name: Borg backup uMap database daily
+  systemd_service:
+    name: borgbackup-db
+    enabled: true
     state: started
-  loop:
-    - borgbackup-data.timer
-    - borgbackup-db.timer
+    service:
+      Unit:
+        Description: Borg Backup uMap Database
+        After: docker.service
+        Requires: docker.service
+      Service:
+        Type: oneshot
+        User: "{{ umap__user }}"
+        Group: docker
+        WorkingDirectory: "{{ umap__paths.host.basedir }}"
+        ExecStart: "{{ umap__paths.host.basedir }}/scripts/backup/backup-umap-db.sh"
+    timer:
+      OnCalendar: "*-*-* 02:00:00"
+      RandomizedDelaySec: 300
+      Persistent: "true"
   when: ssh_backup_test.rc | default(1) == 0  # Only if SSH connection to backup server works
   tags:
     - umap

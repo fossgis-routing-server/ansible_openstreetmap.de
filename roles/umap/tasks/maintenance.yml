@@ -1,0 +1,51 @@
+---
+# Maintenance Tasks for uMap
+# This task file handles periodic maintenance tasks like emptying trash
+
+- name: Empty uMap trash monthly
+  systemd_service:
+    name: umap-empty-trash
+    enabled: true
+    state: started
+    service:
+      Unit:
+        Description: Empty uMap Trash
+        After: docker.service
+        Requires: docker.service
+      Service:
+        Type: oneshot
+        User: "{{ umap__user }}"
+        Group: docker
+        WorkingDirectory: "{{ umap__paths.host.basedir }}"
+        ExecStart: /usr/bin/docker exec umap_app umap empty_trash --days 30
+    timer:
+      OnCalendar: "*-*-01 03:00:00"
+      RandomizedDelaySec: 3600
+      Persistent: "true"
+  tags:
+    - umap
+    - maintenance
+
+- name: Clear uMap ajax proxy cache daily
+  systemd_service:
+    name: umap-clear-proxy-cache
+    enabled: true
+    state: started
+    service:
+      Unit:
+        Description: Clear uMap Ajax Proxy Cache
+        After: docker.service
+        Requires: docker.service
+      Service:
+        Type: oneshot
+        User: "{{ umap__user }}"
+        Group: docker
+        WorkingDirectory: "{{ umap__paths.host.basedir }}"
+        ExecStart: /usr/bin/docker exec umap_app umap clear_proxy_cache --max-age 86400
+    timer:
+      OnCalendar: "*-*-* 04:00:00"
+      RandomizedDelaySec: 3600
+      Persistent: "true"
+  tags:
+    - umap
+    - maintenance
