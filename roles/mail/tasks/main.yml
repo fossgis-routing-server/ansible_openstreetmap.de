@@ -56,7 +56,7 @@
     - systemctl reload postfix
 
 - name: Install OpenDKIM
-  when: mail.opendkim
+  when: mail is defined and mail.opendkim | default(false)
   block:
     - name: Install OpenDKIM from APT
       apt:

@@ -43,6 +43,7 @@
     repo: https://github.com/ThePhD/sol2.git
     dest: '{{ osrm__basedir }}/sol2'
     version: 'v3.3.1'
+  register: sol2_repo
   become: yes
   become_user: '{{ osrm__user }}'
 
@@ -62,12 +63,14 @@
     CXX: clang++-19
   become: yes
   become_user: '{{ osrm__user }}'
+  when: sol2_repo.changed
 
 - name: checkout vtzero
   git:
     repo: https://github.com/mapbox/vtzero.git
     dest: '{{ osrm__basedir }}/vtzero'
     version: 'v1.2.0'
+  register: vtzero_repo
   become: yes
   become_user: '{{ osrm__user }}'
 
@@ -87,6 +90,7 @@
     CXX: clang++-19
   become: yes
   become_user: '{{ osrm__user }}'
+  when: vtzero_repo.changed
 
 
 - name: checkout osrm-backend
