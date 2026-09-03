@@ -411,7 +411,7 @@
     mode: 0755
   vars:
     difffile: /tmp/latest_changes.osc
-    expiretilessingle: "{{ tile__basedir }}/bin/expire-tiles-single.py --max {{ tile__prerendering_zoom }}"
+    expiretilessingle: "{{ tile__basedir }}/bin/expire-tiles-single.py --min {{ tile__prerendering_zoom }}"
     styles: "{{ tile__styles }}"
 
 # script to identify rhb tile rendered area, gray out outside area
