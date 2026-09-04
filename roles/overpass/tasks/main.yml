@@ -240,7 +240,8 @@
         datepattern = ^[^\[]*\[({DATE})
                       {^LN-BEG}
   loop:
-    - 400
+    - 403
+    - 406
     - 429
 
 - name: Fail2ban filter for osmnx
@@ -252,16 +253,28 @@
         datepattern = ^[^\[]*\[({DATE})
                       {^LN-BEG}
 
-
-- name: Fail2ban jail for 400
+- name: Fail2ban jail for 403
   fail2ban_jail:
-    name: overpass-bad-req-400
+    name: overpass-bad-req-403
     ports: [80,443]
-    filter: overpass-bad-req-400
+    filter: overpass-bad-req-403
     logpath: /var/log/apache2/overpass-access.log
-    findtime: 30s
-    maxretry: 5
-    bantime: 2h
+    findtime: 60s
+    maxretry: 4
+    bantime: 24h
+
+- name: Fail2ban jail for 406
+  fail2ban_jail:
+    name: overpass-bad-req-406
+    ports: [80,443]
+    filter: overpass-bad-req-406
+    logpath: /var/log/apache2/overpass-access.log
+    findtime: 120
+    maxretry: 3
+    bantime: 1h
+    bantime.increment: True
+    bantime.factor: 2
+    bantime.maxtime: 24h
 
 - name: Fail2ban jail for 429
   fail2ban_jail:
@@ -269,9 +282,12 @@
     ports: [80,443]
     filter: overpass-bad-req-429
     logpath: /var/log/apache2/overpass-access.log
-    findtime: 1m
-    maxretry: 10
+    findtime: 2m
+    maxretry: 3
     bantime: 1h
+    bantime.increment: True
+    bantime.factor: 2
+    bantime.maxtime: 1w
 
 - name: Fail2ban jail for osmnx
   fail2ban_jail:
@@ -279,7 +295,7 @@
     ports: [80,443]
     filter: overpass-osmnx
     logpath: /var/log/apache2/overpass-access.log
-    findtime: 20m
-    maxretry: 30
+    findtime: 1h
+    maxretry: 10
     bantime: 9h
 

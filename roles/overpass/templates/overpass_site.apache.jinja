@@ -5,6 +5,12 @@
         CustomLog /var/log/apache2/overpass-access.log "%t runtime: %T, return size: %B, %{plainsize}n, status: %>s, remote host: %h, completed: %X, query string: %U%q, referer: %{Referer}i, user agent: %{User-agent}i"
 
         RewriteEngine on
+        RewriteCond %{HTTP_REFERER}     "metrodreamin.com" [OR]
+        RewriteCond %{HTTP_USER_AGENT}  "PhotoGallery"    [OR]
+        RewriteCond %{HTTP_USER_AGENT}  "^VAI/"           [OR]
+        RewriteCond %{HTTP_USER_AGENT}  "Firefox/71"
+        RewriteRule . - [R=403,L]
+
         RewriteCond %{HTTP_USER_AGENT}  "^Python-urllib/"  [OR]
         RewriteCond %{HTTP_USER_AGENT}  "^python-requests/" [OR]
         RewriteCond %{HTTP_USER_AGENT}  "^python-httpx/"   [OR]
@@ -15,8 +21,13 @@
         RewriteCond %{HTTP_USER_AGENT}  "^axios/"          [OR]
         RewriteCond %{HTTP_USER_AGENT}  "^okhttp/"         [OR]
         RewriteCond %{HTTP_USER_AGENT}  "^Jersey/"         [OR]
+        RewriteCond %{HTTP_USER_AGENT}  "aiohttp"          [OR]
+        RewriteCond %{HTTP_USER_AGENT}  "^libcurl-agent/"  [OR]
+        RewriteCond %{HTTP_USER_AGENT}  "1C+Enterprise"    [OR]
+        RewriteCond %{HTTP_USER_AGENT}  "[Cc]rawl"         [OR]
+        RewriteCond %{HTTP_USER_AGENT}  "[Pp]roperty"      [OR]
         RewriteCond %{HTTP_USER_AGENT}  "^speedmeter/1"    [OR]
-        RewriteCond %{HTTP_USER_AGENT}  "^Speedometer/"    [OR]
+        RewriteCond %{HTTP_USER_AGENT}  "^Speedometer"    [OR]
         RewriteCond %{HTTP_USER_AGENT}  "^Deno/"           [OR]
         RewriteCond %{HTTP_USER_AGENT}  "^GeoCats AGORA"   [OR]
         RewriteCond %{HTTP_USER_AGENT}  "^R8.Companion.Nav" [OR]
@@ -32,10 +43,18 @@
         RewriteCond %{HTTP_USER_AGENT}  "^BeenToApp/"      [OR]
         RewriteCond %{HTTP_USER_AGENT}  "^Android/3168$"   [OR]
         RewriteCond %{HTTP_USER_AGENT}  "^playas-espana.com/" [OR]
-        RewriteCond %{HTTP_REFERER}     "metrodreamin.com" [OR]
         RewriteCond %{HTTP_REFERER}     "fincaraiz.com"    [OR]
         RewriteCond %{HTTP_REFERER}     "lovable.app"      [OR]
         RewriteCond %{HTTP_REFERER}     "vercel.app"       [OR]
+        RewriteCond %{HTTP_REFERER}     "base44.app"       [OR]
+        RewriteCond %{HTTP_REFERER}     "run.app"          [OR]
+        RewriteCond %{HTTP_REFERER}     "netlify.app"      [OR]
+        RewriteCond %{HTTP_REFERER}     "replit.dev"       [OR]
+        RewriteCond %{HTTP_REFERER}     "web.app"          [OR]
+        RewriteCond %{HTTP_REFERER}     "pages.dev"        [OR]
+        RewriteCond %{HTTP_REFERER}     "webcontainer.io"  [OR]
+        RewriteCond %{HTTP_REFERER}     "webcontainer-api.io"  [OR]
+        RewriteCond %{HTTP_REFERER}     "lovableproject.com" [OR]
         RewriteCond %{HTTP_REFERER}     "hauk.live"        [OR]
         RewriteCond %{HTTP_REFERER}     "nbot.pl"          [OR]
         RewriteCond %{HTTP_REFERER}     "zuniz.com"        [OR]
@@ -45,14 +64,18 @@
         RewriteCond %{HTTP_REFERER}     "reality.sk"       [OR]
         RewriteCond %{HTTP_REFERER}     "oaiusercontent.com" [OR]
         RewriteCond %{HTTP_REFERER}     "astegiudiziarie.it" [OR]
+        RewriteCond %{HTTP_REFERER}     "pixelpirate.fr" [OR]
+        RewriteCond %{HTTP_REFERER}     "finland-map.fi" [OR]
         RewriteCond %{HTTP_REFERER}     "infocasas.com"
         RewriteRule . - [R=406,L]
 
+        RewriteCond %{HTTP:Origin}     "^$"
         RewriteCond %{HTTP_REFERER}     "^$"
         RewriteCond %{HTTP_USER_AGENT}  "^Mozilla/"
         RewriteCond %{HTTP_USER_AGENT}  !QGIS
         RewriteRule /api/interpreter - [R=406,L]
 
+        RewriteCond %{HTTP:Origin}     "^$"
         RewriteCond %{HTTP_REFERER}     "^$"
         RewriteCond %{HTTP_USER_AGENT}  "^$"
         RewriteRule /api/interpreter - [R=406,L]
