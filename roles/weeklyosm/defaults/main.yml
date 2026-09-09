@@ -5,11 +5,12 @@ weeklyosm_deploy_user: "deploy-weekly"
 weeklyosm_deploy_key: "ssh-ed25519
     AAAAC3NzaC1lZDI1NTE5AAAAIBijSeiqaFsWagRuCyFLogXJq3PXPzCucrPzVm6VWiFn
     deploy-weeklyosm@gitlab"
-weeklyosm__languages: ["de", "es", "fr", "it", "pt", "br", "cz", "ru", "uk", "zh", "ja", "ko", "cn", "id", "nl", "pl", "sw", "tr"]
+weeklyosm__languages:
+    ["de", "es", "fr", "it", "pt", "br", "cz", "ru", "uk", "zh", "ja", "ko", "cn", "id", "nl", "pl", "sw", "tr"]
 
 # remark42 comment service
 weeklyosm__remark42__directory: "/srv/remark42"
-weeklyosm__remark42__version: "v1.16.4"
+weeklyosm__remark42__version: "v1.17.0"
 weeklyosm__remark42__site_url: "https://hugo.weeklyosm.eu/comments"
 weeklyosm__remark42__site_id: "weeklyosm"
 weeklyosm__remark42__smtp_from: "weeklyOSM comments <noreply@weeklyosm.eu>"

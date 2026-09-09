@@ -8,8 +8,8 @@
 
 - name: Create user for remark42
   system_account:
-    name: "remark42"
-    home: "{{ weeklyosm__remark42__directory }}"
+      name: "remark42"
+      home: "{{ weeklyosm__remark42__directory }}"
 
 - name: Ensure directory for current Remark42 version exists
   ansible.builtin.file:
@@ -65,21 +65,24 @@
 
 - name: "Create systemd service for remark42"
   systemd_service:
-    name: "remark42"
-    enabled: true
-    service:
-      Unit:
-        Description: "Remark42 comment engine"
-        After: network.target
-      Service:
-        Type: simple
-        User: remark42
-        Group: remark42
-        WorkingDirectory: "{{ weeklyosm__remark42__directory }}"
-        EnvironmentFile: "{{ weeklyosm__remark42__directory }}/remark42.env"
-        ExecStart: /usr/local/bin/remark42 server
-        Restart: always
-        RestartSec: 10
-        ProtectSystem: full
-        ProtectHome: yes
-        NoNewPrivileges: yes
+      name: "remark42"
+      enabled: true
+      state: started
+      service:
+          Unit:
+              Description: "Remark42 comment engine"
+              After: "network.target"
+          Service:
+              Type: "simple"
+              User: "remark42"
+              Group: "remark42"
+              WorkingDirectory: "{{ weeklyosm__remark42__directory }}"
+              EnvironmentFile: "{{ weeklyosm__remark42__directory }}/remark42.env"
+              ExecStart: "/usr/local/bin/remark42 server"
+              Restart: "always"
+              RestartSec: 10
+              ProtectSystem: "full"
+              ProtectHome: "yes"
+              NoNewPrivileges: "yes"
+          Install:
+              WantedBy: "multi-user.target"
