@@ -1,4 +1,3 @@
-limit_conn_zone $server_name zone=overpass:10m;
 limit_conn_zone $binary_remote_addr zone=client_conn:10m;
 limit_conn_status 429;
 
@@ -10,15 +9,50 @@ log_format overpass '[$time_local] runtime: $request_time, return size: $body_by
                     'completed: $request_completion, query string: $request_uri, '
                     'referer: $http_referer, user agent: $http_user_agent';
 
+# Clients that should run their own instance (406), maintained by hand in
+# /etc/nginx/blocked_user_agent.conf and /etc/nginx/blocked_referrer.conf.
+{{ block_map() }}
+# Clients that are refused completely (403).
+map $http_user_agent $overpass_forbidden_user_agent {
+    default                     0;
+    "~PhotoGallery"             1;
+    "~^VAI/"                    1;
+    "~Firefox/71"               1;
+}
+
+# Clients that get an empty result instead of an error.
+map $http_referer $overpass_empty_result_referer {
+    default                     0;
+    "~metrodreamin.com"         1;
+}
+
+map "$uri$http_origin$http_referer" $overpass_bare_interpreter_call {
+    default                     0;
+    "/api/interpreter"          1;
+}
+
+map "$overpass_bare_interpreter_call:$http_user_agent" $overpass_anonymous_query {
+    default                     0;
+    "1:"                        1;
+    "~^1:Mozilla/(?!.*QGIS)"    1;
+}
+
 {% call server(overpass__acme_certificates[0].domains, http='yes', https='overpass') -%}
 
     error_page 429 @error_429;
     error_page 504 @error_504;
+    # 418 is only used internally to get to the empty result.
+    error_page 418 = @empty_result;
 
     access_log /var/log/nginx/overpass-access.log overpass;
     error_log  /var/log/nginx/overpass-error.log warn;
 
     disable_symlinks off;
+
+    if ($overpass_forbidden_user_agent) { return 403; }
+    if ($overpass_empty_result_referer) { return 418; }
+    {{ error_out_blocked('406') }}
+    if ($overpass_anonymous_query)      { return 406; }
 
     location / {
         root {{ overpass__basedir }}/site;
@@ -27,7 +61,6 @@ log_format overpass '[$time_local] runtime: $request_time, return size: $body_by
     }
 
     location ~ ^/api/(.*)$ {
-        #limit_conn overpass 10;
         limit_conn client_conn 3;
         limit_req zone=client_req burst=2 delay=30;
 
@@ -53,6 +86,12 @@ log_format overpass '[$time_local] runtime: $request_time, return size: $body_by
         add_header Content-Type text/plain;
         expires -1;
         return 200 'OK';
+    }
+
+    location @empty_result {
+        default_type application/json;
+        add_header Access-Control-Allow-Origin * always;
+        return 200 '{\n  "version": 0.6,\n  "osm3s": {\n    "timestamp_osm_base": "",\n  },\n  "elements": [\n\n\n\n  ]\n}\n';
     }
 
     location @error_429 {
