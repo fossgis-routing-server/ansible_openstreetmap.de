@@ -90,9 +90,9 @@ Login to the just created virtual machine with:
 
 (13 in the IP address being the current Debian version.)
 
-Then copy vm/ansible_vm.ini to the project root (attention: _ vs -):
+Then copy vm/ansible-vm.ini to the project root:
 
-    cp vm/ansible_vm.ini ./ansible-vm.ini
+    cp vm/ansible-vm.ini ./ansible-vm.ini
 
 and add an entry like
 
