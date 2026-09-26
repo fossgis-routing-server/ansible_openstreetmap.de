@@ -69,48 +69,41 @@ Further documentation can be found in the `doc/` directory:
 Testing
 =======
 
-The repo contains configuration files for [Vagrant](https://www.vagrantup.com/)
-that may be used to test playbooks during development. To use it, you need
-to install Vagrant and the lib-virt provider:
+A libvirt VM may be used to test playbooks during development. To use it, you need:
 
-    apt install vagrant vagrant-libvirt libvirt-daemon
+    apt install qemu-kvm libvirt-daemon-system virt-manager
 
 Spin up the test machine:
 
-    vagrant up trixie
+    ./get_debian_vm.sh
 
-This spins up a Debian Trixie machine and sets up accounts, so
+The default settings should suffice. This spins up a Debian Trixie machine and sets up accounts, so
 that Ansible can access the machine via the root account.
 
-Login to the just created virtual machine with
+You can check whether the VM is running:
 
-    vagrant ssh trixie
+    virsh list 
 
-> You can use the environment variables 
-> - `VAGRANT_MEMORY` (default: 2048)
-> 
-> For Example: `VAGRANT_MEMORY=8192 vagrant up`
->
-> If you like to use an `.env` file, you can add the plugin `vagrant-env` via `vagrant plugin install vagrant-env`. Whenever you run a Vagrant command it’ll load `.env` into `ENV`. When creating the `.env` file, you can use the `env_example` file as a guide.
->
-> In any case: if no environment variable is created, the default value is used.
+Login to the just created virtual machine with:
 
-Next you need an inventory:
+    ssh root@192.168.137.13 -i vm/id_ed25519
 
-    ./init_vagrant_inventory.sh trixie
+(13 in the IP address being the current Debian version.)
 
-This creates a file vagrant.ini with the right connection IP. Edit the file
-to put the vagrant test machine into the group you want to test.
+Then copy vm/ansible-vm.ini to the project root:
 
-Now you can run the global playbook:
+    cp vm/ansible-vm.ini ./ansible-vm.ini
 
-     make vagrant
+and add an entry like
 
-Additional hints:
+    [overpass]
+    trixie
 
-* To destroy and recreate your vagrant machine, run `vagrant destroy trixie`
-  followed by `vagrant up trixie`. The make command will automatically
-  run `init-vagrant-inventory.sh` and pick up the new machine.
+... depending on what you want to test. Then run
+
+    make vm-trixie
+
+This should set up everything inside the VM.
 
 Testing without the Private Data
 ================================
@@ -125,7 +118,7 @@ Makefile
 There is a helpful Makefile that contains targets for all machines. Run
 `make MACHINENAME` to run the ansible playbook for that machine.
 
-The special targets "vagrant" and "vagrant-trixie" are used for development.
+The special target "vm-trixie" are used for development.
 They initialize the inventory and run the playbook on you local vagrant
 virtual machine.
 
