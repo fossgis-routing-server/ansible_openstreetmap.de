@@ -198,7 +198,7 @@
     service:
       Unit:
         Description: Overpass Area Processor
-        After: overpass-area-dispatcher.service overpass-update.service
+        After: overpass-area-dispatcher.service overpass-update-apply.service
       Service:
         WorkingDirectory: "{{ overpass__basedir }}"
         ExecStart: "{{ overpass__basedir }}/bin/osm3s_query --progress --rules"
