@@ -56,7 +56,7 @@ from ansible.errors import AnsibleActionFail
 class ActionModule(ActionBase):
 
     def _copy_configfile(self, dest, content, task_vars):
-        config = configparser.ConfigParser()
+        config = configparser.ConfigParser(interpolation=None)
         config.optionxform = lambda option: option
         config.read_dict(content)
 
