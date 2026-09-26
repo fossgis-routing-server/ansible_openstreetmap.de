@@ -46,26 +46,37 @@
     owner: "{{ overpass__user }}"
     group: "{{ overpass__user }}"
 
-- name: Enable Apache CGI module
-  apache_module:
-    name: cgi
-  notify: reload apache2
+- name: Install fcgiwrap
+  apt:
+    name: fcgiwrap
 
-- name: Enable Apache CGI module
-  apache_module:
-    name: reqtimeout
-  notify: reload apache2
+- name: Systemd service for fcgiwrap
+  systemd_service:
+    name: overpass-fcgiwrap
+    enabled: true
+    state: started
+    service:
+      Unit:
+        Description: FastCGI wrapper for Overpass API
+        Requires: overpass-fcgiwrap.socket
+        After: overpass-fcgiwrap.socket
+      Service:
+        ExecStart: "/usr/sbin/fcgiwrap -f -c {{ overpass__fcgiwrap_workers }}"
+        User: www-data
+        Group: www-data
+      Install:
+        WantedBy: multi-user.target
+    socket:
+      ListenStream: "{{ overpass__basedir }}/run/fcgiwrap.socket"
+      SocketUser: www-data
+      SocketGroup: www-data
+      SocketMode: "0660"
 
-- name: Set mpm_event configuration
-  ansible.builtin.template:
-    src: overpass_mpm_event.apache.jinja
-    dest: /etc/apache2/mods-available/mpm_event.conf
-
-- name: Enable apache site
-  apache_site:
+- name: Enable nginx site
+  nginx_site:
     site: 000-overpass
-    src: overpass_site.apache.jinja
-  notify: reload apache2
+    src: overpass_site.nginx.jinja
+  notify: reload nginx
 
 - ansible.posix.sysctl:
     name: net.netfilter.nf_conntrack_tcp_timeout_established

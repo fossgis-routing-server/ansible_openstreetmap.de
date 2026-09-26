@@ -16,6 +16,9 @@ overpass__dispatcher_space: 20GB
 
 overpass__is_clone_origin: false
 
+# Number of fcgiwrap processes, i.e. how many API requests can run in parallel.
+overpass__fcgiwrap_workers: "{{ ansible_facts['processor_cores'] }}"
+
 overpass__acme_certificates:
   - name: overpass
     domains:
@@ -24,9 +27,9 @@ overpass__acme_certificates:
       - z.overpass-api.de
       - lz4.overpass-api.de
     on_update:
-      - systemctl reload apache2
+      - systemctl reload nginx
   - name: munin
     domains:
       - "{{ munin__hostname | regex_replace(':.*', '') }}"
     on_update:
-      - systemctl reload apache2
+      - systemctl reload nginx

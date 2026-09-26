@@ -1,0 +1,68 @@
+limit_conn_zone $server_name zone=overpass:10m;
+limit_conn_zone $binary_remote_addr zone=client_conn:10m;
+limit_conn_status 429;
+
+limit_req_zone $binary_remote_addr zone=client_req:10m rate=60r/m;
+limit_req_status 429;
+
+log_format overpass '[$time_local] runtime: $request_time, return size: $body_bytes_sent, '
+                    'gzip ratio: $gzip_ratio, status: $status, remote host: $remote_addr, '
+                    'completed: $request_completion, query string: $request_uri, '
+                    'referer: $http_referer, user agent: $http_user_agent';
+
+{% call server(overpass__acme_certificates[0].domains, http='yes', https='overpass') -%}
+
+    error_page 429 @error_429;
+    error_page 504 @error_504;
+
+    access_log /var/log/nginx/overpass-access.log overpass;
+    error_log  /var/log/nginx/overpass-error.log warn;
+
+    disable_symlinks off;
+
+    location / {
+        root {{ overpass__basedir }}/site;
+        try_files $uri $uri/ =404;
+        add_header Cache-Control "public, max-age=300";
+    }
+
+    location ~ ^/api/(.*)$ {
+        #limit_conn overpass 10;
+        limit_conn client_conn 3;
+        limit_req zone=client_req burst=2 delay=30;
+
+        gzip on;
+        gzip_types *;
+
+        fastcgi_pass unix:{{ overpass__basedir }}/run/fcgiwrap.socket;
+        fastcgi_param SCRIPT_FILENAME {{ overpass__basedir }}/cgi-bin/$1;
+        # Long-running queries must not be cut off (was CGIDScriptTimeout in apache).
+        fastcgi_read_timeout 86400s;
+        send_timeout 15s;
+        client_body_timeout 15s;
+        include fastcgi_params;
+    }
+
+    location /nginx-status {
+        stub_status;
+        allow 127.0.0.1;
+        deny all;
+    }
+
+    location /liveness {
+        add_header Content-Type text/plain;
+        expires -1;
+        return 200 'OK';
+    }
+
+    location @error_429 {
+        default_type text/plain;
+        return 429 "# 429 Too Many Requests\n\nThis Overpass API server is currently at capacity. All query workers are busy\nand the request queue is full.\n\n## What to do\n\nRetry your request using exponential backoff: wait a short interval, then retry.\nIf the request fails again, double the wait time and retry again.\n\n## For heavy or automated use\n\nThis public endpoint is intended for browser-based and human-operated tools.\nFor automated or high-volume use, run a local Overpass API instance:\n\nhttps://github.com/b1tw153/Overpass-API/blob/main/README.md\n";
+    }
+
+    location @error_504 {
+        default_type text/plain;
+        return 504 "# 504 Gateway Timeout\n\nThis Overpass API server enforces a maximum response time. Your request did not complete within that limit.\n\n## What to do\n\nIf your query set [timeout:X] to a value greater than that,\nsimplify your query and reduce the timeout.\n\nOtherwise the server was likely busy when your request arrived. Retry using\nexponential backoff: wait a short interval, then retry. If the request fails\nagain, double the wait time and retry again.\n\n## For heavy or automated use\n\nThis public endpoint is intended for browser-based and human-operated tools.\nFor automated or high-volume use, run a local Overpass API instance:\n\nhttps://github.com/b1tw153/Overpass-API/blob/main/README.md\n";
+    }
+
+{% endcall %}
