@@ -28,6 +28,8 @@ class ActionModule(ActionBase):
         name = self._task.args.get('name')
         state = self._task.args.get('state', 'present')
         shell = self._task.args.get('shell', '/bin/false')
+        create_home = self._task.args.get('create_home', True)
+        home = self._task.args.get('home')
 
         # First, create the group.
         module_args = {
@@ -49,14 +51,32 @@ class ActionModule(ActionBase):
             'group': name,
             'state': state,
             'system': True,
-            'shell' : shell
+            'shell': shell,
+            'create_home': False
         }
-        for param in ('comment', 'create_home', 'home', 'groups'):
+        for param in ('comment', 'home', 'groups'):
             if param in self._task.args:
                 module_args[param] = self._task.args[param]
 
         result.update(self._execute_module('ansible.builtin.user',
                                            module_args=module_args,
                                            task_vars=task_vars, tmp=tmp))
+
+        if result.get('failed', False):
+            return result
+
+        # Finally create home directory.
+        if create_home and home:
+            module_args = {
+                'path': home,
+                'state': 'directory',
+                'owner': name,
+                'group': name,
+                'mode':  '0755'
+            }
+
+            result.update(self._execute_module('ansible.builtin.file',
+                                               module_args=module_args,
+                                               task_vars=task_vars, tmp=tmp))
 
         return result
