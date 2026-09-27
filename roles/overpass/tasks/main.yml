@@ -72,28 +72,6 @@
       SocketGroup: www-data
       SocketMode: "0660"
 
-# The block lists are maintained by hand on the server,
-# only fill them with the initial lists while they are empty.
-- name: Check nginx block lists
-  stat:
-    path: "/etc/nginx/{{ item }}"
-  loop:
-    - blocked_user_agent.conf
-    - blocked_referrer.conf
-  register: overpass_block_lists
-
-- name: Seed nginx block lists
-  copy:
-    src: "{{ item.item }}"
-    dest: "/etc/nginx/{{ item.item }}"
-    mode: 0664
-    group: adm
-  loop: "{{ overpass_block_lists.results }}"
-  loop_control:
-    label: "{{ item.item }}"
-  when: not item.stat.exists or item.stat.size == 0
-  notify: reload nginx
-
 - name: Enable nginx site
   nginx_site:
     site: 000-overpass
