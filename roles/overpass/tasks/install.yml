@@ -2,26 +2,31 @@
 ---
 - name: Install dependencies
   apt:
-    name: [build-essential, libexpat1-dev, zlib1g-dev, liblz4-dev]
+    name: [autoconf, automake, m4, libtool, build-essential, libexpat1-dev, zlib1g-dev, liblz4-dev]
     state: latest
+
+- name: Get Overpass from github
+  become_user: overpass
+  ansible.builtin.git:
+    repo: "{{ overpass__repo }}"
+    dest: "{{ overpass__basedir }}/src/osm-3s"
+
+- name: Copy source into build directory
+  become_user: overpass
+  ansible.builtin.copy:
+    src: "{{ overpass__basedir }}/src/osm-3s/src"
+    dest: "{{ overpass__basedir }}/src/build/"
+    remote_src: true
 
 - name: Determine source directory
   set_fact:
-    overpass__srcdir: "{{ overpass__basedir }}/src/osm-3s_v{{overpass__version}}"
+    overpass__srcdir: "{{ overpass__basedir }}/src/build/src"
 
-- name: Get release tarball
+- name: Autoconf overpass
   become_user: overpass
-  get_url:
-    dest: "{{ overpass__srcdir }}.tar.gz"
-    url: "https://dev.overpass-api.de/releases/osm-3s_v{{overpass__version}}.tar.gz"
-
-- name: Unpack tarball
-  become_user: overpass
-  unarchive:
-    remote_src: yes
-    src: "{{ overpass__srcdir }}.tar.gz"
-    dest: "{{ overpass__basedir }}/src"
-    creates: "{{ overpass__srcdir }}"
+  command:
+    cmd: "autoreconf -i -W none"
+    chdir: "{{ overpass__srcdir }}"
 
 - name: Configure overpass
   become_user: overpass
@@ -70,17 +75,6 @@
   replace:
     path: "{{overpass__srcdir }}/munin/{{item}}"
     regexp: "/OVERPASS_EXEC_DIR/"
-    replace: "{{ overpass__basedir }}/"
-  loop:
-    - osm_db_lag
-    - osm_db_request_count
-    - osm_mem_status
-    - osm_timeout_status
-
-- name: Replace overpass exec directory in munin scripts (II)
-  replace:
-    path: "{{overpass__srcdir }}/munin/{{item}}"
-    regexp: "/opt/osm-3s/v0.7.54/"
     replace: "{{ overpass__basedir }}/"
   loop:
     - osm_db_lag
