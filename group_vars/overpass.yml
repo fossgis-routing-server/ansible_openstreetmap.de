@@ -16,8 +16,8 @@ overpass__dispatcher_space: 20GB
 
 overpass__is_clone_origin: false
 
-# Number of fcgiwrap processes, i.e. how many API requests can run in parallel.
-overpass__fcgiwrap_workers: "{{ ansible_facts['processor_cores'] }}"
+# Number of fcgiwrap processes, i.e. how many API requests can be processed in parallel.
+overpass__fcgiwrap_workers: 15000
 
 overpass__acme_certificates:
   - name: overpass
