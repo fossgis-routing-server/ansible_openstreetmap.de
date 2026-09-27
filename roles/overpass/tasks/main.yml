@@ -64,6 +64,7 @@
         ExecStart: "/usr/sbin/fcgiwrap -f -c {{ overpass__fcgiwrap_workers }}"
         User: www-data
         Group: www-data
+        TasksMax: 15000
       Install:
         WantedBy: multi-user.target
     socket:
