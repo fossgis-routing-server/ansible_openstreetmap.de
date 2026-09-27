@@ -1,0 +1,138 @@
+# Packaging is done locally because the repo behind it is private.
+- name: Package offramp
+  local_action: ansible.builtin.command
+  become: no
+  register: offramp_packaging_output
+  args:
+    cmd: pip wheel -w /tmp/ git+ssh://git@gitlab.fossgis.de:2224/osm-server/offramp
+
+- name: Extract full name of wheel
+  ansible.builtin.set_fact:
+    offramp_wheel: "{{ offramp_packaging_output.stdout | regex_search(' filename=[^ ]*') | regex_replace(' filename=', '') }}"
+
+- name: Copy over offramp
+  ansible.builtin.copy:
+    src: "/tmp/{{ offramp_wheel }}"
+    dest: "/tmp/{{ offramp_wheel }}"
+
+- name: Install offramp
+  ansible.builtin.pip:
+    name: "file:///tmp/{{ offramp_wheel }}"
+    virtualenv: "{{ overpass__basedir }}/venv"
+
+- name: Systemd service for offramp
+  systemd_service:
+    name: offramp
+    enabled: true
+    service:
+      Unit:
+        Description: Aggregate Overpass CPU usage and flag over-limit IPs for fail2ban
+        After: network.target
+
+      Service:
+        Type: oneshot
+        StateDirectory: offramp
+        LogsDirectory: offramp
+        ExecStart: |
+          {{ overpass__basedir }}/venv/bin/offramp \
+                --log-dir /srv/overpass/db \
+                --archive-dir /var/log/overpass \
+                --state-file %S/offramp/state.json \
+                --fail2ban-output %L/offramp/offramp.log \
+                --ip-limit-cpu-s 1000 \
+                --hash-limit-cpu-s 1500 \
+                --bucket-width-minutes 60 \
+                --fail2ban-report-interval-minutes 55 \
+                --hash-limit-burst 1 \
+                --rotate-fail2ban-output
+    timer:
+      OnUnitActiveSec: "2min"
+      AccuracySec: "5"
+      Persistant: "true"
+
+- name: Fail2ban filter for bad requests
+  fail2ban_filter:
+     name: overpass-bad-req-{{ item }}
+     definition: |
+        failregex = ^.*, status: {{ item }}, remote host: <ADDR>,
+
+        datepattern = ^[^\[]*\[({DATE})
+                      {^LN-BEG}
+  loop:
+    - 403
+    - 406
+    - 429
+
+- name: Fail2ban filter for osmnx
+  fail2ban_filter:
+     name: overpass-osmnx
+     definition: |
+        failregex = ^.*, remote host: <ADDR>, .*, query string: /api/interpreter, .*OSMnx
+
+        datepattern = ^[^\[]*\[({DATE})
+                      {^LN-BEG}
+
+- name: Fail2ban filter for offramp
+  fail2ban_filter:
+    name: offramp
+    definition: 'failregex = ^\s<ADDR>\s'
+
+- name: Fail2ban jail for 403
+  fail2ban_jail:
+    name: overpass-bad-req-403
+    ports: [80,443]
+    filter: overpass-bad-req-403
+    logpath: /var/log/apache2/overpass-access.log
+    findtime: 10s
+    maxretry: 1
+    bantime: 2d
+    bantime.increment: True
+    bantime.maxtime: 2w
+
+- name: Fail2ban jail for 406
+  fail2ban_jail:
+    name: overpass-bad-req-406
+    ports: [80,443]
+    filter: overpass-bad-req-406
+    logpath: /var/log/apache2/overpass-access.log
+    findtime: 60s
+    maxretry: 3
+    bantime: 1h
+    bantime.increment: True
+    bantime.maxtime: 1w
+
+- name: Fail2ban jail for 429
+  fail2ban_jail:
+    name: overpass-bad-req-429
+    ports: [80,443]
+    filter: overpass-bad-req-429
+    logpath: /var/log/apache2/overpass-access.log
+    findtime: 60s
+    maxretry: 3
+    bantime: 1h
+    bantime.increment: True
+    bantime.maxtime: 1w
+
+- name: Fail2ban jail for osmnx
+  fail2ban_jail:
+    name: overpass-osmnx
+    ports: [80,443]
+    filter: overpass-osmnx
+    logpath: /var/log/apache2/overpass-access.log
+    findtime: 1h
+    maxretry: 10
+    bantime: 1h
+    bantime.increment: True
+    bantime.maxtime: 1w
+
+- name: Fail2ban jail for offramp
+  fail2ban_jail:
+    name: offramp
+    filter: offramp
+    logpath: /var/log/offramp/offramp.log
+    ports: [80, 443]
+    maxretry: 1
+    bantime: 1h
+    findtime: 130
+    bantime.increment: True
+    bantime.maxtime: 1d
