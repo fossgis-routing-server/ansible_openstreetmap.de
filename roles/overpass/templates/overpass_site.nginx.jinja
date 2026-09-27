@@ -81,9 +81,13 @@ map "$overpass_bare_interpreter_call:$http_user_agent" $overpass_anonymous_query
         include fastcgi_params;
     }
 
-    location /nginx-status {
-        stub_status;
+    location /nginx_status {
+        # Enable Nginx stats
+        stub_status on;
+        # Only allow access from localhost
         allow 127.0.0.1;
+        allow ::1;
+        # Other request should be denied
         deny all;
     }
 
