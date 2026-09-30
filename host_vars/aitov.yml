@@ -2,7 +2,7 @@
 mail:
   opendkim: true
   opendkim_selector: 2020
-  mailname: weeklyosm.eu
+  mailname: outdated.weeklyosm.eu
   ssl_name: weeklyosm
   domains:
     - aitov.openstreetmap.de

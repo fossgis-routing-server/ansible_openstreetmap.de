@@ -11,7 +11,7 @@ weeklyosm__languages:
 # remark42 comment service
 weeklyosm__remark42__directory: "/srv/remark42"
 weeklyosm__remark42__version: "v1.17.0"
-weeklyosm__remark42__site_url: "https://hugo.weeklyosm.eu/comments"
+weeklyosm__remark42__site_url: "https://weeklyosm.eu/comments"
 weeklyosm__remark42__site_id: "weeklyosm"
 weeklyosm__remark42__smtp_from: "weeklyOSM comments <noreply@weeklyosm.eu>"
 weeklyosm__remark42__admin_email: "info@weeklyosm.eu"

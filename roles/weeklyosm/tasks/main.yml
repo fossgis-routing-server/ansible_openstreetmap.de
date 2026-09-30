@@ -10,7 +10,7 @@
 
 - name: Set up nginx site
   nginx_site:
-      site: hugo.weeklyosm.eu
+      site: weeklyosm.eu
       src: hugo.weeklyosm.eu.conf.j2
   vars:
       # exclude newsletter subdomain which routes to listmonk
