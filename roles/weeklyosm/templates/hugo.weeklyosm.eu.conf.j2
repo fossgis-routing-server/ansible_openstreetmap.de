@@ -13,6 +13,23 @@ map $arg_lang $is_supported_lang_param {
     ~^({{ supported_langs }})$ 1;
 }
 
+# =========================================================================
+# REDIRECT WWW TO NON-WWW (PERMANENT 301)
+# =========================================================================
+server {
+    listen 80;
+    listen [::]:80;
+    listen 443 ssl;
+    listen [::]:443 ssl;
+
+    server_name www.weeklyosm.eu;
+
+    ssl_certificate /srv/acme-daemon/certs/hugo.pem;
+    ssl_certificate_key /srv/acme-daemon/certs/hugo.key;
+    
+    return 301 https://weeklyosm.eu$request_uri;
+}
+
 {% call server(hugo_hostnames, http='forward', https='hugo') %}
 
     root {{ weeklyosm_directory }};
@@ -121,5 +138,5 @@ map $arg_lang $is_supported_lang_param {
     # Optimization
     disable_symlinks off;
 
-    {{ custom_log('weeklyosm.hostnames[0]') }}
+    {{ custom_log(weeklyosm.hostnames[0]) }}
 {% endcall %}
