@@ -82,12 +82,12 @@ server {
     # =========================================================================
     # HANDLE REDIRECT FROM /en/something TO /something
     # =========================================================================
-    location ~ ^/en/(.*)$ {
+    location ~ ^/en(?<remaining_path>/.*)$ {
         # exclude js files
         if ($uri ~* \.js$) {
             break;
         }
-        return 301 /$1$is_args$args;
+        return 301 $remaining_path$is_args$args;
     }
 
     # =========================================================================
