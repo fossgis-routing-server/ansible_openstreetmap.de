@@ -2,7 +2,7 @@
 mail:
     opendkim: true
     opendkim_selector: 2026
-    mailname: hugo.weeklyosm.eu
+    mailname: weekly-hugo.openstreetmap.de
     ssl_name: weeklyosm
     domains:
         - weekly-hugo.openstreetmap.de
