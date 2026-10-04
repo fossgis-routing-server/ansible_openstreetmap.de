@@ -188,10 +188,13 @@
       loop: "{{ mail_users | dict2items }}"
 
     - name: Add /etc/sasldb2 to postfix chroot
-      replace:
-        path: /usr/lib/postfix/configure-instance.sh
-        regexp: 'etc/host.conf etc/nsswitch.conf etc/nss_mdns.config"$'
-        replace: 'etc/host.conf etc/nsswitch.conf etc/nss_mdns.config etc/sasldb2"'
+      ansible.builtin.copy:
+        dest: /etc/default/postfix
+        content: |
+          chroot_extra_files=etc/sasldb2
+        owner: root
+        group: root
+        mode: "0644"
       notify:
         - systemctl restart postfix
 
