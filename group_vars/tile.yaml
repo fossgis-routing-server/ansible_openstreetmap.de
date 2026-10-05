@@ -13,6 +13,7 @@ tile__prerendering_zoom: 13
 # tile__small = false will load the whole planet
 # This value may be overwritten with an entry in the host_vars (host_vars/cassini.yml or host_vars/bonne.yml)
 tile__small: true
+tile__vm_hostname: 192.168.137.13
 
 # Override this value in host_vars if the server has more available resources
 tile__mapnik_procs: 10

@@ -569,7 +569,7 @@
 # Run the script that sets the variables of the website 
 # (carto version, l10n version, hostname) correctly
 
-- name: build html list of servers for the tile page
+- name: build html list of servers for the tile page (production)
   set_fact:
     tile__server_html_list: "{{ tile__server_html_list|default(\"\") }}
       <li>
@@ -583,15 +583,15 @@
       </li>"
   loop: "{{ groups.tile }}"
 
-- name: list localhost for if tile__small is set (vm use case)
+- name: build html list if tile__small is set (vm use case)
   set_fact:
     tile__server_html_list: "
       <li>
-      <a href=\"https://localhost:8443?folder=\">
+      <a href=\"https://{{ tile__vm_hostname }}?folder=\">
               {{ item }}, Folder: / (de)
           </a>
       </li><li>
-      <a href=\"https://localhost:8443?folder=osmhrb\">
+      <a href=\"https://{{ tile__vm_hostname }}?folder=osmhrb\">
               {{ item }}, Folder: osmhrb
           </a>
       </li>"
@@ -604,12 +604,16 @@
 
 - name: set vite_hostname if tile__small is set (vm use case)
   set_fact:
-    tile__hostname: "localhost:8443"
+    tile__hostname: "{{ tile__vm_hostname }}"
   when: tile__small
 
 - name: Replace vars on static website
   shell:
-    cmd: "cd {{ tile__basedir }}/site/assets;
+    cmd: "cd {{ tile__basedir }}/site/testtiles;
+
+          sed -i 's%VM_HOSTNAME%{{ tile__hostname }}%' index.html;
+
+          cd {{ tile__basedir }}/site/assets;
 
           sed -i \"s/VITE_OSML10N_VERSION/{{ tile__osml10n_version }}/g\" *.js;
           sed -i \"s/VITE_OPENSTREETMAP_CARTO_DE_VERSION/{{ tile__style_version }}/g\" *.js;
