@@ -671,6 +671,25 @@
       RandomizedDelaySec: 43200
       Persistent: "true"
 
+# cleanup of old tile metadata
+- name: cleanup old tile meta files periodically (systemd timer)
+  systemd_service:
+    name: tile_cleanup
+    enabled: true
+    state: started
+    service:
+      Unit:
+        Description: Delete tile meta files not accessed for more than one year
+      Service:
+        Type: oneshot
+        ExecStart: find /var/cache/tirex/tiles/ -type f -name '*.meta' -atime +365 -delete
+        User: _tirex
+        Group: _tirex
+    timer:
+      OnCalendar: "Sun *-*-* 18:00:00"
+      RandomizedDelaySec: 43200
+      Persistent: "true"
+
 # update external data (https://github.com/gravitystorm/openstreetmap-carto/blob/master/scripts/get-external-data.py)
 - name: update external data for rerendering periodically (systemd timer)
   systemd_service:
