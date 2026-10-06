@@ -187,14 +187,20 @@
         stdin: "{{ item.value }}"
       loop: "{{ mail_users | dict2items }}"
 
+    - name: Add postfix user to sasl group
+      ansible.builtin.user:
+        name: postfix
+        groups: sasl
+        append: true
+
     - name: Add /etc/sasldb2 to postfix chroot
       ansible.builtin.copy:
         dest: /etc/default/postfix
         content: |
           chroot_extra_files=etc/sasldb2
         owner: root
-        group: root
-        mode: "0644"
+        group: sasl
+        mode: "0640"
       notify:
         - systemctl restart postfix
 
