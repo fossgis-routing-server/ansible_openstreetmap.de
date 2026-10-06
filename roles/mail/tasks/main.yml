@@ -187,6 +187,13 @@
         stdin: "{{ item.value }}"
       loop: "{{ mail_users | dict2items }}"
 
+    - name: Set correct ownership and permissions for sasldb2
+      file:
+        path: /etc/sasldb2
+        owner: root
+        group: sasl
+        mode: "0640"
+
     - name: Add postfix user to sasl group
       ansible.builtin.user:
         name: postfix
