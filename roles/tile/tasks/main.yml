@@ -83,7 +83,67 @@
 
 - name: install required packages with apt
   apt:
-    name: [git, dpkg-dev, debhelper, libmapnik-dev, python3-mapnik]
+    name: [git, dpkg-dev, debhelper]
+
+# START mapnik 4.3.2 form apt.openstreetmap.org and Deps from https://www.postgresql.org/download/linux/debian/
+- name: Remove python3-mapnik
+  apt:
+    name: python3-mapnik
+    state: absent
+    autoremove: true
+
+- name: Create APT keyring directory
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+
+- name: Get OSMF APT signing key
+  get_url:
+    url: https://apt.openstreetmap.org/gpg.key
+    dest: /etc/apt/keyrings/openstreetmap.asc
+    mode: '0644'
+
+- name: Add OSMF APT repository
+  deb822_repository:
+    name: openstreetmap
+    uris: https://apt.openstreetmap.org
+    suites: trixie
+    components:
+      - main
+    signed_by: /etc/apt/keyrings/openstreetmap.asc
+
+- name: Get PostgreSQL APT signing key
+  get_url:
+    url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+    dest: /etc/apt/keyrings/postgresql.asc
+    mode: '0644'
+
+- name: Add PostgreSQL APT repository
+  deb822_repository:
+    name: pgdg
+    uris: https://apt.postgresql.org/pub/repos/apt
+    suites: trixie-pgdg
+    components:
+      - main
+    signed_by: /etc/apt/keyrings/postgresql.asc
+
+- name: Install Mapnik 4.3.2 packages
+  apt:
+    name: [libmapnik-dev=4.3.2+ds-1~osm1]
+    state: present
+    update_cache: true
+
+- name: Mapnik 4.0 Symlink to Mapnik 4.3
+  file:
+    src: libmapnik.so.4.3
+    dest: /lib/x86_64-linux-gnu/libmapnik.so.4.0
+    state: link
+    force: true
+  notify:
+    - restart tirex-master
+    - restart tirex-backend-manager
+# END mapnik 4.3.2 form apt.openstreetmap.org and Deps from https://www.postgresql.org/download/linux/debian/
 
 # Import
 - name: import script
@@ -125,6 +185,8 @@
   register: tile_mapnik_git
   become: yes
   become_user: "{{ tile__user }}"
+  notify:
+    - restart tirex-backend-manager
 
 - name: Dependencies for style and localization functions for OpenStreetMap
   apt:
@@ -747,14 +809,6 @@
     name: update_fonts.timer
   ignore_errors: yes
 # END font-hack
-
-# reload style if necessary
-- name: Restart tirex-backend-manager if style has changed
-  ansible.builtin.systemd:
-    state: restarted
-    enabled: true
-    name: tirex-backend-manager
-  when: tile_mapnik_git.changed
 
 #
 # Fail2ban

@@ -35,7 +35,7 @@ procs={{ mapnik_procs }}
 
 #  Directory with input plugins for mapnik. The directory of your mapnik
 {% if ansible_distribution_release == "trixie" %}
-plugindir=/usr/lib/x86_64-linux-gnu/mapnik/4.0/input
+plugindir=/usr/lib/x86_64-linux-gnu/mapnik/4.3/input
 {% else %}
 plugindir=/usr/share/tirex/mapnik/input
 {% endif %}

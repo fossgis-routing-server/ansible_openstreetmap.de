@@ -1,0 +1,11 @@
+- name: restart tirex-master
+  service:
+    name: tirex-master
+    state: restarted
+    enabled: yes
+
+- name: restart tirex-backend-manager
+  service:
+    name: tirex-backend-manager
+    state: restarted
+    enabled: yes
