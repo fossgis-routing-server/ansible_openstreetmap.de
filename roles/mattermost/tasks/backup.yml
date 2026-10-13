@@ -1,0 +1,76 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Get current timestamp for backup folder
+  ansible.builtin.setup:
+      filter: ansible_date_time
+  tags: mattermost
+
+- name: Set backup timestamp variable
+  ansible.builtin.set_fact:
+      mattermost_backup_dtm: "{{ ansible_date_time.date | replace('-', '') }}_{{ ansible_date_time.time | replace(':', '') }}"
+  tags: mattermost
+
+- name: Ensure main backup directory exists
+  ansible.builtin.file:
+      path: "{{ mattermost__backup_dir }}"
+      state: directory
+      owner: postgres
+      group: postgres
+      mode: "0750"
+
+- name: Create timestamped backup sub-directory
+  ansible.builtin.file:
+      path: "{{ mattermost__backup_dir }}/backup_{{ mattermost_backup_dtm }}"
+      state: directory
+      owner: postgres
+      group: postgres
+      mode: "0750"
+
+- name: Dump and compress PostgreSQL database
+  become_user: postgres
+  ansible.builtin.shell: >
+      pg_dump -h {{ mattermost__db_host | default('localhost') }}
+      -p {{ mattermost__db_port | default(5432) }}
+      -U {{ mattermost__db_user | default('postgres') }}
+      -d {{ mattermost__db_name | default('mattermost') }}
+      | gzip > {{ mattermost__backup_dir }}/backup_{{ mattermost_backup_dtm }}/mattermost_{{ mattermost_backup_dtm }}.pgdump.gz
+  tags: mattermost
+
+- name: Check if config.json exists
+  ansible.builtin.stat:
+      path: "{{ mattermost__install_dir }}/config/config.json"
+  register: mattermost_config_file
+  tags: mattermost
+
+- name: Copy config.json to backup directory if it exists
+  ansible.builtin.copy:
+      src: "{{ mattermost__install_dir }}/config/config.json"
+      dest: "{{ mattermost__backup_dir }}/backup_{{ mattermost_backup_dtm }}/config.json"
+      remote_src: true
+      owner: postgres
+      group: postgres
+      mode: "0600"
+  when: mattermost_config_file.stat.exists
+  tags: mattermost
+
+# - name: Update last_backup file reference
+#   ansible.builtin.copy:
+#       content: "backup_{{ mattermost_backup_dtm }}\n"
+#       dest: "{{ mattermost__backup_dir }}/last_backup"
+#       owner: postgres
+#       group: postgres
+#       mode: "0644"
+
+- name: Find all existing backup directories
+  ansible.builtin.find:
+      paths: "{{ mattermost__backup_dir }}"
+      patterns: "backup_*"
+      file_type: directory
+  register: all_backups
+
+- name: Purge old backups but keep at least the latest 3
+  ansible.builtin.file:
+      path: "{{ item.path }}"
+      state: absent
+  loop: "{{ (all_backups.files | sort(attribute='path', reverse=true))[3:] }}"
+  when: all_backups.files | length > 3

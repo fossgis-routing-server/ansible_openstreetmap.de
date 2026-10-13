@@ -69,6 +69,11 @@
   tags: listmonk
   roles:
     - role: "listmonk"
+- hosts: mattermost
+  become: yes
+  tags: mattermost
+  roles:
+    - role: "mattermost"
 - hosts: weeklyosm
   become: yes
   tags: weeklyosm

@@ -1,0 +1,18 @@
+[Unit]
+Description=Mattermost
+After=network.target postgresql.service
+BindsTo=postgresql.service
+
+[Service]
+Type=notify
+User={{ mattermost__user }}
+Group={{ mattermost__user }}
+ExecStart={{ mattermost__install_dir }}/bin/mattermost
+WorkingDirectory={{ mattermost__install_dir }}
+Restart=always
+RestartSec=10
+LimitNOFILE=49152
+Environment="PATH=/bin:/usr/bin:/usr/local/bin"
+
+[Install]
+WantedBy=multi-user.target

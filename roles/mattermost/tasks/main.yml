@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Backup Mattermost database before upgrade
+  include_tasks: backup.yml
+  tags: mattermost
+
+- name: Install Mattermost
+  include_tasks: install.yml
+  tags: mattermost

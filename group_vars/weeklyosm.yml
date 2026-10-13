@@ -18,3 +18,11 @@ weeklyosm__acme_certificates:
           - newsletter.weeklyosm.eu
       on_update:
           - systemctl reload nginx
+
+weeklyosm_osmbc__acme_certificates:
+    - name: osmbc
+      domains:
+          - osmbc2.openstreetmap.de
+          - mattermost2.openstreetmap.de
+      on_update:
+          - systemctl reload nginx
