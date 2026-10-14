@@ -60,6 +60,10 @@ server {
     }
     {% endfor %}
 
+    location = /comments/api/v1/picture {
+        return 403;
+    }
+
     location /comments/ {
         rewrite /comments/(.*) /$1 break;
         proxy_pass http://127.0.0.1:8000/;
