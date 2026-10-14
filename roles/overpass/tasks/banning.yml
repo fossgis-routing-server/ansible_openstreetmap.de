@@ -82,7 +82,7 @@
     name: overpass-bad-req-403
     ports: [80,443]
     filter: overpass-bad-req-403
-    logpath: /var/log/apache2/overpass-access.log
+    logpath: /var/log/nginx/overpass-access.log
     findtime: 10s
     maxretry: 1
     bantime: 2d
@@ -94,7 +94,7 @@
     name: overpass-bad-req-406
     ports: [80,443]
     filter: overpass-bad-req-406
-    logpath: /var/log/apache2/overpass-access.log
+    logpath: /var/log/nginx/overpass-access.log
     findtime: 60s
     maxretry: 3
     bantime: 1h
@@ -106,7 +106,7 @@
     name: overpass-bad-req-429
     ports: [80,443]
     filter: overpass-bad-req-429
-    logpath: /var/log/apache2/overpass-access.log
+    logpath: /var/log/nginx/overpass-access.log
     findtime: 60s
     maxretry: 3
     bantime: 1h
@@ -118,7 +118,7 @@
     name: overpass-osmnx
     ports: [80,443]
     filter: overpass-osmnx
-    logpath: /var/log/apache2/overpass-access.log
+    logpath: /var/log/nginx/overpass-access.log
     findtime: 1h
     maxretry: 10
     bantime: 1h
