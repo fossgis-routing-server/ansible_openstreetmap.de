@@ -36,12 +36,10 @@
       src: "{{ mattermost__install_dir }}/.installed_version"
   register: mattermost_installed_version_file
   ignore_errors: true
-  tags: mattermost
 
 - name: Extract installed version string
   ansible.builtin.set_fact:
       mattermost_current_version: "{{ (mattermost_installed_version_file['content'] | b64decode | trim) if mattermost_installed_version_file['failed'] is not true else 'none' }}"
-  tags: mattermost
 
 - name: Rename existing plugins directories before upgrade to preserve them
   ansible.builtin.shell: |
@@ -52,7 +50,6 @@
         mv "{{ mattermost__install_dir }}/client/plugins" "{{ mattermost__install_dir }}/client/plugins~"
       fi
   when: mattermost_current_version != mattermost__version and mattermost_current_version != 'none'
-  tags: mattermost
 
 - name: Download and extract new Mattermost archive to temporary location
   ansible.builtin.unarchive:
@@ -60,7 +57,6 @@
       dest: "/tmp"
       remote_src: true
   when: mattermost_current_version != mattermost__version
-  tags: mattermost
 
 - name: Copy extracted files to installation directory (preserving config, data, logs)
   ansible.builtin.shell: |
@@ -68,7 +64,6 @@
       cp -an /tmp/mattermost/. "{{ mattermost__install_dir }}/"
       rm -rf /tmp/mattermost/
   when: mattermost_current_version != mattermost__version
-  tags: mattermost
 
 - name: Restore and merge preserved plugins directories
   ansible.builtin.shell: |
@@ -82,7 +77,6 @@
       fi
       chown -hR {{ mattermost__user }}:{{ mattermost__user }} "{{ mattermost__install_dir }}/plugins" "{{ mattermost__install_dir }}/client/plugins"
   when: mattermost_current_version != mattermost__version and mattermost_current_version != 'none'
-  tags: mattermost
 
 - name: Write current version marker file
   ansible.builtin.copy:
@@ -91,7 +85,6 @@
       owner: "{{ mattermost__user }}"
       group: "{{ mattermost__user }}"
       mode: "0644"
-  tags: mattermost
 
 - name: Ensure Mattermost config directory exists
   ansible.builtin.file:
@@ -100,7 +93,6 @@
       owner: "{{ mattermost__user }}"
       group: "{{ mattermost__user }}"
       mode: "0750"
-  tags: mattermost
 
 - name: Create Mattermost license file
   ansible.builtin.copy:
@@ -120,29 +112,18 @@
       mode: "0600"
   register: mattermost_config_file
 
-- name: Deploy systemd service unit
+- name: Deploy Mattermost systemd service unit
   ansible.builtin.template:
       src: templates/mattermost.service.j2
       dest: "/etc/systemd/system/mattermost.service"
+      owner: "root"
+      group: "root"
       mode: "0644"
   register: mattermost_systemd_service
 
-- name: Reload systemd, enable and start Mattermost on configuration or version change
-  ansible.builtin.systemd:
-      name: mattermost
-      state: restarted
-      enabled: true
-      daemon_reload: true
-  when: mattermost_systemd_service.changed or mattermost_config_file.changed or (mattermost_current_version != mattermost__version)
-
-- name: Ensure Mattermost service is running
-  ansible.builtin.systemd:
+- name: Manage Mattermost systemd service
+  ansible.builtin.systemd_service:
       name: mattermost
       state: started
       enabled: true
-
-- name: Set up nginx site for Mattermost
-  nginx_site:
-      site: "{{ mattermost__domain }}"
-      src: mattermost_nginx.conf.j2
-  notify: reload nginx
+      daemon_reload: "{{ mattermost_systemd_service.changed }}"
