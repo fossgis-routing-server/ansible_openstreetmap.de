@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: MIT
+---
+# Version and Installation Paths
+mattermost__version: "9.5.0"
+mattermost__install_dir: "/srv/mattermost"
+mattermost__install_parent_dir: "/srv"
+mattermost__backup_dir: "/var/backups/mattermost"
+
+# System User
+mattermost__user: "mattermost"
+
+# Network & Domain Configuration
+mattermost__port: "8065"
+mattermost__domain: "mattermost2.openstreetmap.de"
+
+# Database Configuration
+mattermost__db_name: "mattermost"
+mattermost__db_user: "mmuser"

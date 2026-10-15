@@ -1,54 +1,21 @@
 ---
 mail:
-  opendkim: true
-  opendkim_selector: 2020
-  mailname: outdated.weeklyosm.eu
-  ssl_name: weeklyosm
-  domains:
-    - aitov.openstreetmap.de
-  aliases:
-    # Keys of this dictionary: keys of the alias mapping
-    # Values of this dictionary: either a string (value of the mapping) or a list of strings (multiple alias recipients)
-    root@aitov.openstreetmap.de: osm-server-ag-admins@fossgis.de
-    root@weeklyosm.eu: osm-server-ag-admins@fossgis.de
-    postmaster: osm-server-ag-admins@fossgis.de
-    root: osm-server-ag-admins@fossgis.de
-    admin: matthias@matthiasheinisch.de
-  relay: true
-
-wordpress_plugins:
-  - name: autoptimize
-    version: 3.1.13
-  - name: classic-editor
-    version: 1.6.7
-  - name: co-authors-plus
-    version: 3.6.6
-  - name: crop-thumbnails
-    version: 1.9.6
-  - name: enable-media-replace
-    version: 4.1.6
-  - name: jetpack
-    version: 15.0
-  - name: limit-login-attempts-reloaded
-    version: 2.26.23
-  - name: password-policy-manager
-    version: 2.0.5
-  - name: qtranslate-xt
-    download: https://github.com/qtranslate/qtranslate-xt/archive/refs/tags/3.15.5.tar.gz
-  - name: Relevanssi
-    version: 4.25.0
-  - name: safe-svg
-    version: 2.3.3
-  - name: wp-smushit
-    version: 3.21.1
-  - name: spam-destroyer
-    version: 2.1.6
-  - name: two-factor-authentication
-    version: 1.15.5
-  - name: updraftplus
-    version: 1.25.7
-  - name: wordfence
-    version: 8.1.0
-wordpress_themes:
-  - name: ephemeris
-    version: 1.5.3
+    opendkim: true
+    opendkim_selector: 2026
+    mailname: aitov.openstreetmap.de
+    ssl_name: weeklyosm
+    domains:
+        - aitov.openstreetmap.de
+        - newsletter.weeklyosm.eu
+        - osmbc2.openstreetmap.de
+        - mattermost2.openstreetmap.de
+    aliases:
+        # Keys of this dictionary: keys of the alias mapping
+        # Values of this dictionary: either a string (value of the mapping) or a list of strings (multiple alias recipients)
+        root@aitov.openstreetmap.de: osm-server-ag-admins@fossgis.de
+        root@weeklyosm.eu: osm-server-ag-admins@fossgis.de
+        postmaster: osm-server-ag-admins@fossgis.de
+        root: osm-server-ag-admins@fossgis.de
+        admin: matthias@matthiasheinisch.de
+        noreply: /dev/null
+    relay: true

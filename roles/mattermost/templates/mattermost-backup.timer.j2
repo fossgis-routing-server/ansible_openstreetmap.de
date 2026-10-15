@@ -1,0 +1,10 @@
+[Unit]
+Description=Daily Timer for Mattermost Backup
+
+[Timer]
+# Runs every day at 02:00 AM
+OnCalendar=*-*-* 02:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

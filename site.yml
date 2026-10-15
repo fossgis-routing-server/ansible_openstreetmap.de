@@ -64,16 +64,16 @@
     - include_role:
         name: letsencrypt
       tags: [letsencrypt, certificates]
-- hosts: wordpress
-  become: yes
-  tags: wordpress
-  roles:
-    - role: "wordpress"
 - hosts: listmonk
   become: yes
   tags: listmonk
   roles:
     - role: "listmonk"
+- hosts: mattermost
+  become: yes
+  tags: mattermost
+  roles:
+    - role: "mattermost"
 - hosts: weeklyosm
   become: yes
   tags: weeklyosm

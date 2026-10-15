@@ -1,0 +1,64 @@
+#!/bin/bash
+# ==============================================================================
+# Mattermost Backup Script
+# Automatically creates a database dump and backs up the configuration file.
+# Ensures correct permissions for the PostgreSQL user and retains the latest 7 backups.
+# ==============================================================================
+
+# Exit immediately if a command exits with a non-zero status
+set -e
+
+# Configuration Paths and Variables
+MATTERMOST="{{ mattermost__install_dir }}"
+MATTERMOSTB="{{ mattermost__backup_dir | default('/data/backup/mattermost') }}"
+DB_HOST="{{ mattermost__db_host | default('localhost') }}"
+DB_PORT="{{ mattermost__db_port | default(5432) }}"
+DB_USER="{{ mattermost__db_user | default('postgres') }}"
+DB_NAME="{{ mattermost__db_name | default('mattermost') }}"
+
+# Ensure main backup directory exists with proper permissions
+mkdir -p "$MATTERMOSTB"
+chown postgres:postgres "$MATTERMOSTB"
+chmod 0750 "$MATTERMOSTB"
+
+# Generate timestamp for the backup folder (Format: YYYYMMDD_HHMMSS)
+DTM=$(date +'%Y%m%d_%H%M%S')
+BACKUP_DIR="$MATTERMOSTB/backup_$DTM"
+
+echo "Starting Mattermost backup: $DTM"
+
+# Create timestamped backup sub-directory
+mkdir -p "$BACKUP_DIR"
+chown postgres:postgres "$BACKUP_DIR"
+chmod 0750 "$BACKUP_DIR"
+
+# Dump and compress PostgreSQL database using postgres user
+# Note: PGPASSWORD is supplied via variable to authenticate cleanly
+echo "Dumping PostgreSQL database..."
+PGPASSWORD="{{ mattermost__db_password }}" pg_dump -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" | gzip > "$BACKUP_DIR/mattermost_$DTM.pgdump.gz"
+chown postgres:postgres "$BACKUP_DIR/mattermost_$DTM.pgdump.gz"
+chmod 0640 "$BACKUP_DIR/mattermost_$DTM.pgdump.gz"
+
+# Check and copy config.json if it exists
+CONFIG_FILE="$MATTERMOST/config/config.json"
+if [ -f "$CONFIG_FILE" ]; then
+    echo "Backing up configuration file..."
+    cp "$CONFIG_FILE" "$BACKUP_DIR/config.json"
+    chown postgres:postgres "$BACKUP_DIR/config.json"
+    chmod 0600 "$BACKUP_DIR/config.json"
+else
+    echo "Warning: config.json not found at $CONFIG_FILE, skipping config backup."
+fi
+
+# Retention Policy: Keep only the latest 7 backups, purge older ones safely
+echo "Cleaning up old backups, keeping the latest 7..."
+cd "$MATTERMOSTB" || exit 1
+
+# Find all backup directories, sort them by name (descending, since timestamp format ensures newest is last alphabetically/lexicographically), 
+# skip the first 7, and delete the rest.
+find "$MATTERMOSTB" -mindepth 1 -maxdepth 1 -type d -name "backup_*" | sort -r | tail -n +8 | while read -r old_backup; do
+    echo "Removing old backup: $old_backup"
+    rm -rf "$old_backup"
+done
+
+echo "Backup completed successfully!"
