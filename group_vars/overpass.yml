@@ -11,13 +11,13 @@ overpass__compression_mode: lz4
 overpass__clone_url: "http://dev.overpass-api.de/api_drolbr/"
 overpass__replication_url: "https://planet.openstreetmap.org/replication/minute/"
 
-overpass__rate_limit: 4
-overpass__dispatcher_space: 20GB
+overpass__rate_limit: 2
+overpass__dispatcher_space: 25GB
 
 overpass__is_clone_origin: false
 
 # Number of fcgiwrap processes, i.e. how many API requests can be processed in parallel.
-overpass__fcgiwrap_workers: 2000
+overpass__fcgiwrap_workers: 80
 
 overpass__acme_certificates:
   - name: overpass
