@@ -16,10 +16,6 @@ weeklyosm__acme_certificates:
           - weeklyosm.eu
           - www.weeklyosm.eu
           - newsletter.weeklyosm.eu
-      on_update:
-          - systemctl reload nginx
-
-weeklyosm_osmbc__acme_certificates:
     - name: osmbc
       domains:
           - osmbc2.openstreetmap.de
