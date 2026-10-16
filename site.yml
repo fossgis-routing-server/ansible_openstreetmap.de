@@ -119,3 +119,8 @@
   roles:
     - role: nginx
     - role: umap
+- hosts: aptly
+  become: yes
+  tags: aptly
+  roles:
+    - role: aptly

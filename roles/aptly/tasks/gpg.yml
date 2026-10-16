@@ -1,0 +1,35 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Get aptly GPG key info
+  ansible.builtin.command:
+    argv:
+      - gpg
+      - --batch
+      - --with-colons
+      - --list-secret-keys
+      - "{{ aptly__gpg_email }}"
+  register: aptly__gpg_key_info
+  changed_when: false
+
+- name: Set aptly GPG key fingerprint
+  ansible.builtin.set_fact:
+    aptly__gpg_key_id: "{{ ((aptly__gpg_key_info.stdout_lines | select('match', '^fpr:') | list | first) | split(':'))[9] }}"
+
+- name: Export public GPG key
+  ansible.builtin.command:
+    argv:
+      - gpg
+      - --batch
+      - --armor
+      - --export
+      - "{{ aptly__gpg_key_id }}"
+  register: aptly__gpg_public_key
+  changed_when: false
+
+- name: Publish public GPG key
+  ansible.builtin.copy:
+    content: "{{ aptly__gpg_public_key.stdout }}\n"
+    dest: "{{ aptly__root_dir }}/public/gpg.key"
+    owner: root
+    group: root
+    mode: "0644"

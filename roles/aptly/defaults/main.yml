@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: MIT
+---
+aptly__aptly_incoming_dir: "/srv/aptly/incoming"
+aptly__root_dir: "/srv/aptly/data"
+aptly__server_name: "aptly.openstreetmap.de"
+
+aptly__repository_name: "osm-fossgis"
+aptly__component: "main"
+
+aptly__distributions:
+  - trixie
+
+aptly__gpg_name: "OSM FOSSGIS Repository"
+aptly__gpg_email: "server-admins@lists.openstreetmap.de"
+aptly__gpg_key_length: 4096

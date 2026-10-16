@@ -1,0 +1,8 @@
+# SPDX-License-Identifier: MIT
+---
+aptly__acme_certificates:
+  - name: aptly.openstreetmap.de
+    domains:
+      - aptly.openstreetmap.de
+    on_update:
+      - systemctl reload nginx
