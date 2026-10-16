@@ -39,8 +39,8 @@
                 --archive-dir /var/log/overpass \
                 --state-file %S/offramp/state.json \
                 --fail2ban-output %L/offramp/offramp.log \
-                --ip-limit-cpu-s 1000 \
-                --hash-limit-cpu-s 1500 \
+                --ip-limit-cpu-s 600 \
+                --hash-limit-cpu-s 1000 \
                 --bucket-width-minutes 60 \
                 --fail2ban-report-interval-minutes 55 \
                 --hash-limit-burst 1 \
