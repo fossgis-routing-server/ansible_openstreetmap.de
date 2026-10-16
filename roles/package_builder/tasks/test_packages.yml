@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Clean package test directory
+  ansible.builtin.file:
+    path: "{{ package_builder__package_test_dir }}"
+    state: absent
+
+- name: Create package test directory
+  ansible.builtin.file:
+    path: "{{ package_builder__package_test_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Copy Debian packages
+  ansible.builtin.copy:
+    src: "{{ package_builder__dist_local_packages_dir }}/"
+    dest: "{{ package_builder__package_test_dir }}/"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Find Debian packages
+  ansible.builtin.find:
+    paths: "{{ package_builder__package_test_dir }}"
+    patterns: "*.deb"
+    file_type: file
+  register: package_builder__test_deb_files
+
+- name: Install Debian packages
+  ansible.builtin.command:
+    argv: >-
+      {{
+        ['apt-get',
+         '-o', 'Dpkg::Options::=--force-confnew',
+         'install', '-y']
+        +
+        (package_builder__test_deb_files.files
+         | map(attribute='path')
+         | list)
+      }}
+  environment:
+    DEBIAN_FRONTEND: noninteractive
+  become: true

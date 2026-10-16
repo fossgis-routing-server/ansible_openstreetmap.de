@@ -1,0 +1,46 @@
+Source: {{ package_builder__mapnik_package_name }}
+Section: libs
+Priority: optional
+Maintainer: {{ package_builder__maintainer }}
+Build-Depends:
+ debhelper-compat (= 13),
+ scons,
+ pkg-config,
+ python3,
+ python3-dev,
+ libboost-dev,
+ libboost-filesystem-dev,
+ libboost-regex-dev,
+ libboost-system-dev,
+ libboost-program-options-dev,
+ libboost-context-dev,
+ libboost-url-dev,
+ libicu-dev,
+ libfreetype-dev,
+ libharfbuzz-dev,
+ zlib1g-dev,
+ libproj-dev,
+ libpq-dev,
+ libpng-dev,
+ libjpeg-dev,
+ libtiff-dev,
+ libwebp-dev,
+ libsqlite3-dev
+Rules-Requires-Root: no
+
+Package: {{ package_builder__mapnik_package_name }}
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Mapnik mapping toolkit
+ C++ library for rendering maps and geospatial data.
+
+Package: {{ package_builder__mapnik_dev_package_name }}
+Section: libdevel
+Architecture: any
+Depends: {{ package_builder__mapnik_package_name }} (= ${binary:Version}), ${misc:Depends},
+ libboost-dev, libboost-filesystem-dev, libboost-regex-dev,
+ libboost-system-dev, libboost-program-options-dev,
+ libboost-url-dev, libboost-context-dev,
+ libicu-dev, libfreetype-dev, libharfbuzz-dev, libproj-dev
+Description: Mapnik development files
+ Header files and development tools for Mapnik.

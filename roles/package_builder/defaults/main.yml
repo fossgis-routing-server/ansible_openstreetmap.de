@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: MIT
+---
+package_builder__architecture: "amd64" #dpkg --print-architecture
+package_builder__maintainer: "fossgis.de <server-admins@lists.openstreetmap.de>"
+package_builder__dist_local_packages_dir: "{{ package_builder_and_aptly__local_packages_dir }}/{{ ansible_distribution_release }}"
+# mapnik
+package_builder__mapnik_git_version: "4.3.2"
+package_builder__mapnik_git_repository: "https://github.com/mapnik/mapnik.git"
+package_builder__mapnik_source_dir: "/opt/src/mapnik"
+package_builder__mapnik_package_name: "mapnik"
+package_builder__mapnik_dev_package_name: "libmapnik-dev"
+package_builder__mapnik_package_revision: "1"
+package_builder__mapnik_package_version: "{{ package_builder__mapnik_git_version }}-{{ package_builder__mapnik_package_revision }}+osmde"
+
+# tirex
+package_builder__tirex_git_repository: "https://github.com/openstreetmap/tirex"
+package_builder__tirex_git_version: "0.8.0"
+package_builder__tirex_source_dir: "/opt/src/tirex"
+
+# test installation
+package_builder__package_test_dir: "/opt/packages/test/"

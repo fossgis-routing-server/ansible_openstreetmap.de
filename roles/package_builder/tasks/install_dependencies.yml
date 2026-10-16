@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Create local packages directory on Ansible
+  ansible.builtin.file:
+    path: "{{ package_builder__dist_local_packages_dir }}"
+    state: directory
+    mode: "0755"
+  delegate_to: localhost
+  become: false
+
+- name: Install common required packages with apt
+  ansible.builtin.apt:
+    name:
+      - git
+      - build-essential
+    state: present
+    update_cache: true

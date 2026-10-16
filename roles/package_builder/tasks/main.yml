@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Install common build dependencies
+  import_tasks: install_dependencies.yml
+  tags:
+    - always
+
+- name: Build Mapnik Debian package
+  import_tasks: mapnik.yml
+  tags:
+    - mapnik
+
+- name: Test installation of Debian packages
+  import_tasks: test_packages.yml
+  tags:
+    - test
