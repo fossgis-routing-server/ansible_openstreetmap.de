@@ -1,0 +1,7 @@
+[Unit]
+Description=Remark42 Backup Service
+After=network.target
+
+[Service]
+Type=oneshot
+ExecStart={{ weeklyosm__remark42__directory }}/do_backup.sh

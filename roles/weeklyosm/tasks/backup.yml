@@ -1,0 +1,41 @@
+---
+- name: Deploy Remark42 backup script
+  ansible.builtin.template:
+      src: templates/remark42_do_backup.sh.j2
+      dest: "{{ weeklyosm__remark42__directory }}/do_backup.sh"
+      owner: "root"
+      group: "root"
+      mode: "0755"
+
+- name: Ensure Remark42 backup directory exists
+  ansible.builtin.file:
+      path: "{{ weeklyosm__remark42__backup_directory }}"
+      state: directory
+      owner: "root"
+      group: "root"
+      mode: "0750"
+
+- name: Deploy systemd service for Remark42 backups
+  ansible.builtin.template:
+      src: templates/remark42-backup.service.j2
+      dest: "/etc/systemd/system/remark42-backup.service"
+      owner: "root"
+      group: "root"
+      mode: "0644"
+  register: remark42_backup_service
+
+- name: Deploy systemd timer for Remark42 backups
+  ansible.builtin.template:
+      src: templates/remark42-backup.timer.j2
+      dest: "/etc/systemd/system/remark42-backup.timer"
+      owner: "root"
+      group: "root"
+      mode: "0644"
+  register: remark42_backup_timer
+
+- name: Enable and start Remark42 backup timer
+  ansible.builtin.systemd_service:
+      name: remark42-backup.timer
+      state: started
+      enabled: true
+      daemon_reload: "{{ remark42_backup_service.changed or remark42_backup_timer.changed }}"
