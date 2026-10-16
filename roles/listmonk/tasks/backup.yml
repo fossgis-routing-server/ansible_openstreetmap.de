@@ -1,30 +1,41 @@
 ---
-- name: Check if Listmonk database exists
-  become_user: postgres
-  community.postgresql.postgresql_query:
-      login_db: postgres
-      query: "SELECT 1 FROM pg_database WHERE datname = '{{ listmonk__db_name }}';"
-  register: db_exists_check
+- name: Deploy Listmonk backup script
+  ansible.builtin.template:
+      src: templates/listmonk_do_backup.sh.j2
+      dest: "{{ listmonk__install_dir | default('/opt/listmonk') }}/do_backup.sh"
+      owner: "root"
+      group: "root"
+      mode: "0755"
 
-- name: Ensure backup directory exists
+- name: Ensure Listmonk backup directory exists
   ansible.builtin.file:
-      path: "{{ listmonk__backup_dir }}"
+      path: "{{ (listmonk__backup_dir | default('/var/backups')) ~ '/listmonk' }}"
       state: directory
-      owner: postgres
-      group: postgres
+      owner: "postgres"
+      group: "postgres"
       mode: "0750"
 
-- name: Check if backup file already exists for this version
-  ansible.builtin.stat:
-      path: "/var/backups/listmonk_before_upgrade_{{ listmonk__version }}.sql"
-  register: backup_file_check
+- name: Deploy systemd service for Listmonk backups
+  ansible.builtin.template:
+      src: templates/listmonk-backup.service.j2
+      dest: "/etc/systemd/system/listmonk-backup.service"
+      owner: "root"
+      group: "root"
+      mode: "0644"
+  register: listmonk_backup_service
 
-- name: Create database backup before upgrade
-  become_user: postgres
-  community.postgresql.postgresql_db:
-      name: "{{ listmonk__db_name }}"
-      state: dump
-      target: "/var/backups/listmonk_before_upgrade_{{ listmonk__version }}.sql"
-  when:
-      - db_exists_check.query_result | length > 0
-      - not backup_file_check.stat.exists
+- name: Deploy systemd timer for Listmonk backups
+  ansible.builtin.template:
+      src: templates/listmonk-backup.timer.j2
+      dest: "/etc/systemd/system/listmonk-backup.timer"
+      owner: "root"
+      group: "root"
+      mode: "0644"
+  register: listmonk_backup_timer
+
+- name: Enable and start Listmonk backup timer
+  ansible.builtin.systemd_service:
+      name: listmonk-backup.timer
+      state: started
+      enabled: true
+      daemon_reload: "{{ listmonk_backup_service.changed or listmonk_backup_timer.changed }}"
