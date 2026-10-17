@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: MIT
 ---
 # Version and Installation Paths
-mattermost__version: "9.5.0"
+mattermost__version: "12.0.0"
 mattermost__install_dir: "/srv/mattermost"
 mattermost__install_parent_dir: "/srv"
 mattermost__backup_dir: "/var/backups/mattermost"
