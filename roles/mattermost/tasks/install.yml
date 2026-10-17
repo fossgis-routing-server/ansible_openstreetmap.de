@@ -53,29 +53,46 @@
 
 - name: Download and extract new Mattermost archive to temporary location
   ansible.builtin.unarchive:
-      src: "https://releases.mattermost.com/{{ mattermost__version }}/mattermost-{{ mattermost__version }}-linux-amd64.tar.gz"
+      src: "https://releases.mattermost.com/{{ mattermost__version }}/mattermost-team-{{ mattermost__version }}-linux-amd64.tar.gz"
       dest: "/tmp"
       remote_src: true
+  when: mattermost_current_version != mattermost__version
+
+- name: Clean old Mattermost binaries before upgrade
+  ansible.builtin.file:
+      path: "{{ mattermost__install_dir }}/{{ item }}"
+      state: absent
+  loop:
+      - bin
+      - webapp
+      - channels
+      - fonts
+      - templates
+      - i18n
+      - client
   when: mattermost_current_version != mattermost__version
 
 - name: Copy extracted files to installation directory (preserving config, data, logs)
   ansible.builtin.shell: |
       chown -hR {{ mattermost__user }}:{{ mattermost__user }} /tmp/mattermost/
-      cp -an /tmp/mattermost/. "{{ mattermost__install_dir }}/"
+      cp -a /tmp/mattermost/. "{{ mattermost__install_dir }}/"
       rm -rf /tmp/mattermost/
   when: mattermost_current_version != mattermost__version
 
 - name: Restore and merge preserved plugins directories
   ansible.builtin.shell: |
       if [ -d "{{ mattermost__install_dir }}/plugins~" ]; then
-        rsync -au "{{ mattermost__install_dir }}/plugins~/" "{{ mattermost__install_dir }}/plugins"
+        mkdir -p "{{ mattermost__install_dir }}/plugins"
+        rsync -au "{{ mattermost__install_dir }}/plugins~/i" "{{ mattermost__install_dir }}/plugins"
         rm -rf "{{ mattermost__install_dir }}/plugins~"
+        chown -hR {{ mattermost__user }}:{{ mattermost__user }} "{{ mattermost__install_dir }}/plugins"
       fi
       if [ -d "{{ mattermost__install_dir }}/client/plugins~" ]; then
+        mkdir -p "{{ mattermost__install_dir }}/client/plugins"
         rsync -au "{{ mattermost__install_dir }}/client/plugins~/" "{{ mattermost__install_dir }}/client/plugins"
         rm -rf "{{ mattermost__install_dir }}/client/plugins~"
+        chown -hR {{ mattermost__user }}:{{ mattermost__user }} "{{ mattermost__install_dir }}/client/plugins"
       fi
-      chown -hR {{ mattermost__user }}:{{ mattermost__user }} "{{ mattermost__install_dir }}/plugins" "{{ mattermost__install_dir }}/client/plugins"
   when: mattermost_current_version != mattermost__version and mattermost_current_version != 'none'
 
 - name: Write current version marker file
