@@ -170,8 +170,7 @@
         group: root
         mode: 0644
         content: |
-          pwcheck_method: auxprop
-          auxprop_plugin: sasldb
+          pwcheck_method: saslauthd
           mech_list: plain login
       notify:
         - systemctl restart postfix
@@ -187,29 +186,76 @@
         stdin: "{{ item.value }}"
       loop: "{{ mail_users | dict2items }}"
 
-    - name: Set correct ownership and permissions for sasldb2
-      file:
-        path: /etc/sasldb2
+    - name: Ensure saslauthd socket directory exists inside the Postfix chroot
+      ansible.builtin.file:
+        path: /var/spool/postfix/var/run/saslauthd
+        state: directory
         owner: root
         group: sasl
-        mode: "0640"
+        mode: '0710'
 
-    - name: Add postfix user to sasl group
+    - name: Add postfix user to the sasl group
       ansible.builtin.user:
         name: postfix
         groups: sasl
         append: true
 
-    - name: Add /etc/sasldb2 to postfix chroot
-      ansible.builtin.copy:
-        dest: /etc/default/postfix
-        content: |
-          chroot_extra_files=etc/sasldb2
+    - name: Check existing dpkg statoverride for the saslauthd spool directory
+      ansible.builtin.command:
+        cmd: dpkg-statoverride --list /var/spool/postfix/var/run/saslauthd
+      register: saslauthd_statoverride
+      changed_when: false
+      failed_when: false
+      check_mode: false
+
+    - name: Record statoverride and apply it immediately (root:sasl 0710)
+      ansible.builtin.command:
+        cmd: >-
+          dpkg-statoverride --update --add
+          root sasl 710 /var/spool/postfix/var/run/saslauthd
+      when: >-
+        saslauthd_statoverride.stdout | trim
+        != 'root sasl 710 /var/spool/postfix/var/run/saslauthd'
+
+    - name: saslauth config for postfix in chroot (OPTIONS="-c -m /var/spool/postfix/var/run/saslauthd")
+      ansible.builtin.lineinfile:
+        path: /etc/default/saslauthd
+        regexp: '^OPTIONS='
+        line: 'OPTIONS="-c -m /var/spool/postfix/var/run/saslauthd"'
+        state: present
+        backup: true
+      notify: systemctl restart saslauthd
+
+    - name: saslauth config for using sasldb (MECHANISM="sasldb")
+      ansible.builtin.lineinfile:
+        path: /etc/default/saslauthd
+        regexp: '^MECHANISM='
+        line: 'MECHANISM="sasldb"'
+        state: present
+        backup: true
+      notify: systemctl restart saslauthd
+
+    - name: Ensure systemd drop-in directory for saslauthd exists
+      ansible.builtin.file:
+        path: /etc/systemd/system/saslauthd.service.d
+        state: directory
         owner: root
-        group: sasl
-        mode: "0640"
+        group: root
+        mode: '0755'
+
+    - name: Point saslauthd PIDFile at the socket directory inside the Postfix chroot
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/saslauthd.service.d/pidfile.conf
+        owner: root
+        group: root
+        mode: '0644'
+        content: |
+          [Service]
+          PIDFile=/var/spool/postfix/var/run/saslauthd/saslauthd.pid
       notify:
-        - systemctl restart postfix
+        - reload systemd
+        - systemctl restart saslauthd
+
 
     - name: 'ufw: allow smtp submission'
       ufw:

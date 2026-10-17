@@ -1,4 +1,8 @@
 # SPDX-License-Identifier: MIT
+- name: reload systemd
+  systemd:
+    daemon_reload: true
+
 - name: systemctl reload postfix
   systemd:
     name: postfix
@@ -7,6 +11,11 @@
 - name: systemctl restart postfix
   systemd:
     name: postfix
+    state: restarted
+
+- name: systemctl restart saslauthd
+  systemd:
+    name: saslauthd
     state: restarted
 
 - name: systemctl restart opendkim

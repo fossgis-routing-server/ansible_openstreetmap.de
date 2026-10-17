@@ -73,6 +73,7 @@ smtpd_helo_required = yes
 smtpd_helo_restrictions = permit_sasl_authenticated, permit_mynetworks,reject_invalid_hostname,reject_non_fqdn_hostname
 strict_rfc821_envelopes = yes
 smtpd_tls_auth_only = yes
+cyrus_sasl_config_path = /etc/postfix/sasl
 smtpd_sasl_auth_enable = yes
 smtpd_sasl_local_domain = $myhostname
 smtpd_sasl_security_options = noanonymous

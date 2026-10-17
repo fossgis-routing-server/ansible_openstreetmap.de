@@ -3,7 +3,7 @@ mail:
     opendkim: true
     opendkim_selector: 2026
     mailname: aitov.openstreetmap.de
-    ssl_name: weeklyosm
+    ssl_name: hugo
     domains:
         - aitov.openstreetmap.de
         - newsletter.weeklyosm.eu
