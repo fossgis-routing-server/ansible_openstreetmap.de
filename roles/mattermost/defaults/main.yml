@@ -11,7 +11,7 @@ mattermost__user: "mattermost"
 
 # Network & Domain Configuration
 mattermost__port: "8065"
-mattermost__domain: "mattermost2.openstreetmap.de"
+mattermost__domain: "mattermost.openstreetmap.de"
 
 # Database Configuration
 mattermost__db_name: "mattermost"

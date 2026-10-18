@@ -8,7 +8,7 @@ mail:
         - aitov.openstreetmap.de
         - newsletter.weeklyosm.eu
         - osmbc2.openstreetmap.de
-        - mattermost2.openstreetmap.de
+        - mattermost.openstreetmap.de
     aliases:
         # Keys of this dictionary: keys of the alias mapping
         # Values of this dictionary: either a string (value of the mapping) or a list of strings (multiple alias recipients)
