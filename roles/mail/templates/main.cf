@@ -42,7 +42,7 @@ myhostname = {{ mail.mailname }}
 alias_maps = hash:/etc/aliases
 alias_database = hash:/etc/aliases
 myorigin = /etc/mailname
-mydestination = $myhostname, {% for domain in mail.domains %}{{ domain }}, {% endfor %}localhost
+mydestination = $myhostname, {% for domain in mail.domains | default([]) %}{{ domain }}, {% endfor %}localhost
 sender_canonical_maps = hash:/etc/postfix/canonical
 relayhost = 
 mynetworks = 127.0.0.0/8 [::ffff:127.0.0.0]/104 [::1]/128
@@ -92,5 +92,3 @@ smtpd_relay_restrictions = permit_mynetworks reject
 
 smtpd_data_restrictions = reject_unauth_pipelining
 
-# aliases (we do not have local mailboxes)
-virtual_alias_maps = hash:/etc/postfix/virtual_alias_map

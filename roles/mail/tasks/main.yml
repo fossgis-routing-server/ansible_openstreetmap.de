@@ -18,15 +18,8 @@
   vars:
     dest: '/etc/aliases'
     key_char: ':'
-    alias: "{{ mail.aliases | dict2items | rejectattr('key', 'search', '@') | items2dict }}"
+    alias: "{{ mail.aliases }}"
     map: mail.aliases
-
-- name: 'virtual_alias_map'
-  include_tasks: write_and_hash.yml
-  vars:
-    dest: '/etc/postfix/virtual_alias_map'
-    key_char: ''
-    alias: "{{ mail.aliases | dict2items | selectattr('key', 'search', '@') | items2dict }}"
 
 - name: 'sender canonical map'
   include_tasks: write_and_hash.yml
@@ -34,6 +27,21 @@
     dest: '/etc/postfix/canonical'
     key_char: ''
     alias: "{{ { '@' ~ ansible_facts['fqdn']: '@' ~ mail.mailname } }}"
+
+- name: Check if acme cert matches mailname
+  block:
+    - name: Locate the certificate referenced by mail.ssl_name
+      set_fact:
+        _mail_cert: "{{ hostvars[inventory_hostname]|var_merge_lists(suffix='__acme_certificates') | selectattr('name', 'equalto', mail.ssl_name) | list}}"
+    - name: Assert the mail certificate is defined and covers mail.mailname
+      assert:
+        that:
+          - _mail_cert | length == 1
+          - mail.mailname in (_mail_cert | first).domains
+        fail_msg: >-
+          mail.ssl_name='{{ mail.ssl_name }}' ({{ _mail_cert | length }} match(es) in
+          _acme_certs) does not cover mail.mailname='{{ mail.mailname }}'.
+          Domains found: {{ (_mail_cert | first).domains | default([]) }}
 
 - name: Write /etc/postfix/main.cf
   template:
@@ -136,7 +144,7 @@
         mode: 0644
         content: |
           *@{{ mail.mailname}} default
-          {% for item in mail.domains %}
+          {% for item in mail.opendkim_domains %}
           *@{{ item }} default
           {% endfor %}
       notify:
