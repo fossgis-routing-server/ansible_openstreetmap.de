@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SOURCE_DIR="{{ weeklyosm__remark42__directory }}/var"
+BACKUP_DIR="{{ weeklyosm__remark42__backup_directory }}"
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+BACKUP_FILE="$BACKUP_DIR/remark42_$TIMESTAMP.tar.gz"
+
+# Create a compressed archive of the Remark42 var directory
+echo "Creating backup of Remark42 data..."
+tar -czf "$BACKUP_FILE" -C "$(dirname "$SOURCE_DIR")" "$(basename "$SOURCE_DIR")"
+
+# Retention Policy: Keep only the latest 7 backups, purge older ones safely
+echo "Cleaning up old backups, keeping the latest 7..."
+cd "$BACKUP_DIR" || exit 1
+
+# Find all backup archives, sort them by name descending (newest first), 
+# skip the first 7, and delete the rest.
+find "$BACKUP_DIR" -mindepth 1 -maxdepth 1 -type f -name "remark42_*.tar.gz" | sort -r | tail -n +8 | while read -r old_backup; do
+    echo "Removing old backup: $old_backup"
+    rm -f "$old_backup"
+done
+
+echo "Backup completed successfully!"

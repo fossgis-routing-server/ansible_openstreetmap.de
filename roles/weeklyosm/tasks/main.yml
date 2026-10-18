@@ -17,3 +17,7 @@
       hugo_hostnames: "{{ weeklyosm.hostnames | reject('equalto', 'newsletter.weeklyosm.eu') | list }}"
   notify: reload nginx
   tags: weeklyosm
+
+- name: Set up backup jobs
+  include_tasks: backup.yml
+  tags: weeklyosm
