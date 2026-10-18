@@ -111,15 +111,6 @@
       group: "{{ mattermost__user }}"
       mode: "0750"
 
-- name: Create Mattermost license file
-  ansible.builtin.copy:
-      content: "{{ mattermost__license_content }}"
-      dest: "{{ mattermost__install_dir }}/config/wochennotizweeklyosm-81850.mattermost-license"
-      owner: "{{ mattermost__user }}"
-      group: "{{ mattermost__user }}"
-      mode: "0600"
-  when: mattermost__license_content is defined and mattermost__license_content != ""
-
 - name: Deploy config.json
   ansible.builtin.template:
       src: templates/config.json.j2
