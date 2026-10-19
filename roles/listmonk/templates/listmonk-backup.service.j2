@@ -1,0 +1,7 @@
+[Unit]
+Description=Listmonk Database Backup Service
+After=postgresql.service
+
+[Service]
+Type=oneshot
+ExecStart={{ listmonk__install_dir | default('/opt/listmonk') }}/do_backup.sh
