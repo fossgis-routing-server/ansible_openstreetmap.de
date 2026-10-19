@@ -4,7 +4,7 @@
 # line of that file to be used as the name.  The Debian default
 # is /etc/mailname.
 myorigin = /etc/mailname
-# /etc/mailname is set to {{ mail.mailname }}
+# /etc/mailname is set to {{ mailname }}
 
 smtpd_banner = $myhostname ESMTP $mail_name (Debian/GNU)
 biff = no
@@ -38,7 +38,7 @@ smtpd_tls_key_file={{ acme__daemon_basedir }}/certs/{{ mail.ssl_name }}.key
 # See /usr/share/doc/postfix/TLS_README.gz in the postfix-doc package for
 # information on enabling SSL in the smtp client.
 
-myhostname = {{ mail.mailname }}
+myhostname = {{ mailname }}
 alias_maps = hash:/etc/aliases
 alias_database = hash:/etc/aliases
 myorigin = /etc/mailname

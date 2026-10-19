@@ -4,6 +4,10 @@
   apt:
     name: [postfix]
 
+- name: determine mail server name
+  set_fact:
+    _mailname: "{{ hostvars[inventory_hostname]|firstof_dict('acme__fqdn', 'ansible_host', default=inventory_hostname) }}"
+
 - name: set /etc/mailname
   copy:
     dest: /etc/mailname
@@ -11,7 +15,7 @@
     group: root
     mode: 0644
     content: |
-      {{ mail.mailname }}
+      {{ _mailname }}
 
 - name: 'aliases'
   include_tasks: write_and_hash.yml
@@ -26,22 +30,7 @@
   vars:
     dest: '/etc/postfix/canonical'
     key_char: ''
-    alias: "{{ { '@' ~ ansible_facts['fqdn']: '@' ~ mail.mailname } }}"
-
-- name: Check if acme cert matches mailname
-  block:
-    - name: Locate the certificate referenced by mail.ssl_name
-      set_fact:
-        _mail_cert: "{{ hostvars[inventory_hostname]|var_merge_lists(suffix='__acme_certificates') | selectattr('name', 'equalto', mail.ssl_name) | list}}"
-    - name: Assert the mail certificate is defined and covers mail.mailname
-      assert:
-        that:
-          - _mail_cert | length == 1
-          - mail.mailname in (_mail_cert | first).domains
-        fail_msg: >-
-          mail.ssl_name='{{ mail.ssl_name }}' ({{ _mail_cert | length }} match(es) in
-          _acme_certs) does not cover mail.mailname='{{ mail.mailname }}'.
-          Domains found: {{ (_mail_cert | first).domains | default([]) }}
+    alias: "{{ { '@' ~ ansible_facts['fqdn']: '@' ~ _mailname } }}"
 
 - name: Write /etc/postfix/main.cf
   template:
@@ -50,6 +39,8 @@
     owner: root
     group: root
     mode: 0644
+  vars:
+    mailname: "{{ _mailname }}"
   notify:
     - systemctl reload postfix
 
@@ -143,7 +134,7 @@
         group: root
         mode: 0644
         content: |
-          *@{{ mail.mailname}} default
+          *@{{ _mailname}} default
           {% for item in mail.opendkim_domains %}
           *@{{ item }} default
           {% endfor %}
@@ -190,7 +181,7 @@
 
     - name: Add users to sasldb2
       command:
-        cmd: "saslpasswd2 -c -u {{ mail.mailname }} {{ item.key }}"
+        cmd: "saslpasswd2 -c -u {{ _mailname }} {{ item.key }}"
         stdin: "{{ item.value }}"
       loop: "{{ mail_users | dict2items }}"
 

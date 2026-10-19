@@ -4,7 +4,6 @@ mail:
     opendkim_selector: 2026
     opendkim_domains:
         - weeklyosm.eu
-    mailname: aitov.weeklyosm.eu
     ssl_name: hugo
     aliases:
         # Keys of this dictionary: keys of the alias mapping
@@ -14,3 +13,5 @@ mail:
         admin: matthias@matthiasheinisch.de
         noreply: /dev/null
     relay: true
+
+acme__fqdn: aitov.openstreetmap.de
