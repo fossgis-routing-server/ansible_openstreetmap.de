@@ -2,20 +2,16 @@
 mail:
     opendkim: true
     opendkim_selector: 2026
-    mailname: aitov.openstreetmap.de
-    ssl_name: weeklyosm
-    domains:
-        - aitov.openstreetmap.de
-        - newsletter.weeklyosm.eu
-        - osmbc2.openstreetmap.de
-        - mattermost.openstreetmap.de
+    opendkim_domains:
+        - weeklyosm.eu
+    ssl_name: hugo
     aliases:
         # Keys of this dictionary: keys of the alias mapping
         # Values of this dictionary: either a string (value of the mapping) or a list of strings (multiple alias recipients)
-        root@aitov.openstreetmap.de: osm-server-ag-admins@fossgis.de
-        root@weeklyosm.eu: osm-server-ag-admins@fossgis.de
         postmaster: osm-server-ag-admins@fossgis.de
         root: osm-server-ag-admins@fossgis.de
         admin: matthias@matthiasheinisch.de
         noreply: /dev/null
     relay: true
+
+acme__fqdn: aitov.openstreetmap.de
