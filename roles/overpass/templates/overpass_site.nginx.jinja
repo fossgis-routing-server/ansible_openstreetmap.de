@@ -106,16 +106,19 @@ map "$overpass_bare_interpreter_call:$http_user_agent" $overpass_anonymous_query
 
     location @error_429 {
         default_type text/plain;
+        add_header Access-Control-Allow-Origin * always;
         return 429 "# 429 Too Many Requests\n\nThis Overpass API server is currently at capacity. All query workers are busy\nand the request queue is full.\n\n## What to do\n\nRetry your request using exponential backoff: wait a short interval, then retry.\nIf the request fails again, double the wait time and retry again.\n\n## For heavy or automated use\n\nThis public endpoint is intended for browser-based and human-operated tools.\nFor automated or high-volume use, run a local Overpass API instance:\n\nhttps://github.com/b1tw153/Overpass-API/blob/main/README.md\n";
     }
 
     location @error_504 {
         default_type text/plain;
+        add_header Access-Control-Allow-Origin * always;
         return 504 "# 504 Gateway Timeout\n\nThis Overpass API server enforces a maximum response time. Your request did not complete within that limit.\n\n## What to do\n\nIf your query set [timeout:X] to a value greater than that,\nsimplify your query and reduce the timeout.\n\nOtherwise the server was likely busy when your request arrived. Retry using\nexponential backoff: wait a short interval, then retry. If the request fails\nagain, double the wait time and retry again.\n\n## For heavy or automated use\n\nThis public endpoint is intended for browser-based and human-operated tools.\nFor automated or high-volume use, run a local Overpass API instance:\n\nhttps://github.com/b1tw153/Overpass-API/blob/main/README.md\n";
     }
 
     location @error_502 {
         default_type text/plain;
+        add_header Access-Control-Allow-Origin * always;
         return 502 "# 502 Gateway Timeout\n\nThis Overpass API server is currently at capacity. All query workers are busy\nand the request queue is full.\n\n## What to do\n\nRetry your request using exponential backoff: wait a short interval, then retry.\nIf the request fails again, double the wait time and retry again.\n\n## For heavy or automated use\n\nThis public endpoint is intended for browser-based and human-operated tools.\nFor automated or high-volume use, run a local Overpass API instance:\n\nhttps://github.com/b1tw153/Overpass-API/blob/main/README.md\n";
     }
 
