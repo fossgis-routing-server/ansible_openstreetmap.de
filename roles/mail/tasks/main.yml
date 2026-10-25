@@ -225,7 +225,7 @@
         backup: true
       notify: systemctl restart saslauthd
 
-    - name: saslauth config for using sasldb (MECHANISM="sasldb")
+    - name: saslauth config for using sasldb (MECHANISMS="sasldb")
       ansible.builtin.lineinfile:
         path: /etc/default/saslauthd
         regexp: '^MECHANISMS='
