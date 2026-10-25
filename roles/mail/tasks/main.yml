@@ -228,8 +228,8 @@
     - name: saslauth config for using sasldb (MECHANISM="sasldb")
       ansible.builtin.lineinfile:
         path: /etc/default/saslauthd
-        regexp: '^MECHANISM='
-        line: 'MECHANISM="sasldb"'
+        regexp: '^MECHANISMS='
+        line: 'MECHANISMS="sasldb"'
         state: present
         backup: true
       notify: systemctl restart saslauthd
