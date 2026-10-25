@@ -63,15 +63,6 @@
     - 406
     - 429
 
-- name: Fail2ban filter for osmnx
-  fail2ban_filter:
-     name: overpass-osmnx
-     definition: |
-        failregex = ^.*, remote host: <ADDR>, .*, query string: /api/interpreter, .*OSMnx
-
-        datepattern = ^[^\[]*\[({DATE})
-                      {^LN-BEG}
-
 - name: Fail2ban filter for offramp
   fail2ban_filter:
     name: offramp
@@ -109,18 +100,6 @@
     logpath: /var/log/nginx/overpass-access.log
     findtime: 60s
     maxretry: 3
-    bantime: 1h
-    bantime.increment: True
-    bantime.maxtime: 1w
-
-- name: Fail2ban jail for osmnx
-  fail2ban_jail:
-    name: overpass-osmnx
-    ports: [80,443]
-    filter: overpass-osmnx
-    logpath: /var/log/nginx/overpass-access.log
-    findtime: 1h
-    maxretry: 10
     bantime: 1h
     bantime.increment: True
     bantime.maxtime: 1w
