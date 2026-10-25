@@ -1,0 +1,93 @@
+#!/usr/bin/perl
+# -*- cperl -*-
+use strict;
+use warnings;
+use File::stat;
+use Data::Dumper;
+ 
+my $logfile   = $ENV{logfile} || '/var/log/nginx/overpass-access.log';
+my $state_dir = $ENV{MUNIN_PLUGSTATE} || '/var/lib/munin-node/plugin-state';
+(my $safe = $logfile) =~ s/[^A-Za-z0-9._-]/_/g;
+my $state_file = "$state_dir/nginx_status_by_code_${safe}.state";
+ 
+sub parse_new_lines {
+    my ($counts, $from_pos, $new_baseline) = @_;
+    open my $fh, '<', $logfile or die "Cannot open $logfile: $!\n";
+    seek($fh, $from_pos, 0) unless $new_baseline;
+    while (<$fh>) {
+        $counts->{$1}++ if /, status:\s*(\d{3}),/i;
+    }
+    my $pos = tell($fh);
+    close $fh;
+    return $pos;
+}
+ 
+sub load_state {
+    return {} unless -r $state_file;
+    my $s = do $state_file;
+    return (ref $s eq 'HASH') ? $s : {};
+}
+ 
+sub save_state {
+    my $state = shift;
+    open my $fh, '>', $state_file or die "Cannot write $state_file: $!\n";
+    print $fh Data::Dumper->Dump([$state], ['state']);
+    close $fh;
+}
+ 
+if ($ARGV[0] && $ARGV[0] eq 'autoconf') {
+    print(-r $logfile ? "yes\n" : "no\n");
+    exit 0;
+}
+ 
+# Load state
+my $state = load_state();
+my $prev_counts = { %{ $state->{counts} || {} } };
+my $prev_time   = $state->{time} || time;
+my $prev_pos    = $state->{pos}  || 0;
+my $prev_inode  = $state->{inode} || 0;
+ 
+# Determine baseline / rotation
+my $st = stat($logfile);
+my ($inode, $size) = $st ? ($st->ino, $st->size) : (0, 0);
+my $new_baseline = (!$prev_time || $inode != $prev_inode || $size < $prev_pos);
+ 
+# Discover status codes
+my $counts = { %$prev_counts };
+my $pos = parse_new_lines($counts, $prev_pos, $new_baseline);
+ 
+if ($ARGV[0] && $ARGV[0] eq 'config') {
+    print "graph_title Nginx http status code\n";
+    print "graph_args --base 1000 -l 0\n";
+    print "graph_vlabel accesses / second\n";
+    print "graph_category nginx\n";
+    print "graph_order ", join(' ', map { "status_$_" } sort { $a <=> $b } keys %$counts), "\n";
+    for my $code (sort { $a <=> $b } keys %$counts) {
+        print "status_${code}.label $code\n";
+        print "status_${code}.type GAUGE\n";
+        print "status_${code}.min 0\n";
+        print "status_${code}.draw LINE1\n";
+    }
+    exit 0;
+}
+ 
+# Values
+my $now   = time;
+my $delta = $now - $prev_time;
+$delta = 1 if $delta < 1;
+ 
+for my $code (sort { $a <=> $b } keys %$counts) {
+    my $rate = 0;
+    unless ($new_baseline) {
+        my $diff = ($counts->{$code} // 0) - ($prev_counts->{$code} // 0);
+        $rate = $diff / $delta;
+    }
+    printf "status_%d.value %.6f\n", $code, $rate;
+}
+ 
+save_state({
+    time   => $now,
+    inode  => $inode,
+    pos    => $pos,
+    counts => $counts,
+});
