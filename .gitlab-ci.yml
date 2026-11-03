@@ -10,6 +10,8 @@ renovate:
         RENOVATE_AUTODISCOVER: "false"
         # FIXME: log level debug
         LOG_LEVEL: "debug"
+        # use config from current branch
+        RENOVATE_BASE_BRANCH: "$CI_COMMIT_REF_NAME"
     script:
         - renovate $CI_PROJECT_PATH
     rules:
