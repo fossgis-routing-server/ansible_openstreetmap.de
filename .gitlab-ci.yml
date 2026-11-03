@@ -5,8 +5,8 @@ renovate:
     stage: maintenance
     image: renovate/renovate:latest
     variables:
-        PLATFORM: "gitlab"
-        RENOVATE_ENDPOINT: "https://gitlab.fossgis.de/api/v4/"
+        RENOVATE_PLATFORM: "gitlab"
+        RENOVATE_ENDPOINT: "https://gitlab.fossgis.de/"
         # Use GitLab's built-in CI job token for repository access
         RENOVATE_TOKEN: "$CI_JOB_TOKEN"
         RENOVATE_REPOSITORY: "$CI_PROJECT_PATH"
