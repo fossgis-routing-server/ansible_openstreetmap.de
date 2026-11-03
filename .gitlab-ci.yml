@@ -1,0 +1,17 @@
+stages:
+    - maintenance
+
+renovate:
+    stage: maintenance
+    image: renovate/renovate:latest
+    variables:
+        # Use GitLab's built-in CI job token for repository access
+        RENOVATE_TOKEN: $CI_JOB_TOKEN
+        RENOVATE_REPOSITORY: $CI_PROJECT_PATH
+    script:
+        - renovate
+    rules:
+        # Run automatically on scheduled pipelines (Cron jobs)
+        - if: '$CI_PIPELINE_SOURCE == "schedule"'
+        # Allow manual triggering from the GitLab Web UI
+        - if: '$CI_PIPELINE_SOURCE == "web"'
