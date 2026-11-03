@@ -6,21 +6,21 @@
             "customType": "regex",
             "fileMatch": ["^roles/mattermost/defaults/main\\.yml$"],
             "matchStrings": ["mattermost__version:\\s*[\"']?(?<currentValue>[\\d\\.]+)[ \"']?"],
-            "datasourceTemplate": "github-releases",
-            "depNameTemplate": "mattermost/mattermost"
+            "datasourceTemplate": "docker",
+            "depNameTemplate": "mattermost/mattermost-team-edition"
         },
         {
             "customType": "regex",
             "fileMatch": ["^roles/listmonk/defaults/main\\.yml$"],
             "matchStrings": ["listmonk__version:\\s*[\"']?(?<currentValue>[\\d\\.]+)[ \"']?"],
-            "datasourceTemplate": "github-releases",
+            "datasourceTemplate": "docker",
             "depNameTemplate": "listmonk/listmonk"
         },
         {
             "customType": "regex",
             "fileMatch": ["^roles/weeklyosm/defaults/main\\.yml$"],
             "matchStrings": ["weeklyosm__remark42__version:\\s*[\"']?v?(?<currentValue>[\\d\\.]+)[ \"']?"],
-            "datasourceTemplate": "github-releases",
+            "datasourceTemplate": "docker",
             "depNameTemplate": "umputun/remark42"
         }
     ]
