@@ -4,6 +4,7 @@
     "enabledManagers": ["custom.regex"],
     "customManagers": [
         {
+            "comment": "mattermost: Mattermost Team Edition Version",
             "customType": "regex",
             "fileMatch": ["^roles/mattermost/defaults/main\\.yml$"],
             "matchStrings": ["mattermost__version:\\s*[\"']?(?<currentValue>[\\d\\.]+)[ \"']?"],
@@ -11,6 +12,7 @@
             "depNameTemplate": "mattermost/mattermost-team-edition"
         },
         {
+            "comment": "listmonk: Listmonk Server Version",
             "customType": "regex",
             "fileMatch": ["^roles/listmonk/defaults/main\\.yml$"],
             "matchStrings": ["listmonk__version:\\s*[\"']?(?<currentValue>[\\d\\.]+)[ \"']?"],
@@ -18,11 +20,24 @@
             "depNameTemplate": "listmonk/listmonk"
         },
         {
+            "comment": "weeklyosm: Remark42 Version",
             "customType": "regex",
             "fileMatch": ["^roles/weeklyosm/defaults/main\\.yml$"],
             "matchStrings": ["weeklyosm__remark42__version:\\s*[\"']?v?(?<currentValue>[\\d\\.]+)[ \"']?"],
             "datasourceTemplate": "docker",
             "depNameTemplate": "umputun/remark42"
+        }
+    ],
+
+    "packageRules": [
+        {
+            "comment": "auto-assign to weeklyteam",
+            "matchFileNames": [
+                "roles/mattermost/defaults/main\\.yml",
+                "roles/listmonk/defaults/main\\.yml",
+                "roles/weeklyosm/defaults/main\\.yml"
+            ],
+            "assignees": ["Matthias", "Sven_Fischer"]
         }
     ]
 }
