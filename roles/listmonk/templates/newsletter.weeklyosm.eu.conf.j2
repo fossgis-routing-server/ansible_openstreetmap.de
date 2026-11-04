@@ -3,9 +3,12 @@
     # allow large file uploads (e. g. CSV imports of subscribers)
     client_max_body_size 50M;
 
-    # Allow the HTML subscription form endpoint only if it originates from our own website (Referer check)
+    # Allow the HTML subscription form endpoint only with rate limiting and proper Referer
     location = /subscription/form {
-        # If the Referer does not match our domain, redirect
+        # Apply the subscription rate limit
+        limit_req zone=sublimit nodelay;
+
+        # Block requests where the Referer does not match our domain (redirect to main page)
         if ($http_referer !~* "^https://(www\.)?weeklyosm\.eu") {
             return 302 https://weeklyosm.eu/;
         }

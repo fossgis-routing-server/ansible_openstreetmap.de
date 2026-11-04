@@ -1,5 +1,5 @@
 ---
-- name: Set up postgresl user
+- name: Set up postgresql user
   postgresql_user:
       name: "{{ listmonk__db_user }}"
       password: "{{ listmonk__db_password }}"
@@ -96,6 +96,15 @@
       name: listmonk
       state: started
       enabled: true
+
+- name: Add global rate limiting zone to nginx.conf
+  ansible.builtin.lineinfile:
+      path: /etc/nginx/nginx.conf
+      insertafter: '^http \{'
+      line: "    limit_req_zone $binary_remote_addr zone=sublimit:10m rate=2r/m;"
+      regexp: 'limit_req_zone \$binary_remote_addr zone=sublimit'
+      state: present
+  notify: reload nginx
 
 - name: Set up nginx site
   nginx_site:
