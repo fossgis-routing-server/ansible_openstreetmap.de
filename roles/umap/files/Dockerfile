@@ -1,5 +1,5 @@
 # This part installs deps needed at runtime.
-FROM python:3.12-slim AS common
+FROM python:3.15-slim AS common
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
