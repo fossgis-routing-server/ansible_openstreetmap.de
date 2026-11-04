@@ -22,6 +22,9 @@ acme                    IN  A           91.98.82.247
 acme                    IN  AAAA        2a01:4f8:c17:8b4d::1
 aitov                   IN  A           167.235.234.94
 aitov                   IN  AAAA        2a01:4f8:c012:815d::1
+aitov.2026._domainkey	IN  TXT         "v=DKIM1; h=sha256; k=rsa; " "p=MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAt7TjyTbhaMF3e2+gFqru2DLva1OPLfOUhYxOsZ6RFEWDh2YeCW+43jqaZug467ialtVH+TDB+DHPM4ZmUSJU9JuNTgi9j5nzfImMX512aOhpGLrAtES2eb69Da9D/VgqEEDmq2GlSbK0txXLlYHsuCpgrzefy69QWJaL/CngbuhQNCaSIJwzXD00d3LJkRC7j/IhNMsF/9HPoX" "HZE4M+RDTdq+JJSq2E4e2J5Xv7sQUKLNvGuYyy0qzHUDGorsHSGZlHQBO3ch+EDEC3qYDQ0IQdFNVSOWKVqP0PsLyGcZi/wxfDvpkBIW96hS7l5pU1OuLzGKAOlnj/1V3tRUOGnwIDAQAB"
+aitov                   IN  TXT         "v=spf1 mx a ip4:167.235.234.94 ip4:167.235.235.53 ip4:78.46.186.101 ip6:2a01:4f8:c012:815d::1 ip6:2a01:4f8:c014:b2c3::1 ?all"
+aitov._dmarc		IN  TXT         "v=DMARC1;p=none;pct=100"
 argon                   IN  A           217.20.115.65
 babykarte               IN  CNAME       everest.openstreetmap.de.
 bessel                  IN  A           139.17.3.229
