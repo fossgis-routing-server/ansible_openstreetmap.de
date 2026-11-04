@@ -8,8 +8,6 @@ renovate:
         RENOVATE_PLATFORM: "gitlab"
         RENOVATE_ENDPOINT: "https://gitlab.fossgis.de/api/v4/"
         RENOVATE_AUTODISCOVER: "false"
-        # FIXME: log level debug
-        LOG_LEVEL: "debug"
     script:
         - renovate $CI_PROJECT_PATH
     rules:
@@ -17,5 +15,5 @@ renovate:
         - if: '$CI_PIPELINE_SOURCE == "schedule"'
         # Allow manual triggering from the GitLab Web UI
         - if: '$CI_PIPELINE_SOURCE == "web"'
-        # for testing:
-        - when: manual
+        # otherwise, do not run
+        - when: never
