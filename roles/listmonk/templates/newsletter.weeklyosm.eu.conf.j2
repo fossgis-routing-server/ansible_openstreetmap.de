@@ -6,13 +6,13 @@
     # Allow the HTML subscription form endpoint only with rate limiting and proper Referer
     location = /subscription/form {
         # Apply the subscription rate limit
-        limit_req zone=sublimit nodelay;
+        limit_req_status 429;
+        limit_req zone=sublimit burst=2 nodelay;
 
-        # Block requests where the Referer does not match our domain (redirect to main page)
-        if ($http_referer !~* "^https://(www\.)?weeklyosm\.eu") {
+        if ($http_referer !~* "^https://([a-z0-9-]+\.)*weeklyosm\.eu") {
             return 302 https://weeklyosm.eu/;
         }
-        
+
         proxy_pass http://127.0.0.1:9000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
