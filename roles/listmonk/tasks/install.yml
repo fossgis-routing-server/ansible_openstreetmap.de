@@ -97,13 +97,13 @@
       state: started
       enabled: true
 
-- name: Add global rate limiting zone to nginx.conf
-  ansible.builtin.lineinfile:
-      path: /etc/nginx/nginx.conf
-      insertafter: '^http \{'
-      line: "    limit_req_zone $binary_remote_addr zone=sublimit:10m rate=2r/m;"
-      regexp: 'limit_req_zone \$binary_remote_addr zone=sublimit'
-      state: present
+- name: Deploy Listmonk Nginx rate limit configuration
+  ansible.builtin.template:
+      src: templates/listmonk-ratelimit.conf.j2
+      dest: /etc/nginx/conf.d/listmonk-ratelimit.conf
+      owner: root
+      group: root
+      mode: "0644"
   notify: reload nginx
 
 - name: Set up nginx site

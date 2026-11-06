@@ -1,0 +1,2 @@
+# Rate limiting zone for subscription forms
+limit_req_zone $binary_remote_addr zone=sublimit:10m rate=2r/m;
