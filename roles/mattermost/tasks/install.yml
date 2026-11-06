@@ -78,6 +78,7 @@
       cp -a /tmp/mattermost/. "{{ mattermost__install_dir }}/"
       rm -rf /tmp/mattermost/
   when: mattermost_current_version != mattermost__version
+  notify: Restart Mattermost
 
 - name: Restore and merge preserved plugins directories
   ansible.builtin.shell: |
@@ -118,7 +119,7 @@
       owner: "{{ mattermost__user }}"
       group: "{{ mattermost__user }}"
       mode: "0600"
-  register: mattermost_config_file
+  notify: Restart Mattermost
 
 - name: Deploy Mattermost systemd service unit
   ansible.builtin.template:
@@ -127,11 +128,10 @@
       owner: "root"
       group: "root"
       mode: "0644"
-  register: mattermost_systemd_service
+  notify: Restart Mattermost
 
-- name: Manage Mattermost systemd service
+- name: Ensure Mattermost systemd service is running and enabled
   ansible.builtin.systemd_service:
       name: mattermost
       state: started
       enabled: true
-      daemon_reload: "{{ mattermost_systemd_service.changed }}"
