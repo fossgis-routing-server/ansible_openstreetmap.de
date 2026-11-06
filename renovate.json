@@ -15,8 +15,8 @@
             "matchStrings": [
                 "mattermost__version:\\s*[\"']?(?<currentValue>[\\d\\.]+)[ \"']?"
             ],
-            "datasourceTemplate": "docker",
-            "depNameTemplate": "mattermost/mattermost-team-edition"
+            "datasourceTemplate": "github-releases",
+            "depNameTemplate": "mattermost/mattermost-server"
         },
         {
             "customType": "regex",
@@ -26,8 +26,8 @@
             "matchStrings": [
                 "listmonk__version:\\s*[\"']?(?<currentValue>[\\d\\.]+)[ \"']?"
             ],
-            "datasourceTemplate": "docker",
-            "depNameTemplate": "listmonk/listmonk"
+            "datasourceTemplate": "github-releases",
+            "depNameTemplate": "knadh/listmonk"
         },
         {
             "customType": "regex",
@@ -37,7 +37,7 @@
             "matchStrings": [
                 "weeklyosm__remark42__version:\\s*[\"']?v?(?<currentValue>[\\d\\.]+)[ \"']?"
             ],
-            "datasourceTemplate": "docker",
+            "datasourceTemplate": "github-releases",
             "depNameTemplate": "umputun/remark42"
         }
     ],
