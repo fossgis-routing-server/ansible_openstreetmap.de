@@ -178,25 +178,14 @@
 
 # ----------------------------------------------------------------------------
 
-- name: Enable headers module in apache
-  apache_module:
-    name: headers
-
-- name: Set up apache site
-  apache_site:
+- name: Set up nginx site
+  nginx_site:
     site: osmdata.openstreetmap.de
-    src: osmdata.openstreetmap.de.apache.conf.j2
-  notify: reload apache2
+    src: osmdata.openstreetmap.de.nginx.conf.j2
+  notify: reload nginx
 
 # ----------------------------------------------------------------------------
 
-- name: Don't run PostgreSQL as service
-  ansible.builtin.systemd_service:
-    name: postgresql
-    enabled: false
-    state: stopped
-
-# ----------------------------------------------------------------------------
 
 - name: Periodically update osmdata
   systemd_service:

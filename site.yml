@@ -110,6 +110,7 @@
     - role: tile
 - hosts: osmdata
   become: yes
+  tags: osmdata
   roles:
     - role: osmdata
 - hosts: umap

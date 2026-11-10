@@ -27,6 +27,16 @@ readonly OLD_PLANET="$DATADIR/old-planet.osm.pbf"
 
 readonly iso_date='+%Y-%m-%dT%H:%M:%S'
 
+{% if osmdata__external_planet %}
+
+echo "Using planet from '{{ osmdata__external_planet }}'"
+
+rm -f $PLANET
+
+cp "{{ osmdata__external_planet }}" $PLANET
+
+{% else %}
+
 rm -f "$OLD_PLANET"
 
 date $iso_date
@@ -39,6 +49,8 @@ date $iso_date
 echo "Updating planet file..."
 rm -f "$NEW_PLANET"
 /usr/lib/python3-pyosmium/pyosmium-up-to-date -v --size 10000 --format pbf,pbf_compression=lz4 "$PLANET"
+
+{% endif %}
 
 osmium fileinfo -g header.option.osmosis_replication_timestamp "$PLANET" >"$DATADIR/last-update"
 

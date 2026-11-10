@@ -1,3 +1,5 @@
 
 osrm__small: False
 osrm__parallel: '-t 16'
+
+osmdata__external_planet: "{{ osrm__basedir }}/osmdata/osmdata.pbf"

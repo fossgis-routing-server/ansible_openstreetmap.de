@@ -12,6 +12,9 @@ osmdata__planet: https://planet.osm.org/pbf/planet-latest.osm.pbf
 #osmdata__planet: https://download.geofabrik.de/antarctica-latest.osm.pbf
 #osmdata__planet: https://download.geofabrik.de/europe/faroe-islands-latest.osm.pbf
 
+# Set this to reuse an existing planet instead of updating yourself.
+osmdata__external_planet:
+
 # The domain name for the web server
 osmdata__domain: osmdata.openstreetmap.de
 
@@ -24,4 +27,4 @@ osmdata__acme_certificates:
     domains:
       - osmdata.openstreetmap.de
     on_update:
-      - systemctl reload apache2
+      - "systemctl reload nginx"

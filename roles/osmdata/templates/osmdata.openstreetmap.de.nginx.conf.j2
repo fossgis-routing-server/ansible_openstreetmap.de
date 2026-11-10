@@ -1,0 +1,41 @@
+{% call server([ osmdata__domain ], http='forward', https='osmdata') %}
+
+    root {{ osmdata__basedir }}/web;
+
+    {{ custom_log('osmdata') }}
+
+    add_header X-Frame-Options "DENY" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header X-Content-Type-Options "nosniff" always;
+
+    disable_symlinks off;
+
+    location / {
+        location ~* \.json$ {
+            add_header Access-Control-Allow-Origin "*" always;
+        }
+    }
+
+    location /download/ {
+        alias {{ osmdata__datadir }}/good/;
+        location ~* /last-update$ {
+            add_header Access-Control-Allow-Origin "*" always;
+        }
+    }
+
+    location /new/ {
+        alias {{ osmdata__datadir }}/new/;
+        location ~* /last-update$ {
+            add_header Access-Control-Allow-Origin "*" always;
+        }
+    }
+
+    location /d/ {
+        alias {{ osmdata__datadir }}/web/;
+        disable_symlinks off;
+        location ~* \.json$ {
+            add_header Access-Control-Allow-Origin "*" always;
+        }
+    }
+
+{% endcall %}
