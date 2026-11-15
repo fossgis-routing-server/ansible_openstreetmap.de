@@ -7,6 +7,8 @@
     vars.disks["disk {{ mntpt }}"] = {
         disk_partitions = "{{ mntpt }}"
         disk_exact_match = true
+        disk_cfree = "10%"
+        disk_wfree = "15%"
     }
 
 {% endfor %}
