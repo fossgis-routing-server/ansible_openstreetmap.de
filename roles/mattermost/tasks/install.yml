@@ -84,7 +84,7 @@
   ansible.builtin.shell: |
       if [ -d "{{ mattermost__install_dir }}/plugins~" ]; then
         mkdir -p "{{ mattermost__install_dir }}/plugins"
-        rsync -au "{{ mattermost__install_dir }}/plugins~/i" "{{ mattermost__install_dir }}/plugins"
+        rsync -au "{{ mattermost__install_dir }}/plugins~/" "{{ mattermost__install_dir }}/plugins"
         rm -rf "{{ mattermost__install_dir }}/plugins~"
         chown -hR {{ mattermost__user }}:{{ mattermost__user }} "{{ mattermost__install_dir }}/plugins"
       fi

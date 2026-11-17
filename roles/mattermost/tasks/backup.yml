@@ -13,7 +13,7 @@
       state: directory
       owner: "root"
       group: "root"
-      mode: "0755"
+      mode: "0700"
 
 - name: Deploy systemd service for backups
   ansible.builtin.template:
