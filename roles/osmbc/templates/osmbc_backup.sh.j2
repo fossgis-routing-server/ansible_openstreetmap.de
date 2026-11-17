@@ -1,0 +1,43 @@
+#!/bin/bash
+# {{ ansible_managed }}
+# OSMBC backup: database dump, both config files, public profiles.
+# Not backed up on purpose: the cache (rebuilt automatically), the code
+# (reinstalled from the git tag), the mail/export logs.
+set -euo pipefail
+
+BACKUP_DIR="{{ osmbc__backup_dir }}"
+KEEP={{ osmbc__backup_keep }}
+STAMP=$(date +'%Y%m%d_%H%M%S')
+TARGET="$BACKUP_DIR/osmbc_$STAMP"
+
+umask 077
+mkdir -p "$TARGET"
+
+# 1. Database. As the postgres user via peer authentication: no password in
+# this script (the mattermost script has one in plain text). Custom format
+# (-Fc) = compressed and restorable per table with pg_restore.
+runuser -u postgres -- pg_dump --format=custom "{{ osmbc__db_name }}" > "$TARGET/osmbc.dump"
+
+# 2. Technical config (contains the secrets - the backup dir is root only)
+#    and the editorial config, which exists only on this server.
+cp -a "{{ osmbc__config_dir }}/config.production.yaml" "$TARGET/"
+if [ -f "{{ osmbc__data_dir }}/config.editorial.yaml" ]; then
+    cp -a "{{ osmbc__data_dir }}/config.editorial.yaml" "$TARGET/"
+fi
+
+# 3. Public profiles (else they come back only when each user saves their
+#    settings again).
+if [ -d "{{ osmbc__data_dir }}/profile" ]; then
+    tar -czf "$TARGET/profile.tgz" -C "{{ osmbc__data_dir }}" profile
+fi
+
+# Record the installed release, needed for a restore.
+# (as the owner of the checkout, else git refuses it as "dubious ownership")
+runuser -u "{{ osmbc__user }}" -- git -C "{{ osmbc__app_dir }}" describe --tags > "$TARGET/osmbc-version.txt" 2>/dev/null || true
+
+# Keep the latest $KEEP backups.
+find "$BACKUP_DIR" -mindepth 1 -maxdepth 1 -type d -name 'osmbc_*' | sort -r | tail -n +$((KEEP + 1)) | while read -r old; do
+    rm -rf "$old"
+done
+
+echo "OSMBC backup written to $TARGET"

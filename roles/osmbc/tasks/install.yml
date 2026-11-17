@@ -1,0 +1,152 @@
+# SPDX-License-Identifier: MIT
+---
+# --- Database --------------------------------------------------------------
+# Same as the mattermost role. On the switch the database is filled from a
+# dump of the old server (pg_restore, see the OSMBC install guide); for a
+# completely new instance OSMBC's import/createdb.js creates the tables.
+
+- name: Set up PostgreSQL user for OSMBC
+  community.postgresql.postgresql_user:
+      name: "{{ osmbc__db_user }}"
+      password: "{{ osmbc__db_password }}"
+  become: true
+  become_user: postgres
+
+- name: Create PostgreSQL database for OSMBC
+  community.postgresql.postgresql_db:
+      name: "{{ osmbc__db_name }}"
+      owner: "{{ osmbc__db_user }}"
+      encoding: "UTF8"
+      template: template0
+      state: present
+  become: true
+  become_user: postgres
+
+# --- User and directories --------------------------------------------------
+
+# Unlike mattermost: with a home directory, because `npm ci` needs a
+# writable cache (~/.npm).
+- name: Create system user for OSMBC
+  ansible.builtin.user:
+      name: "{{ osmbc__user }}"
+      system: true
+      home: "{{ osmbc__home }}"
+      create_home: true
+      shell: /sbin/nologin
+
+# Config dir: root writes, the service only reads (0750/0640). Holds the
+# secrets.
+- name: Ensure OSMBC config directory exists
+  ansible.builtin.file:
+      path: "{{ osmbc__config_dir }}"
+      state: directory
+      owner: root
+      group: "{{ osmbc__user }}"
+      mode: "0750"
+
+# Data and log dirs: the only places the service writes to (see
+# ReadWritePaths in the systemd unit).
+- name: Ensure OSMBC data and log directories exist
+  ansible.builtin.file:
+      path: "{{ item }}"
+      state: directory
+      owner: "{{ osmbc__user }}"
+      group: "{{ osmbc__user }}"
+      mode: "0750"
+  loop:
+      - "{{ osmbc__data_dir }}"
+      - "{{ osmbc__log_dir }}"
+
+# --- Code ------------------------------------------------------------------
+
+# A git tag instead of a download: the git module notices by itself whether
+# the version changed. Files OSMBC creates in the checkout (node_modules,
+# assets copied by npm's postinstall) are gitignored, so no force needed.
+- name: Check out OSMBC {{ osmbc__version }}
+  ansible.builtin.git:
+      repo: "{{ osmbc__repo }}"
+      dest: "{{ osmbc__app_dir }}"
+      version: "{{ osmbc__version }}"
+      force: false
+  become: true
+  become_user: "{{ osmbc__user }}"
+  register: osmbc_checkout
+  notify: Restart OSMBC
+
+- name: Check whether node modules are installed
+  ansible.builtin.stat:
+      path: "{{ osmbc__app_dir }}/node_modules"
+  register: osmbc_node_modules
+
+# --omit=dev: only the runtime packages (~330 instead of ~800; no test
+# tools such as mocha/selenium on the server). `npm ci` installs exactly
+# package-lock.json. Runs after every version change.
+- name: Install OSMBC dependencies
+  ansible.builtin.command:
+      cmd: npm ci --omit=dev --no-audit --no-fund
+      chdir: "{{ osmbc__app_dir }}"
+  become: true
+  become_user: "{{ osmbc__user }}"
+  environment:
+      HOME: "{{ osmbc__home }}"
+  when: osmbc_checkout.changed or not osmbc_node_modules.stat.exists
+  notify: Restart OSMBC
+
+# --- Configuration ---------------------------------------------------------
+
+# Technical config: server, database, secrets. OSMBC finds it via the
+# environment variable OSMBC_CONFIG_DIR (systemd unit). 0640 root:osmbc:
+# readable by the service, not writable.
+- name: Deploy OSMBC technical config
+  ansible.builtin.template:
+      src: config.production.yaml.j2
+      dest: "{{ osmbc__config_dir }}/config.production.yaml"
+      owner: root
+      group: "{{ osmbc__user }}"
+      mode: "0640"
+  notify: Restart OSMBC
+
+# Editorial config: maintained by the OSMBC team (languages, export,
+# workflow). force: false = copied only once, never overwritten by Ansible.
+- name: Deploy initial OSMBC editorial config (only if missing)
+  ansible.builtin.copy:
+      src: "{{ osmbc__editorial_config_src }}"
+      dest: "{{ osmbc__data_dir }}/config.editorial.yaml"
+      owner: root
+      group: "{{ osmbc__user }}"
+      mode: "0640"
+      force: false
+  when: osmbc__editorial_config_src | length > 0
+
+- name: Check for the OSMBC editorial config
+  ansible.builtin.stat:
+      path: "{{ osmbc__data_dir }}/config.editorial.yaml"
+  register: osmbc_editorial
+
+# OSMBC refuses to start without it (languages etc. are required), so stop
+# here with a clear message instead of a failing service.
+- name: Stop if the editorial config is missing
+  ansible.builtin.fail:
+      msg: >-
+          {{ osmbc__data_dir }}/config.editorial.yaml is missing. The OSMBC
+          team creates it with tools/split-config.mjs; put it there by hand or
+          set osmbc__editorial_config_src.
+  when: not osmbc_editorial.stat.exists
+
+# --- Service ---------------------------------------------------------------
+
+- name: Deploy OSMBC systemd service unit
+  ansible.builtin.template:
+      src: osmbc.service.j2
+      dest: /etc/systemd/system/osmbc.service
+      owner: root
+      group: root
+      mode: "0644"
+  notify: Restart OSMBC
+
+- name: Ensure OSMBC service is running and enabled
+  ansible.builtin.systemd_service:
+      name: osmbc
+      state: started
+      enabled: true
+      daemon_reload: true

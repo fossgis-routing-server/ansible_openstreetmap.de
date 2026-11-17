@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily OSMBC Backup
+
+[Timer]
+# 02:30, half an hour after the mattermost backup (02:00), so the two
+# dumps don't run at the same time.
+OnCalendar=*-*-* 02:30:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

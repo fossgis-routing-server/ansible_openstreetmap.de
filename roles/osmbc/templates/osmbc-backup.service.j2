@@ -1,0 +1,8 @@
+[Unit]
+Description=OSMBC Backup
+After=postgresql.service
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/usr/local/sbin/osmbc-backup

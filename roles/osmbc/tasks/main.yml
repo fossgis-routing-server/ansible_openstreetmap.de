@@ -1,0 +1,21 @@
+# SPDX-License-Identifier: MIT
+# DRAFT for the FOSSGIS Ansible repository - untested, see README.md
+---
+- name: Install Node.js
+  include_tasks: nodejs.yml
+  tags: osmbc
+
+- name: Install OSMBC
+  include_tasks: install.yml
+  tags: osmbc
+
+- name: Set up nginx site for OSMBC
+  nginx_site:
+      site: "{{ osmbc__nginx_site }}"
+      src: osmbc_nginx.conf.j2
+  notify: reload nginx
+  tags: osmbc
+
+- name: Set up backup routine for OSMBC
+  include_tasks: backup.yml
+  tags: osmbc

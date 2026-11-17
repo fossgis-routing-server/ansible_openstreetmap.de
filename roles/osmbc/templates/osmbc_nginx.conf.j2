@@ -1,0 +1,66 @@
+{% call server(osmbc__domains, http='forward', https=osmbc__certificate) %}
+
+    # OSMBC accepts JSON bodies up to 10 MB (blog sync API, routes/api.js).
+    # nginx's default is 1 MB - the old server had no setting, so large
+    # sync calls were cut off there.
+    client_max_body_size 10m;
+
+    # HSTS: OSMBC is https-only (port 80 only forwards). Not set on the old
+    # server (open finding from its review). No includeSubDomains: the
+    # header only covers this host name.
+    add_header Strict-Transport-Security "max-age=31536000" always;
+
+    location / {
+        proxy_pass http://127.0.0.1:{{ osmbc__port }};
+        proxy_set_header Host $host;
+        # OSMBC trusts one proxy (trustProxy: 1 in its config).
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # API: exports and blog sync runs can take long (taken over from the
+    # old server: 6000 s).
+    location /api/ {
+        proxy_pass http://127.0.0.1:{{ osmbc__port }};
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 6000s;
+    }
+
+    # Images of weeklyosm.eu, shown in the OSMBC editor (feature images,
+    # article pictures). Taken over from the old server; matches
+    # `"media folder": externally mirrored: true` in the OSMBC config
+    # (otherwise OSMBC proxies these paths itself).
+    location /wp-content/ {
+        proxy_pass https://weeklyosm.eu/wp-content/;
+        proxy_ssl_server_name on;
+        proxy_set_header Host "weeklyosm.eu";
+    }
+    location /wp-uploads/ {
+        proxy_pass https://weeklyosm.eu/wp-uploads/;
+        proxy_ssl_server_name on;
+        proxy_set_header Host "weeklyosm.eu";
+    }
+    location /images/ {
+        proxy_pass https://weeklyosm.eu/images/;
+        proxy_ssl_server_name on;
+        proxy_set_header Host "weeklyosm.eu";
+    }
+
+    # Not taken over from the old server:
+    # - static locations (/fonts, /javascripts, /profile, /stylesheets with
+    #   root .../public): OSMBC serves these itself; /profile now lives in
+    #   osmbc__data_dir and would be served wrong by nginx.
+    # - WebSocket upgrade headers: OSMBC uses no WebSockets.
+    # - /beta: second instance, later step.
+    # - /dokuwiki: separate application (PHP), not part of this role.
+
+    location ~ /\.(ht|git) {
+        deny all;
+    }
+
+    {{ custom_log(osmbc__nginx_site) }}
+{% endcall %}

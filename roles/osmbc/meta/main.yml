@@ -1,0 +1,5 @@
+---
+# Same dependencies as the mattermost role.
+dependencies:
+  - role: nginx
+  - role: postgresql

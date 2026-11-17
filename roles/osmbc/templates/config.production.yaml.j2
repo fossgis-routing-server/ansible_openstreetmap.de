@@ -1,0 +1,69 @@
+# {{ ansible_managed }}
+# OSMBC technical config: server, database, secrets.
+# Editorial settings (languages, export profiles, workflow rules) are in
+# the file named by editorial_config, maintained by the OSMBC team.
+# Key reference: docs/config.md and docs/install.md in the OSMBC repository.
+
+# Only reachable through nginx.
+serverport: {{ osmbc__port }}
+serverhostname: 127.0.0.1
+
+url: "{{ osmbc__url }}"
+htmlroot: "{{ osmbc__htmlroot }}"
+
+postgres:
+  server: localhost
+  port: "5432"
+  database: "{{ osmbc__db_name }}"
+  username: "{{ osmbc__db_user }}"
+  # Secrets via to_json: stays valid YAML whatever characters they contain.
+  password: {{ osmbc__db_password | to_json }}
+
+SessionName: "{{ osmbc__session_name }}"
+SessionSecret: {{ osmbc__session_secret | to_json }}
+
+auth:
+  # Basic-auth login is a test aid (fixed test password file) - never on a server.
+  htaccess:
+    enabled: false
+  openstreetmap_oauth20:
+    enabled: true
+    authorizationURL: https://www.openstreetmap.org/oauth2/authorize
+    tokenURL: https://www.openstreetmap.org/oauth2/token
+    clientID: {{ osmbc__oauth_client_id | to_json }}
+    clientSecret: {{ osmbc__oauth_client_secret | to_json }}
+    # Must also be registered as redirect URL in the OSM OAuth application.
+    callbackURL: "{{ osmbc__url }}{{ osmbc__htmlroot }}/auth/openstreetmap_oauth20/callback"
+    scope: read_prefs
+
+# Behind exactly one proxy (nginx): trustProxy 1 makes OSMBC use the
+# client address from X-Forwarded-For (else the rate limit counts all
+# users as one) and honour X-Forwarded-Proto (Secure session cookie).
+# The two limit values are placeholders (1000 requests per minute per
+# client); take the old server's values. OSMBC's built-in default (150
+# per 15 minutes) is too low for editors working in several tabs.
+limitValues:
+  limitWindowsMs: 60000
+  limitMaxCount: 1000
+  trustProxy: 1
+
+# Runtime data outside the code directory (read-only for the service).
+cache_directory: "{{ osmbc__data_dir }}/cache"
+profile_directory: "{{ osmbc__data_dir }}/profile"
+editorial_config: "{{ osmbc__data_dir }}/config.editorial.yaml"
+maillog_directory: "{{ osmbc__log_dir }}"
+exportlog_directory: "{{ osmbc__log_dir }}"
+
+# Test phase: false, see defaults/main.yml.
+Transition:
+  enabled: {{ osmbc__transition_enabled | bool | lower }}
+
+# Empty during the test phase = no mails, no Mattermost posts.
+SMTP: {{ osmbc__smtp | to_json }}
+slack: {{ osmbc__slack | to_json }}
+slacktool: {{ osmbc__slacktool | to_json }}
+
+{% if osmbc__extra_config %}
+# Remaining technical keys (from the OSMBC team's split technical file).
+{{ osmbc__extra_config | to_nice_yaml(indent=2, width=1000) }}
+{% endif %}

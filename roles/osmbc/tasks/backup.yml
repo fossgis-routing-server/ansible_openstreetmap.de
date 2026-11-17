@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: MIT
+# OPTIONAL - not included by tasks/main.yml yet, see the comment there.
+# Modelled on the mattermost role's backup routine.
+---
+- name: Deploy OSMBC backup script
+  ansible.builtin.template:
+      src: osmbc_backup.sh.j2
+      dest: /usr/local/sbin/osmbc-backup
+      owner: root
+      group: root
+      mode: "0700"
+
+- name: Ensure OSMBC backup directory exists
+  ansible.builtin.file:
+      path: "{{ osmbc__backup_dir }}"
+      state: directory
+      owner: root
+      group: root
+      mode: "0700"
+
+- name: Deploy systemd service for OSMBC backups
+  ansible.builtin.template:
+      src: osmbc-backup.service.j2
+      dest: /etc/systemd/system/osmbc-backup.service
+      owner: root
+      group: root
+      mode: "0644"
+  register: osmbc_backup_service
+
+- name: Deploy systemd timer for OSMBC backups
+  ansible.builtin.template:
+      src: osmbc-backup.timer.j2
+      dest: /etc/systemd/system/osmbc-backup.timer
+      owner: root
+      group: root
+      mode: "0644"
+  register: osmbc_backup_timer
+
+- name: Enable and start OSMBC backup timer
+  ansible.builtin.systemd_service:
+      name: osmbc-backup.timer
+      state: started
+      enabled: true
+      daemon_reload: "{{ osmbc_backup_service.changed or osmbc_backup_timer.changed }}"

@@ -1,0 +1,106 @@
+# SPDX-License-Identifier: MIT
+# DRAFT for the FOSSGIS Ansible repository - untested, see README.md
+---
+# Release to install: a git tag of https://github.com/TheFive/osmbc.
+# Tags are plain version numbers (no "v"); every release since 4.6.0 also
+# has a GitHub Release, so Renovate's github-releases datasource can bump it.
+osmbc__version: "4.6.0"
+osmbc__repo: "https://github.com/TheFive/osmbc.git"
+
+# OSMBC needs Node.js 22 or newer (checked at start). Debian Trixie ships
+# Node.js 20, so tasks/nodejs.yml adds the NodeSource repository.
+osmbc__nodejs_major: 22
+
+# System user, owns the code and the runtime data. Its home holds the npm
+# cache used by `npm ci`.
+osmbc__user: "osmbc"
+osmbc__home: "/srv/osmbc"
+
+# Code, config and data are kept apart (supported since OSMBC 4.6.0):
+# - app dir: git checkout, read-only for the running service (see
+#   ProtectSystem in the systemd unit)
+# - config dir: technical config, written by Ansible
+# - data dir: editorial config, caches, public profiles
+# - log dir: mail log and export log
+osmbc__app_dir: "{{ osmbc__home }}/app"
+osmbc__config_dir: "/etc/osmbc"
+osmbc__data_dir: "/var/lib/osmbc"
+osmbc__log_dir: "/var/log/osmbc"
+
+# Local port nginx forwards to. 8087 = the port on the old server.
+osmbc__port: "8087"
+
+# Test phase: only osmbc2.openstreetmap.de (already in DNS and in the
+# "osmbc" certificate). At the switch, add osmbc.openstreetmap.de here, to
+# the "osmbc" certificate in group_vars/weeklyosm.yml and to DNS.
+osmbc__domains:
+  - "osmbc2.openstreetmap.de"
+# Public URL OSMBC uses for links, mails and the OAuth callback. At the
+# switch: https://osmbc.openstreetmap.de
+osmbc__url: "https://{{ osmbc__domains[0] }}"
+# Path prefix. Production runs directly under / (old server: htmlroot "").
+osmbc__htmlroot: ""
+# Name of the ACME certificate (see the nginx macro server(..., https=...)).
+osmbc__certificate: "osmbc"
+# Fixed nginx site name, so changing osmbc__domains doesn't leave an old
+# site file behind.
+osmbc__nginx_site: "osmbc"
+
+# Time zone of the OSMBC process. The automatic workflow (e.g. "translate
+# on Thursday 20:00") runs in this zone. Must match the old server:
+# check there with `timedatectl` before the switch.
+osmbc__timezone: "Europe/Berlin"
+
+# Database (local PostgreSQL from the postgresql role).
+osmbc__db_name: "osmbc"
+osmbc__db_user: "osmbc"
+# osmbc__db_password: in private/
+
+# Session cookie name. Keep the value of the old server, then logged-in
+# users stay logged in across the switch (sessions are in the database).
+osmbc__session_name: "osmbc"
+# osmbc__session_secret: in private/ (take the old server's value, else
+# all users have to log in again once)
+
+# Login via OSM OAuth 2. One OSM OAuth application can have several
+# redirect URLs: add <osmbc__url>/auth/openstreetmap_oauth20/callback for
+# osmbc2 to the existing application instead of creating a new one.
+# osmbc__oauth_client_id: in private/
+# osmbc__oauth_client_secret: in private/
+
+# Automatic workflow (auto edit/translate/close). false = the scheduler
+# doesn't run. MUST stay false during the test phase: the test instance
+# runs on a copy of the production data while the old server still works,
+# so it would translate/close blogs twice. Set true at the switch.
+osmbc__transition_enabled: false
+
+# Mail. Empty = OSMBC only writes the mail log, sends nothing. Keep empty
+# during the test phase (else editors get every notification twice).
+# At the switch: SMTP settings (nodemailer transport options) from private/.
+osmbc__smtp: {}
+
+# Mattermost webhooks (`slack`, `slacktool` in the OSMBC config). The URLs
+# contain secrets -> private/. Empty during the test phase, same reason as
+# osmbc__smtp.
+osmbc__slack: {}
+osmbc__slacktool: {}
+
+# Optional second file with the editorial settings (languages, export
+# profiles, workflow rules). Maintained by the OSMBC team, not by Ansible:
+# the role copies it only if it doesn't exist yet. Path on the Ansible
+# control node, e.g. a file in private/; leave empty to put the file on
+# the server by hand.
+osmbc__editorial_config_src: ""
+
+# All other technical keys of the production config (AppName, apiKeys,
+# DeeplProConfig, "media folder", FirstDraftConfig.apiKey, ...). Take them
+# from the technical file the OSMBC team creates with
+# `tools/split-config.mjs`; secrets among them belong to private/.
+# Rendered as YAML into config.production.yaml. Don't repeat keys the
+# template already sets (postgres, auth, Transition, SMTP, ...): OSMBC
+# refuses a config with duplicate keys.
+osmbc__extra_config: {}
+
+# Backup (optional, see tasks/main.yml).
+osmbc__backup_dir: "/var/backups/osmbc"
+osmbc__backup_keep: 7

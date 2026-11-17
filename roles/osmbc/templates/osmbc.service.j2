@@ -1,0 +1,36 @@
+[Unit]
+Description=OSMBC
+After=network.target postgresql.service
+# Wants instead of the mattermost role's BindsTo: a PostgreSQL restart
+# should not stop OSMBC; it reconnects, and Restart= covers the rest.
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User={{ osmbc__user }}
+Group={{ osmbc__user }}
+WorkingDirectory={{ osmbc__app_dir }}
+Environment=NODE_ENV=production
+# Where OSMBC reads config.production.yaml from.
+Environment=OSMBC_CONFIG_DIR={{ osmbc__config_dir }}
+# The automatic workflow plans in this zone, see defaults/main.yml.
+Environment=TZ={{ osmbc__timezone }}
+# Not `npm start`: that always sets NODE_ENV=development.
+ExecStart=/usr/bin/node bin/www.js
+# OSMBC shuts down cleanly (stops its scheduler) on SIGINT only;
+# systemd's default SIGTERM would end it without that.
+KillSignal=SIGINT
+Restart=on-failure
+RestartSec=10
+
+# Hardening: the service can write only to its data and log dirs. The code
+# dir stays read-only at runtime (npm ci runs from Ansible, not from the
+# service). Drop these lines if they get in the way.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths={{ osmbc__data_dir }} {{ osmbc__log_dir }}
+
+[Install]
+WantedBy=multi-user.target
