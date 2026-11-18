@@ -54,8 +54,15 @@ server {
     listen [::]:80 {{ listen_params }};
     {% endif %}
     {% if https %}
+    {% if nginx__http2_enabled | default(false) | bool %}
     listen 443 ssl http2 {{ listen_params }};
     listen [::]:443 ssl http2 {{ listen_params }};
+    {% else %}
+    {# NGINX2ROOT mitigation: disable HTTP/2 until a fixed nginx package is installed.
+       No "http2 off;" here: that directive needs nginx >= 1.25.1 and breaks older hosts. #}
+    listen 443 ssl {{ listen_params }};
+    listen [::]:443 ssl {{ listen_params }};
+    {% endif %}
 
     server_name{% for fqdn in fqdns %} {{ fqdn }}{% endfor %};
 

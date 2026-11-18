@@ -1,0 +1,5 @@
+# SPDX-License-Identifier: MIT
+---
+# Temporary mitigation for NGINX2ROOT (CVE-2026-123007, CVE-2026-123633).
+# Set back to true after Debian ships a fixed nginx package and it is installed.
+nginx__http2_enabled: false

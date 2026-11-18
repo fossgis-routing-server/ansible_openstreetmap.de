@@ -38,3 +38,28 @@
     src: disable-dirtyfrag.conf.jinja
     dest: "/etc/modprobe.d/disable-dirtyfrag.conf"
   notify: update initramfs
+
+- name: Workaround against NGINX2ROOT SCTP privilege escalation
+  template:
+    src: disable-sctp.conf.jinja
+    dest: "/etc/modprobe.d/disable-sctp.conf"
+
+# modprobe.d only prevents future loading; unload a module that is already loaded
+- name: Check whether SCTP module is loaded (NGINX2ROOT)
+  stat:
+    path: /sys/module/sctp
+  register: sctp_module
+
+- name: Unload SCTP module (NGINX2ROOT)
+  command: modprobe -r sctp
+  register: sctp_unload
+  changed_when: sctp_unload.rc == 0
+  failed_when: false
+  when: sctp_module.stat.exists
+
+- name: Warn if SCTP module could not be unloaded (NGINX2ROOT)
+  debug:
+    msg: "sctp is still loaded (in use or built-in): {{ sctp_unload.stderr | default('') }} - reboot or check users of SCTP"
+  when:
+    - sctp_module.stat.exists
+    - sctp_unload.rc | default(0) != 0
