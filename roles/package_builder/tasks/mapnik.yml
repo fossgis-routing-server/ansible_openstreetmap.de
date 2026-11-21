@@ -1,0 +1,199 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Install packaging tools with apt
+  ansible.builtin.apt:
+    name:
+      - debhelper
+      - devscripts
+      - dpkg-dev
+      - fakeroot
+      - python-is-python3
+      - icu-devtools
+    state: present
+    update_cache: true
+
+- name: Checkout Mapnik source code
+  ansible.builtin.git:
+    repo: "{{ package_builder__mapnik_git_repository }}"
+    dest: "{{ package_builder__mapnik_source_dir }}"
+    version: "v{{ package_builder__mapnik_git_version }}"
+    recursive: true
+    update: true
+    force: true
+
+- name: Get Mapnik commit date
+  ansible.builtin.command:
+    argv: [git, log, -1, "--format=%cD", HEAD]
+    chdir: "{{ package_builder__mapnik_source_dir }}"
+  register: package_builder__mapnik_commit_date
+  changed_when: false
+
+- name: Create Debian packaging directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - "{{ package_builder__mapnik_source_dir }}/debian"
+    - "{{ package_builder__mapnik_source_dir }}/debian/source"
+
+- name: Render Debian control file
+  ansible.builtin.template:
+    src: mapnik/control.j2
+    dest: "{{ package_builder__mapnik_source_dir }}/debian/control"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Render Debian changelog
+  ansible.builtin.template:
+    src: mapnik/changelog.j2
+    dest: "{{ package_builder__mapnik_source_dir }}/debian/changelog"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Render Debian rules
+  ansible.builtin.template:
+    src: mapnik/rules.j2
+    dest: "{{ package_builder__mapnik_source_dir }}/debian/rules"
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Render Mapnik runtime install file
+  ansible.builtin.template:
+    src: mapnik/mapnik.install.j2
+    dest: "{{ package_builder__mapnik_source_dir }}/debian/mapnik.install"
+
+- name: Render Mapnik development install file
+  ansible.builtin.template:
+    src: mapnik/libmapnik-dev.install.j2
+    dest: "{{ package_builder__mapnik_source_dir }}/debian/libmapnik-dev.install"
+
+- name: Install Mapnik build dependencies from debian/control
+  ansible.builtin.command:
+    cmd: apt-get -y build-dep ./
+    chdir: "{{ package_builder__mapnik_source_dir }}"
+  changed_when: false
+
+- name: Build Mapnik Debian package
+  ansible.builtin.command:
+    argv:
+      - dpkg-buildpackage
+      - -us
+      - -uc
+      - -b
+    chdir: "{{ package_builder__mapnik_source_dir }}"
+  environment:
+    DEB_BUILD_OPTIONS: "parallel=2 nocheck"
+  become: true
+
+- name: Copy Mapnik Debian package to local packages directory
+  ansible.builtin.fetch:
+    src: "{{ package_builder__mapnik_source_dir | dirname }}/{{ package_builder__mapnik_package_name }}_{{ package_builder__mapnik_package_version }}_{{ package_builder__architecture }}.deb"
+    dest: "{{ package_builder__dist_local_packages_dir }}/"
+    flat: true
+
+- name: Copy libmapnik-dev Debian package to local packages directory
+  ansible.builtin.fetch:
+    src: "{{ package_builder__mapnik_source_dir | dirname }}/{{ package_builder__mapnik_dev_package_name }}_{{ package_builder__mapnik_package_version }}_{{ package_builder__architecture }}.deb"
+    dest: "{{ package_builder__dist_local_packages_dir }}/"
+    flat: true
+
+
+# Tirex
+- name: Install locally built Mapnik packages
+  ansible.builtin.apt:
+    deb: "{{ package_builder__mapnik_source_dir | dirname }}/{{ item }}_{{ package_builder__mapnik_package_version }}_{{ package_builder__architecture }}.deb"
+    state: present
+  loop:
+    - "{{ package_builder__mapnik_package_name }}"
+    - "{{ package_builder__mapnik_dev_package_name }}"
+
+- name: Get installed Mapnik version
+  ansible.builtin.command: mapnik-config --version
+  register: package_builder__mapnik_installed_version
+  changed_when: false
+  failed_when: package_builder__mapnik_installed_version.stdout | trim != package_builder__mapnik_git_version
+
+- name: Checkout Tirex source code
+  ansible.builtin.git:
+    repo: "{{ package_builder__tirex_git_repository }}"
+    dest: "{{ package_builder__tirex_source_dir }}"
+    version: "v{{ package_builder__tirex_git_version }}"
+    recursive: true
+    update: true
+    force: true
+
+- name: Drop Debian Mapnik 4.0 patch
+  ansible.builtin.lineinfile:
+    path: "{{ package_builder__tirex_source_dir }}/debian/patches/series"
+    line: "mapnik-4.0.patch"
+    state: absent
+
+- name: Install Munin and Nagios plugins into the Tirex package build
+  ansible.builtin.shell: |
+    set -e
+    cd "{{ package_builder__tirex_source_dir }}"
+    if grep -q '^execute_after_dh_auto_install:' debian/rules; then
+      echo "debian/rules already defines execute_after_dh_auto_install" >&2
+      exit 1
+    fi
+    printf '\nexecute_after_dh_auto_install:\n\t$(MAKE) DESTDIR=$(CURDIR)/debian/tmp INSTALLOPTS= install-munin install-nagios\n' >> debian/rules
+  args:
+    executable: /bin/bash
+
+- name: Install Tirex build dependencies from debian/control
+  ansible.builtin.command:
+    cmd: apt-get -y build-dep ./
+    chdir: "{{ package_builder__tirex_source_dir }}"
+  changed_when: false
+
+- name: Remove old Tirex build results
+  ansible.builtin.command:
+    argv:
+      - find
+      - "{{ package_builder__tirex_source_dir | dirname }}"
+      - -maxdepth
+      - "1"
+      - -type
+      - f
+      - -name
+      - "tirex*"
+      - -delete
+  changed_when: false
+
+- name: Use mapnik-config instead of Debian's mapnik-plugin-base
+  ansible.builtin.replace:
+    path: "{{ package_builder__tirex_source_dir }}/debian/tirex.links"
+    regexp: 'mapnik-plugin-base'
+    replace: 'mapnik-config --input-plugins'
+
+- name: Build Tirex Debian packages
+  ansible.builtin.command:
+    argv: [dpkg-buildpackage, -us, -uc, -b]
+    chdir: "{{ package_builder__tirex_source_dir }}"
+  environment:
+    DEB_BUILD_OPTIONS: "parallel=2 nocheck"
+  become: true
+
+- name: Find Tirex Debian packages
+  ansible.builtin.find:
+    paths: "{{ package_builder__tirex_source_dir | dirname }}"
+    patterns:
+      - "tirex_*.deb"
+      - "tirex-munin-plugin_*.deb"
+      - "tirex-nagios-plugin_*.deb"
+    file_type: file
+    recurse: false
+  register: package_builder__tirex_deb_files
+
+- name: Copy Tirex Debian packages to local packages directory
+  ansible.builtin.fetch:
+    src: "{{ item.path }}"
+    dest: "{{ package_builder__dist_local_packages_dir }}/"
+    flat: true
+  loop: "{{ package_builder__tirex_deb_files.files }}"

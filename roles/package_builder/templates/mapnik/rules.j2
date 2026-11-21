@@ -1,0 +1,16 @@
+#!/usr/bin/make -f
+
+%:
+	dh $@
+
+override_dh_auto_configure:
+	./configure PREFIX=/usr CUSTOM_CXXFLAGS="-DBOOST_PHOENIX_STL_TUPLE_H_"
+
+override_dh_auto_build:
+	JOBS=2 $(MAKE)
+
+override_dh_auto_test:
+	@echo "Skipping Mapnik tests during Debian package build"
+
+override_dh_auto_install:
+	python3 scons/scons.py -j2 PREFIX=/usr DESTDIR=$(CURDIR)/debian/tmp install
