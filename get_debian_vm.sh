@@ -183,4 +183,4 @@ done
 
 echo Doing ansible bootstrap
 
-ansible-playbook -i vm/ansible_vm.ini bootstrap.yml -l $DEB_NAME --key-file vm/id_ed25519
+ansible-playbook -i vm/ansible-vm.ini bootstrap.yml -l $DEB_NAME --key-file vm/id_ed25519
