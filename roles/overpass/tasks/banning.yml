@@ -1,6 +1,8 @@
 - name: Install prerequisits for setting up offramp
   ansible.builtin.apt:
-    name: python3-packaging
+    name:
+      - python3-packaging
+      - virtualenv
 
 # Packaging is done locally because the repo behind it is private.
 - name: Package offramp

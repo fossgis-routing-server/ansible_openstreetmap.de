@@ -11,16 +11,17 @@
     repo: "{{ overpass__repo }}"
     dest: "{{ overpass__basedir }}/src/osm-3s"
 
-- name: Copy source into build directory
-  become_user: overpass
-  ansible.builtin.copy:
-    src: "{{ overpass__basedir }}/src/osm-3s/src"
-    dest: "{{ overpass__basedir }}/src/build/"
-    remote_src: true
-
 - name: Determine source directory
   set_fact:
-    overpass__srcdir: "{{ overpass__basedir }}/src/build/src"
+    overpass__srcdir: "{{ overpass__basedir }}/src/osm-3s/src"
+    overpass__builddir: "{{ overpass__basedir }}/src/build"
+
+- name: Create build directory
+  file:
+    path: "{{ overpass__builddir }}"
+    state: directory
+    owner: "{{ overpass__user }}"
+    group: "{{ overpass__user }}"
 
 - name: Autoconf overpass
   become_user: overpass
@@ -31,14 +32,14 @@
 - name: Configure overpass
   become_user: overpass
   command:
-    cmd: "./configure --enable-lz4 --prefix={{ overpass__basedir }}"
-    chdir: "{{ overpass__srcdir }}"
+    cmd: "{{ overpass__srcdir }}/configure --enable-lz4 --prefix={{ overpass__basedir }}"
+    chdir: "{{ overpass__builddir }}"
 
 - name: Build and install overpass
   become_user: overpass
   make:
     target: install
-    chdir: "{{ overpass__srcdir }}"
+    chdir: "{{ overpass__builddir }}"
     jobs: "{{ ansible_facts['processor_cores'] }}"
 
 - name: Copy site content from source
@@ -60,9 +61,21 @@
     - rules
     - templates
 
+- name: Copy munin scripts to global directory
+  copy:
+    remote_src: yes
+    src: "{{overpass__srcdir }}/munin/{{item}}"
+    dest: "/etc/munin/plugins/{{item}}"
+    mode: "755"
+  loop:
+    - osm_db_lag
+    - osm_db_request_count
+    - osm_mem_status
+    - osm_timeout_status
+
 - name: Replace overpass DB directory in munin scripts
   replace:
-    path: "{{overpass__srcdir }}/munin/{{item}}"
+    path: "/etc/munin/plugins/{{item}}"
     regexp: "/OVERPASS_DB_DIR/"
     replace: "{{ overpass__basedir }}/db/"
   loop:
@@ -73,21 +86,9 @@
 
 - name: Replace overpass exec directory in munin scripts (I)
   replace:
-    path: "{{overpass__srcdir }}/munin/{{item}}"
+    path: "/etc/munin/plugins/{{item}}"
     regexp: "/OVERPASS_EXEC_DIR/"
     replace: "{{ overpass__basedir }}/"
-  loop:
-    - osm_db_lag
-    - osm_db_request_count
-    - osm_mem_status
-    - osm_timeout_status
-
-- name: Copy munin scripts to global directory
-  copy:
-    remote_src: yes
-    src: "{{overpass__srcdir }}/munin/{{item}}"
-    dest: "/etc/munin/plugins/{{item}}"
-    mode: "755"
   loop:
     - osm_db_lag
     - osm_db_request_count
