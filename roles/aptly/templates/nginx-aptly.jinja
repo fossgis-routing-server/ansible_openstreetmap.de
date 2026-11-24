@@ -1,0 +1,16 @@
+{% call server([server_name], http='forward', https=server_name) %}
+
+    root {{ aptly_root_dir }}/public;
+
+    location / {
+        autoindex on;
+        autoindex_exact_size off;
+        autoindex_localtime on;
+    }
+
+    location ~ /\. {
+           deny all;
+    }
+
+    {{ custom_log(server_name) }}
+{% endcall %}

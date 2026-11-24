@@ -1,0 +1,113 @@
+# SPDX-License-Identifier: MIT
+---
+- name: "[{{ dist }}] Set repository facts"
+  ansible.builtin.set_fact:
+    aptly__repo: "{{ aptly__repository_name }}-{{ dist }}"
+    aptly__repo_incoming_dir: "{{ aptly__aptly_incoming_dir }}/{{ dist }}"
+
+- name: "[{{ dist }}] Create incoming directory"
+  ansible.builtin.file:
+    path: "{{ aptly__repo_incoming_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: "[{{ dist }}] Copy Debian packages to aptly server"
+  ansible.builtin.copy:
+    src: "{{ package_builder_and_aptly__local_packages_dir }}/{{ dist }}/"
+    dest: "{{ aptly__repo_incoming_dir }}/"
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: "[{{ dist }}] Check whether aptly repository exists"
+  ansible.builtin.command:
+    argv:
+      - aptly
+      - repo
+      - show
+      - "{{ aptly__repo }}"
+  register: aptly__repo_check
+  changed_when: false
+  failed_when: false
+
+- name: "[{{ dist }}] Create aptly repository"
+  ansible.builtin.command:
+    argv:
+      - aptly
+      - repo
+      - create
+      - "-distribution={{ dist }}"
+      - "-component={{ aptly__component }}"
+      - "{{ aptly__repo }}"
+  when: aptly__repo_check.rc != 0
+
+- name: "[{{ dist }}] Find Debian packages in incoming directory"
+  ansible.builtin.find:
+    paths: "{{ aptly__repo_incoming_dir }}"
+    patterns: "*.deb"
+    file_type: file
+    recurse: true
+  register: aptly__incoming_packages
+
+- name: "[{{ dist }}] Get packages already in repository"
+  ansible.builtin.command:
+    argv:
+      - aptly
+      - repo
+      - show
+      - -with-packages
+      - "{{ aptly__repo }}"
+  register: aptly__repo_packages
+  changed_when: false
+
+- name: "[{{ dist }}] Add new Debian packages to repository"
+  ansible.builtin.command:
+    argv:
+      - aptly
+      - repo
+      - add
+      - "{{ aptly__repo }}"
+      - "{{ item.path }}"
+  loop: "{{ aptly__incoming_packages.files }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+  when: (item.path | basename | regex_replace('\.deb$', '')) not in (aptly__repo_packages.stdout_lines | map('trim') | list)
+  register: aptly__repo_add
+
+- name: "[{{ dist }}] Check whether distribution is published"
+  ansible.builtin.command:
+    argv:
+      - aptly
+      - publish
+      - show
+      - "{{ dist }}"
+  register: aptly__publish_check
+  changed_when: false
+  failed_when: false
+
+- name: "[{{ dist }}] Publish aptly repository"
+  ansible.builtin.command:
+    argv:
+      - aptly
+      - publish
+      - repo
+      - -batch
+      - "-distribution={{ dist }}"
+      - "-component={{ aptly__component }}"
+      - "-gpg-key={{ aptly__gpg_key_id }}"
+      - "{{ aptly__repo }}"
+  when: aptly__publish_check.rc != 0
+
+- name: "[{{ dist }}] Update published aptly repository"
+  ansible.builtin.command:
+    argv:
+      - aptly
+      - publish
+      - update
+      - -batch
+      - "-gpg-key={{ aptly__gpg_key_id }}"
+      - "{{ dist }}"
+  when: aptly__publish_check.rc == 0
+  changed_when: aptly__repo_add is changed

@@ -1,0 +1,98 @@
+# SPDX-License-Identifier: MIT
+---
+- name: Install aptly and gnupg
+  ansible.builtin.apt:
+    name:
+      - aptly
+      - gnupg
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Create aptly base directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - "{{ aptly__aptly_incoming_dir }}"
+    - "{{ aptly__root_dir }}"
+    - "{{ aptly__root_dir }}/public"
+
+- name: Configure aptly
+  ansible.builtin.copy:
+    dest: /root/.aptly.conf
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      {
+        "rootDir": "{{ aptly__root_dir }}",
+        "logLevel": "info",
+        "gpgProvider": "gpg"
+      }
+
+- name: Check for aptly GPG secret key
+  ansible.builtin.command:
+    argv:
+      - gpg
+      - --batch
+      - --list-secret-keys
+      - --with-colons
+      - "{{ aptly__gpg_email }}"
+  register: aptly__gpg_key_check
+  changed_when: false
+  failed_when: aptly__gpg_key_check.rc not in [0, 2]
+
+- name: Create aptly GPG signing key
+  ansible.builtin.command:
+    argv:
+      - gpg
+      - --batch
+      - --pinentry-mode
+      - loopback
+      - --passphrase
+      - ""
+      - --quick-generate-key
+      - "{{ aptly__gpg_name }} <{{ aptly__gpg_email }}>"
+      - "rsa{{ aptly__gpg_key_length }}"
+      - sign
+      - "0"
+  when: "'sec:' not in aptly__gpg_key_check.stdout"
+
+- name: Prepare aptly GPG key
+  ansible.builtin.include_tasks:
+    file: gpg.yml
+    apply:
+      tags:
+        - aptly_upload
+        - never
+  tags:
+    - aptly_upload
+    - never
+
+- name: Configure one repository per distribution
+  ansible.builtin.include_tasks:
+    file: repo.yml
+    apply:
+      tags:
+        - aptly_upload
+        - never
+  loop: "{{ aptly__distributions }}"
+  loop_control:
+    loop_var: dist
+  tags:
+    - aptly_upload
+    - never
+
+- name: "nginx site for {{ aptly__server_name }}"
+  nginx_site:
+    site: "{{ aptly__server_name }}"
+    src: 'nginx-aptly.jinja'
+  vars:
+    server_name: "{{ aptly__server_name }}"
+    default_server: ""
+    aptly_root_dir: "{{ aptly__root_dir }}"
+  notify: restart nginx
