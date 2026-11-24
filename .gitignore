@@ -8,3 +8,4 @@ vm/id_ed25519.pub
 vm/network-config
 vm/user-data
 vm/*.qcow2
+vm/packages/
