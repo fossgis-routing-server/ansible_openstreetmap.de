@@ -65,7 +65,7 @@ class ActionModule(ActionBase):
             }
         else:
             module_args = {
-                'dest': '/etc/nginx/sites-enabled/' + site,
+                'dest': '/etc/munin/plugins/' + name,
                 'state': 'absent'
             }
 
