@@ -46,20 +46,23 @@
   changed_when: false
   failed_when: aptly__gpg_key_check.rc not in [0, 2]
 
-- name: Create aptly GPG signing key
+- name: Fail if no GPG secret key is available
+  ansible.builtin.assert:
+    that:
+      - "'sec:' in aptly__gpg_key_check.stdout or (aptly__secret_key | default('') | length > 0)"
+    fail_msg: >-
+      Kein GPG-Key für {{ aptly__gpg_email }} im Keyring und
+      aptly__secret_key ist nicht gesetzt.
+    quiet: true
+
+- name: Import aptly GPG secret key
   ansible.builtin.command:
     argv:
       - gpg
       - --batch
-      - --pinentry-mode
-      - loopback
-      - --passphrase
-      - ""
-      - --quick-generate-key
-      - "{{ aptly__gpg_name }} <{{ aptly__gpg_email }}>"
-      - "rsa{{ aptly__gpg_key_length }}"
-      - sign
-      - "0"
+      - --import
+    stdin: "{{ aptly__secret_key }}"
+  no_log: true
   when: "'sec:' not in aptly__gpg_key_check.stdout"
 
 - name: Prepare aptly GPG key
