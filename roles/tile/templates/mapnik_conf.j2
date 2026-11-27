@@ -34,11 +34,7 @@ procs={{ mapnik_procs }}
 #-----------------------------------------------------------------------------
 
 #  Directory with input plugins for mapnik. The directory of your mapnik
-{% if ansible_distribution_release == "trixie" %}
-plugindir=/usr/lib/x86_64-linux-gnu/mapnik/4.0/input
-{% else %}
-plugindir=/usr/share/tirex/mapnik/input
-{% endif %}
+plugindir={{ package_builder__mapnik_plugin_dir.stdout | trim }}
 
 #  The directory where the Mapnik rendering engine loads its TrueType fonts from.
 #  If the style sheet references fonts that are not present here, the renderer will 
