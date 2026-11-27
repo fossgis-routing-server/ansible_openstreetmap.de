@@ -83,7 +83,35 @@
 
 - name: install required packages with apt
   apt:
-    name: [git, dpkg-dev, debhelper, libmapnik-dev, python3-mapnik]
+    name: [git, dpkg-dev, debhelper]
+
+# START mapnik form aptly.openstreetmap.de
+- name: Remove python3-mapnik
+  apt:
+    name: python3-mapnik
+    state: absent
+    autoremove: true
+
+- name: Add OSMF APT repository
+  deb822_repository:
+    name: openstreetmap
+    uris: https://aptly.openstreetmap.de
+    suites: trixie
+    components:
+      - main
+    signed_by: https://aptly.openstreetmap.de/gpg.key
+
+- name: Install Mapnik 4.4.0 packages
+  apt:
+    name:
+      - mapnik=4.4.0-1+osmde
+      - libmapnik-dev=4.4.0-1+osmde
+    state: present
+    update_cache: true
+  notify:
+    - restart tirex-master
+    - restart tirex-backend-manager
+# END mapnik form aptly.openstreetmap.de
 
 # Import
 - name: import script
@@ -125,6 +153,8 @@
   register: tile_mapnik_git
   become: yes
   become_user: "{{ tile__user }}"
+  notify:
+    - restart tirex-backend-manager
 
 - name: Dependencies for style and localization functions for OpenStreetMap
   apt:
@@ -295,9 +325,17 @@
     enabled: false
     name: renderd
 
-- name: Install tirex with apt
+- name: Install Tirex
   apt:
-    name: tirex
+    name:
+      - tirex=0.8.0-2+osmde
+      - tirex-munin-plugin=0.8.0-2+osmde
+      - tirex-nagios-plugin=0.8.0-2+osmde
+    state: present
+    update_cache: true
+  notify:
+    - restart tirex-master
+    - restart tirex-backend-manager
 
 - name: Create directories in /etc/tirex
   file:
@@ -317,6 +355,14 @@
     src: "tirex_conf.j2"
   vars:
     mapnik_procs: "{{ tile__mapnik_procs }}"
+
+- name: Get Mapnik input plugins directory
+  ansible.builtin.command:
+    argv:
+      - mapnik-config
+      - --input-plugins
+  register: package_builder__mapnik_plugin_dir
+  changed_when: false
 
 - name: Tirex mapnik backend config
   template:
@@ -748,20 +794,27 @@
   ignore_errors: yes
 # END font-hack
 
-# reload style if necessary
-- name: Restart tirex-backend-manager if style has changed
-  ansible.builtin.systemd:
-    state: restarted
-    enabled: true
-    name: tirex-backend-manager
-  when: tile_mapnik_git.changed
-
 #
 # Fail2ban
 #
 - name: Install sqlite3 with apt
   apt:
     name: sqlite3
+
+- name: Ensure tirex log directory exists
+  file:
+    path: /var/cache/tirex/logs
+    state: directory
+    mode: "0755"
+
+- name: Ensure tileserver log file exists for fail2ban
+  file:
+    path: /var/cache/tirex/logs/apache_logs.log
+    state: touch
+    modification_time: preserve
+    access_time: preserve
+    mode: "0644"
+
 # bad requests
 - name: Fail2ban filter for bad requests in loop
   fail2ban_filter:
@@ -859,7 +912,7 @@
     filter: tileserver-rate
     logpath: /var/cache/tirex/logs/apache_logs.log
     findtime: 1m
-    maxretry: 2500
+    maxretry: 2000
     bantime: 1h
     bantime.increment: true
     bantime.factor: 2

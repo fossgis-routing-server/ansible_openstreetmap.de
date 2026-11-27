@@ -5,8 +5,9 @@
 {% for style in styles | sort(attribute='order') %}
   AddTileConfig            /{{ style.url }} {{ style.name }}
 {% endfor %}
-  ModTileRequestTimeout    0
-  ModTileMissingRequestTimeout 240
+  MaxKeepAliveRequests 10
+  ModTileRequestTimeout 0
+  ModTileMissingRequestTimeout 60
   ModTileMaxLoadOld 10
   ModTileMaxLoadMissing 12
   ModTileEnableTileThrottling On
