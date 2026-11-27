@@ -172,6 +172,12 @@
     regexp: 'mapnik-plugin-base'
     replace: 'mapnik-config --input-plugins'
 
+- name: Set Tirex package version
+  ansible.builtin.replace:
+    path: "{{ package_builder__tirex_source_dir }}/debian/changelog"
+    regexp: '\A(tirex) \([^)]+\)'
+    replace: '\1 ({{ package_builder__tirex_package_version }})'
+
 - name: Build Tirex Debian packages
   ansible.builtin.command:
     argv: [dpkg-buildpackage, -us, -uc, -b]
